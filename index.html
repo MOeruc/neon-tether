@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#07051a">
 <meta name="color-scheme" content="dark">
-<meta name="description" content="Ninja-Jump'n'Run über nächtliche Dächer: Seilschwingen, Loopings, Overdrive und Geister-Rennen.">
+<meta name="description" content="Ninja-Jump'n'Run über nächtliche Dächer: Seilschwingen, Dash-Kills, Loopings, Overdrive und Geister-Rennen.">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -67,6 +67,13 @@ body {
 #flowfill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--tether), var(--volt)); transition: width 0.08s linear; }
 #flowbar.od #flowfill { background: linear-gradient(90deg, var(--hot), var(--volt), var(--tether)); }
 #mult { font-family: var(--font-display); font-size: var(--step-1); color: var(--volt); min-width: 2.2em; }
+.dash-row { margin-top: -2px; }
+.dash-sp { font-family: var(--font-display); font-size: var(--step-1); min-width: 2.2em; height: 0; }
+#dashbar { width: clamp(110px, 24vw, 260px); height: 5px; transform: skewX(-20deg); overflow: hidden; background: color-mix(in srgb, var(--paper) 10%, transparent); outline: 1px solid color-mix(in srgb, var(--paper) 20%, transparent); transition: box-shadow 0.15s, outline-color 0.15s; }
+#dashfill { height: 100%; width: 100%; transform-origin: left center; background: color-mix(in srgb, var(--paper) 55%, transparent); }
+#dashbar.ready { outline-color: var(--tether); box-shadow: 0 0 10px color-mix(in srgb, var(--tether) 55%, transparent); }
+#dashbar.ready #dashfill { background: var(--tether); }
+#dashbar.empty { outline-color: color-mix(in srgb, var(--hot) 75%, transparent); }
 #chain { font-weight: 700; font-size: var(--step--1); letter-spacing: 0.14em; color: var(--tether); min-height: 1.2em; }
 .hud-right { display: flex; justify-content: flex-end; align-items: start; gap: 8px; }
 .speedo { text-align: right; line-height: 1; margin-right: 4px; }
@@ -138,6 +145,7 @@ body {
 .keys { display: grid; grid-template-columns: auto 1fr; gap: 7px 12px; align-items: center; font-size: var(--step-0); }
 .keys kbd { font: 700 12px var(--font-ui); background: var(--paper); color: var(--ink); padding: 3px 7px; border-radius: 3px; white-space: nowrap; justify-self: start; }
 .keys .t { color: var(--paper); }
+html:not(.touch) .keys .kt, html.touch .keys .kd { display: none; } /* phones see gestures, desktops see keys */
 .keys .t em { color: var(--volt); font-style: normal; }
 .crew ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-variant-numeric: tabular-nums; }
 .crew li { display: grid; grid-template-columns: 1.6em minmax(0, 1fr) auto; gap: 8px; align-items: baseline; padding: 5px 0; border-bottom: 1px solid color-mix(in srgb, var(--paper) 10%, transparent); }
@@ -207,6 +215,7 @@ body {
   </div>
   <div class="hud-center">
     <div class="flow-row"><span class="flow-label">FLOW</span><div id="flowbar"><div id="flowfill"></div></div><span id="mult">x1</span></div>
+    <div class="flow-row dash-row"><span class="flow-label">DASH</span><div id="dashbar" class="ready"><div id="dashfill"></div></div><span class="dash-sp" aria-hidden="true"></span></div>
     <div id="chain"></div>
   </div>
   <div class="hud-right">
@@ -220,14 +229,14 @@ body {
 <div id="zone" class="fade"></div>
 <div id="touchHints" class="fade" hidden>
   <div><span><b>TIPPEN</b>SPRINGEN · AM SEIL SCHWUNG</span></div>
-  <div><span><b>HALTEN</b>SCHWINGEN · WISCHEN ↓ SLAM</span></div>
+  <div><span><b>HALTEN</b>SCHWINGEN · WISCHEN → DASH · ↓ SLAM</span></div>
 </div>
 
 <section class="screen" id="screenStart">
   <div class="panel">
     <div>
       <h1 class="logo">NEON<span>TETHER</span></h1>
-      <p class="tag">Sprinte über die Dächer, schieß dein Seil an die Leuchtanker und schwing dich schneller als der Blackout, der die Stadt hinter dir frisst.</p>
+      <p class="tag">Sprinte über die Dächer, schwing dich an Leuchtankern über die Schluchten und dash dich durch Drohnen und Wächter, schneller als der Blackout, der die Stadt hinter dir frisst.</p>
       <div class="meta-row"><span>Tagesstrecke <b id="seedLabel">–</b></span><span>Bestweite heute <b id="bestLabel">–</b></span></div>
       <div class="actions">
         <button class="btn" id="btnStart"><span>LOS GEHT'S</span></button>
@@ -244,12 +253,16 @@ body {
       <div>
         <h3>STEUERUNG</h3>
         <div class="keys">
-          <kbd>LEER / W</kbd><span class="t">Springen, in der Luft nochmal</span>
-          <kbd>J / MAUS</kbd><span class="t">Halten = am Seil hin und her schwingen</span>
-          <kbd>LEER AM SEIL</kbd><span class="t">Schwung holen, unten am stärksten</span>
+          <kbd class="kd">LEER / W</kbd><span class="t kd">Springen, in der Luft nochmal</span>
+          <kbd class="kd">J / MAUS</kbd><span class="t kd">Halten = am Seil hin und her schwingen</span>
+          <kbd class="kd">LEER AM SEIL</kbd><span class="t kd">Schwung holen, unten am stärksten</span>
+          <kbd class="kt">LINKS TIPPEN</kbd><span class="t kt">Springen, in der Luft nochmal, am Seil Schwung holen</span>
+          <kbd class="kt">RECHTS HALTEN</kbd><span class="t kt">Am Seil hin und her schwingen</span>
           <kbd>LOSLASSEN</kbd><span class="t">im <em>goldenen Bogen</em> = PERFEKT</span>
-          <kbd>S / ↓</kbd><span class="t">Slam: Drohnen zerlegen</span>
-          <kbd>HANDY</kbd><span class="t">Links tippen = springen, am Seil Schwung holen. Rechts halten = Seil. Nach unten wischen = Slam</span>
+          <kbd class="kd">D / → / SHIFT</kbd><span class="t kd"><em>Dash</em>: zerlegt Drohnen und Wächter, jeder Treffer lädt ihn neu</span>
+          <kbd class="kt">WISCHEN →</kbd><span class="t kt"><em>Dash</em>: zerlegt Drohnen und Wächter, jeder Treffer lädt ihn neu</span>
+          <kbd class="kd">S / ↓</kbd><span class="t kd">Slam: Drohnen zerlegen</span>
+          <kbd class="kt">WISCHEN ↓</kbd><span class="t kt">Slam: Drohnen zerlegen</span>
         </div>
       </div>
       <div class="crew" id="crewStart" hidden>
@@ -283,7 +296,7 @@ body {
         <div class="hl"><dt>PUNKTE</dt><dd id="stScore">0</dd></div>
         <div><dt>TOPSPEED</dt><dd id="stTop">0 km/h</dd></div>
         <div><dt>PERFEKT</dt><dd id="stPerfect">0</dd></div>
-        <div><dt>DROHNEN</dt><dd id="stDrones">0</dd></div>
+        <div><dt>GEGNER</dt><dd id="stDrones">0</dd></div>
         <div><dt>MAX-KETTE</dt><dd id="stChain">0</dd></div>
       </dl>
       <div class="actions">
@@ -353,18 +366,20 @@ async function keepAwake(on) {
   } catch (e) { wakeLock = null; }
 }
 const IS_TOUCH = (() => { try { return matchMedia("(pointer: coarse)").matches || "ontouchstart" in window; } catch (e) { return false; } })();
+document.documentElement.classList.toggle("touch", IS_TOUCH);
 
 // ================= INPUT =================
 const input = {
   jumpSrc: new Set(), swingSrc: new Set(),
-  jumpPressed: false, divePressed: false, swingPressed: false,
+  jumpPressed: false, divePressed: false, swingPressed: false, dashPressed: false,
   get jumpHeld() { return this.jumpSrc.size > 0; },
   get swingHeld() { return this.swingSrc.size > 0; },
-  clear() { this.jumpSrc.clear(); this.swingSrc.clear(); this.jumpPressed = this.divePressed = this.swingPressed = false; },
+  clear() { this.jumpSrc.clear(); this.swingSrc.clear(); this.jumpPressed = this.divePressed = this.swingPressed = this.dashPressed = false; },
 };
 const KEYMAP = {
   Space: "jump", ArrowUp: "jump", KeyW: "jump",
-  KeyJ: "swing", KeyK: "swing", ShiftLeft: "swing", ShiftRight: "swing", KeyX: "swing", ArrowRight: "swing", KeyD: "swing",
+  KeyJ: "swing", KeyK: "swing", KeyX: "swing",
+  KeyD: "dash", ArrowRight: "dash", ShiftLeft: "dash", ShiftRight: "dash", KeyE: "dash", KeyL: "dash",
   ArrowDown: "dive", KeyS: "dive",
 };
 let onGameKey = () => {};   // set by the game module (pause, mute, restart)
@@ -376,6 +391,7 @@ window.addEventListener("keydown", (e) => {
   if (act && !e.repeat) {
     if (act === "jump") { input.jumpSrc.add("k" + e.code); input.jumpPressed = true; }
     else if (act === "swing") { input.swingSrc.add("k" + e.code); input.swingPressed = true; }
+    else if (act === "dash") input.dashPressed = true;
     else if (act === "dive") input.divePressed = true;
   }
   if (act || e.code === "Space") e.preventDefault();
@@ -393,6 +409,7 @@ canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 canvas.addEventListener("pointerdown", (e) => {
   onAnyInput();
   e.preventDefault();
+  if (e.pointerType === "mouse" && e.button === 1) { input.dashPressed = true; return; } // middle click = dash
   try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
   const id = "p" + e.pointerId;
   let role;
@@ -404,13 +421,16 @@ canvas.addEventListener("pointerdown", (e) => {
 });
 canvas.addEventListener("pointermove", (e) => {
   const p = pointers.get(e.pointerId);
-  if (!p || p.swiped || e.pointerType === "mouse") return;
-  const dy = e.clientY - p.y, dx = Math.abs(e.clientX - p.x);
-  if (dy > 42 && dy > dx * 1.2 && performance.now() - p.t < 320) {
-    p.swiped = true; input.divePressed = true;
-    // a swipe is a slam, not a hold: drop the hold so the swing/jump does not stick
-    input.jumpSrc.delete("p" + e.pointerId); input.swingSrc.delete("p" + e.pointerId);
-  }
+  if (!p || p.swiped || e.pointerType === "mouse" || performance.now() - p.t > 320) return;
+  const dy = e.clientY - p.y, dx = e.clientX - p.x;
+  let act = null;
+  if (dy > 42 && dy > Math.abs(dx) * 1.2) act = "dive";        // swipe down = slam
+  else if (dx > 42 && dx > Math.abs(dy) * 1.2) act = "dash";   // swipe right = dash
+  if (!act) return;
+  p.swiped = true;
+  if (act === "dive") input.divePressed = true; else input.dashPressed = true;
+  // a swipe is a quick move, not a hold: drop the hold so the swing/jump does not stick
+  input.jumpSrc.delete("p" + e.pointerId); input.swingSrc.delete("p" + e.pointerId);
 });
 const endPointer = (e) => {
   pointers.delete(e.pointerId);
@@ -593,6 +613,23 @@ const Sound = (() => {
     land(k) { if (!ok()) return; osc("sine", 140, now(), 0.16, 0.14 + 0.24 * k, sfxBus, 45); noise(now(), 0.1 + 0.12 * k, "lowpass", 900, 0.12 + 0.25 * k, sfxBus); },
     whoosh() { if (ok()) noise(now(), 0.34, "bandpass", 420, 0.24, sfxBus, 1.3, 2600); },
     pump(strong) { if (!ok()) return; noise(now(), 0.24, "bandpass", strong ? 650 : 480, strong ? 0.32 : 0.2, sfxBus, 1.4, strong ? 2800 : 1500); if (strong) osc("square", 520, now(), 0.12, 0.06, sfxBus, 900); },
+    dash() { // air ripping open: rising whoosh over a low punch
+      if (!ok()) return; const t = now();
+      noise(t, 0.2, "bandpass", 700, 0.36, sfxBus, 1.2, 5200);
+      osc("sine", 130, t, 0.12, 0.22, sfxBus, 48);
+      osc("square", 700, t, 0.07, 0.035, sfxBus, 1500);
+    },
+    slice(k = 1) { // blade through metal; multi-kills climb in pitch
+      if (!ok()) return; const t = now(), up = Math.min(k, 4) - 1;
+      osc("sawtooth", 2600, t, 0.13, 0.07, sfxBus, 260);
+      noise(t, 0.09, "highpass", 4800, 0.32, sfxBus);
+      osc("triangle", 3100 + up * 280, t + 0.01, 0.3, 0.045, sfxBus);
+      kick(t, 0.9, sfxBus);
+      if (k >= 2) [72, 76, 79].forEach((n, i) => osc("square", mtof(n + up * 2), t + 0.04 + i * 0.035, 0.18, 0.045, sfxBus));
+    },
+    reflect() { if (!ok()) return; const t = now(); osc("square", 1300, t, 0.08, 0.06, sfxBus, 2600); osc("triangle", 1900, t + 0.02, 0.3, 0.05, sfxBus); noise(t, 0.08, "highpass", 6000, 0.2, sfxBus); },
+    charge() { if (ok()) osc("sine", 320, now(), 0.46, 0.05, sfxBus, 1150, 0.3); },
+    shot() { if (!ok()) return; osc("square", 980, now(), 0.16, 0.06, sfxBus, 180); noise(now(), 0.1, "bandpass", 2400, 0.14, sfxBus, 2); },
     grind(on) {
       if (!ctx || !started) return;
       if (on && !grindSrc && settings.sound) {
@@ -634,9 +671,12 @@ const Sound = (() => {
 
 // ================= WORLD + LEVEL GENERATOR =================
 const world = {
-  rng: Math.random, genX: 0, lastTop: 420,
-  buildings: [], anchors: [], drones: [], boxes: [], lasers: [], rails: [], pads: [], coins: [],
+  rng: Math.random, genX: 0, lastTop: 420, introDone: false,
+  buildings: [], anchors: [], drones: [], boxes: [], lasers: [], rails: [], pads: [], coins: [], guards: [], bolts: [],
 };
+const WORLD_KEYS = ["buildings", "anchors", "drones", "boxes", "lasers", "rails", "pads", "coins", "guards", "bolts"];
+const GUARD_H = 44;          // Wächter robot: feet on the roof, 44 px tall
+const ENEMY_FREE_X = 5200;   // no guards / spike drones in the first ~200 m (except the intro guard)
 const TOP_MIN = 250, TOP_MAX = 640;
 const baseSpeedAt = (x) => Math.min(440 + Math.max(0, x) / PX_PER_M * 0.08, 840);
 const R = () => world.rng();
@@ -650,7 +690,9 @@ function addBuilding(x, w, top) {
 }
 const addAnchor = (x, y) => world.anchors.push({ x, y, ph: RR(0, TAU), cool: 0, hits: 0 });
 const addCoin = (x, y) => world.coins.push({ x, y, taken: false, ph: RR(0, TAU) });
-const addDrone = (x, y, amp = 14) => world.drones.push({ x, y0: y, y, amp, ph: RR(0, TAU), alive: true, dead: 0, vx: 0, vy: 0, rot: 0 });
+const addDrone = (x, y, amp = 14, spike = false) => world.drones.push({ x, y0: y, y, amp, ph: RR(0, TAU), alive: true, dead: 0, vx: 0, vy: 0, rot: 0, spike });
+const addGuard = (x, roof) => world.guards.push({ x, top: roof, y: roof - GUARD_H / 2, alive: true, dead: 0, vx: 0, vy: 0, rot: 0,
+  cd: RR(0.1, 0.4), charge: 0, recoil: 0, ph: RR(0, TAU) });
 const addBox = (x, w, h, roof) => world.boxes.push({ x, w, h, top: roof - h, hit: false });
 const addLaser = (x, h, roof) => world.lasers.push({ x, h, top: roof - h, bottom: roof, hit: false, ph: RR(0, TAU) });
 const addPad = (x, roof) => world.pads.push({ x, w: 64, top: roof, used: 0 });
@@ -673,12 +715,14 @@ function coinSwing(ax, ay, r, from = -0.75, to = 0.75, n = 7) {
 // decorate a roof with obstacles between x1 and x2
 function decorateRoof(b, x1, x2, d) {
   let x = x1 + RR(120, 220);
+  const early = world.genX < ENEMY_FREE_X;
   while (x < x2 - 270) {
     const r = R();
-    if (r < 0.22 + d * 0.1) { addBox(x, RR(44, 78), RR(30, 58 + d * 22), b.top); x += RR(300, 420); }
-    else if (r < 0.38 + d * 0.15) { addLaser(x, RR(70, 104), b.top); x += RR(320, 440); }
-    else if (r < 0.52 + d * 0.15) { addDrone(x, b.top - RR(44, 66)); x += RR(320, 420); }
-    else if (r < 0.62) { addPad(x, b.top); coinArc(x + 40, b.top - 60, x + 520, b.top - 60, 300, 8); x += RR(560, 700); }
+    if (r < 0.2 + d * 0.08) { addBox(x, RR(44, 78), RR(30, 58 + d * 22), b.top); x += RR(300, 420); }
+    else if (r < 0.34 + d * 0.12) { addLaser(x, RR(70, 104), b.top); x += RR(320, 440); }
+    else if (r < 0.48 + d * 0.14) { addDrone(x, b.top - RR(44, 66), 14, !early && R() < 0.2 + d * 0.3); x += RR(320, 420); }
+    else if (r < 0.58 + d * 0.16 && !early && x < x2 - 380) { addGuard(x + 60, b.top); x += RR(500, 640); }
+    else if (r < 0.66 + d * 0.1) { addPad(x, b.top); coinArc(x + 40, b.top - 60, x + 520, b.top - 60, 300, 8); x += RR(560, 700); }
     else { coinLine(x, Math.min(x + RR(150, 260), x2 - 40), b.top - 28); x += RR(280, 380); }
   }
 }
@@ -771,23 +815,66 @@ const PATTERNS = [
     if (R() < 0.5) decorateRoof(b, b.x + 200, b.x + b.w, d);
     return [b.x + b.w, b.top];
   } },
+  // drone bridge: a line of drones at running height over the gap. Dash from one to the next,
+  // every kill refills the dash, one last dash carries you to the roof. Backup anchor up high.
+  { w: (d) => (world.genX < ENEMY_FREE_X ? 0 : 0.6 + d * 1.1), fn(x, top, v, d) {
+    const n = RI(2, d > 0.5 ? 4 : 3), sp = RR(200, 222), y = top - 30;
+    let dx = x + 120;
+    for (let i = 0; i < n; i++) {
+      addDrone(dx, y, 5, i === n - 1 && d > 0.45 && R() < 0.5);
+      if (i < n - 1) addCoin(dx + sp / 2, y);
+      dx += sp;
+    }
+    const gap = 120 + (n - 1) * sp + RR(250, 285);
+    addAnchor(x + gap * 0.5, top - RR(320, 350));
+    const b = addBuilding(x + gap, RR(450, 760), clamp(top + RR(0, 70), TOP_MIN, TOP_MAX));
+    if (R() < 0.4) decorateRoof(b, b.x + 260, b.x + b.w, d);
+    return [b.x + b.w, b.top];
+  } },
+  // guard post: Wächter robots hold a long roof and shoot. Jump the bolts or dash straight through.
+  { w: (d) => (world.genX < ENEMY_FREE_X ? 0 : 0.5 + d * 1.2), fn(x, top, v, d) {
+    const gap = RR(0.3, 0.5) * v * 0.72;
+    const b = addBuilding(x + gap, RR(1150, 1600), clamp(top + RR(-50, 70), TOP_MIN, TOP_MAX));
+    let gx = b.x + RR(400, 470);
+    const n = d > 0.5 ? 3 : 2;
+    for (let i = 0; i < n && gx < b.x + b.w - 260; i++) {
+      addGuard(gx, b.top);
+      if (R() < 0.6) coinLine(gx - 230, gx - 110, b.top - 28, 40);
+      gx += RR(470, 610);
+    }
+    return [b.x + b.w, b.top];
+  } },
 ];
+// first guard of every run: a long, quiet roof so you can learn the dash on it
+function introGuard(x, top, v) {
+  const gap = RR(0.3, 0.45) * v * 0.72;
+  const b = addBuilding(x + gap, RR(1150, 1350), clamp(top + RR(-30, 40), TOP_MIN, TOP_MAX));
+  coinLine(b.x + 150, b.x + 360, b.top - 28, 42);
+  addGuard(b.x + 660, b.top);
+  return [b.x + b.w, b.top];
+}
 
 function genPattern() {
   const d = clamp(world.genX / PX_PER_M / 3600, 0, 1);
   const v = baseSpeedAt(world.genX);
+  if (!world.introDone && world.genX >= 2600) {
+    world.introDone = true;
+    [world.genX, world.lastTop] = introGuard(world.genX, world.lastTop, v);
+    return;
+  }
   let total = 0;
   const ws = PATTERNS.map((p) => { const w = p.w(d); total += w; return w; });
   let r = R() * total, idx = 0;
-  while (r > ws[idx]) { r -= ws[idx]; idx++; }
+  while (idx < ws.length - 1 && (r > ws[idx] || ws[idx] <= 0)) { r -= ws[idx]; idx++; }
+  if (ws[idx] <= 0) idx = 0;
   if (world.genX < 2600 && idx !== 0 && idx !== 1) idx = R() < 0.5 ? 0 : 1; // gentle opening
   const [nx, nt] = PATTERNS[idx].fn(world.genX, world.lastTop, v, d);
   world.genX = nx; world.lastTop = nt;
 }
 
 function worldReset(seed) {
-  world.rng = mulberry32(seed);
-  for (const k of ["buildings", "anchors", "drones", "boxes", "lasers", "rails", "pads", "coins"]) world[k] = [];
+  world.rng = mulberry32(seed); world.introDone = false;
+  for (const k of WORLD_KEYS) world[k] = [];
   const b = addBuilding(-900, 2200, 420);
   b.ant = -1;
   coinLine(500, 900, 392);
@@ -800,6 +887,8 @@ function worldCull(minX) {
   keep(world.buildings, (o) => o.x + o.w);
   world.anchors = world.anchors.filter((o) => o.x > minX - 300);
   world.drones = world.drones.filter((o) => o.x > minX && (o.alive || o.dead < 2));
+  world.guards = world.guards.filter((o) => o.x > minX && (o.alive || o.dead < 2));
+  world.bolts = world.bolts.filter((o) => o.life > 0);
   world.boxes = world.boxes.filter((o) => o.x + o.w > minX);
   world.lasers = world.lasers.filter((o) => o.x > minX);
   world.rails = world.rails.filter((o) => o.x2 > minX);
@@ -828,11 +917,13 @@ function resetRun() {
     squash: 0, target: null, lean: 0, flipT: 0, prevX: 0, prevY: 420 - HALF_H,
     landK: 0, landT: 9, landN: 0, jumpT: 9, jumpN: 0, attachT: 9, attachN: 0, rollT: 0, ropeTarget: 0, swingSide: 0,
     pumpCD: 0, pumpT: 9, pumpN: 0, pumpDir: 1, swingTurn: 0, swingE: null,
+    dashT: 0, dashCD: 0, dashBuf: 0, airDash: 1, dashN: 0, dashKills: 0, dashCombo: 0, dashV: 0, preDashVx: 0, dashEndT: 9, dashStreak: null,
   });
   Object.assign(run, {
     t: 0, dist: 0, score: 0, flow: 0, chain: 0, chainT: 0, maxChain: 0, od: 0,
     perfect: 0, drones: 0, coins: 0, swings: 0, topSpeed: 0, wallX: -1100, dead: false, deadT: 0, reason: "",
     coinStreak: 0, coinT: 0, firstSwing: false, loops: 0, pumps: 0,
+    kills: 0, dashes: 0, dashKills: 0, reflects: 0, maxDashKills: 0,
   });
 }
 
@@ -862,11 +953,15 @@ function startOverdrive() {
   FX.popup(player.x, player.y - 90, "OVERDRIVE!", "#ff2e63", 1.6);
   Sound.fx.overdrive(); Sound.setIntensity(3); haptic([25, 40, 25]);
 }
-function crash(x, y, label) {
+// returns true when it actually hurt; overdrive, slam and dash smash straight through instead
+function crash(x, y, label, dashLabel) {
   const p = player;
-  if (run.od > 0 || p.diving) {
+  if (run.od > 0 || p.diving || p.dashT > 0) {
+    const dash = p.dashT > 0 && run.od <= 0 && !p.diving;
     FX.debris(x, y, "#ff2e63", 18); FX.shake(7); award(40); addFlow(3);
-    FX.popup(x, y - 30, "SMASH!", "#ff2e63", 0.9, false); Sound.fx.stomp();
+    FX.popup(x, y - 30, dash ? dashLabel || "SMASH!" : "SMASH!", dash ? "#4ff3ff" : "#ff2e63", 0.9, false);
+    if (dash) { FX.slash(x, y, -0.55 + rand(-0.2, 0.2), currentSkin.trail, 78); FX.hitstop(0.035); Sound.fx.slice(1); }
+    else Sound.fx.stomp();
     return false;
   }
   p.vx = Math.max(140, p.vx * 0.45); p.stumbleT = 0.8;
@@ -880,6 +975,7 @@ function die(reason) {
   if (run.dead) return;
   run.dead = true; run.deadT = 0; run.reason = reason;
   const p = player;
+  endDash(false);
   if (p.state === "swing") p.anchor = null;
   p.state = "dead"; Sound.fx.grind(false);
   if (reason === "wall") { p.vx = 0; p.vy = 0; }
@@ -919,6 +1015,8 @@ function safeRopeLen(a, L0) {
 }
 function attach(a) {
   const p = player;
+  if (p.dashT > 0) { endDash(false); p.vx = Math.min(p.vx, p.preDashVx + 200); } // dash into the rope: fast, not absurd
+  p.dashCombo = 0;
   const dx = p.x - a.x, dy = p.y - a.y, d = Math.max(1, Math.hypot(dx, dy));
   const nx = dx / d, ny = dy / d;
   const vr = p.vx * nx + p.vy * ny;
@@ -929,7 +1027,7 @@ function attach(a) {
   p.state = "swing"; p.anchor = a; p.ropeLen = d; p.ropeTarget = safeRopeLen(a, clamp(d * 0.93, 140, 430)); p.swingT = 0;
   p.attachT = 0; p.attachN++; p.swingSide = Math.sign(p.x - a.x); FX.shake(3);
   p.swingAngle = Math.atan2(p.x - a.x, p.y - a.y); p.swingTurn = 0; p.swingE = null; p.pumpCD = 0.12;
-  p.diving = false; p.airJumps = 1; p.wallRuns = 1; p.rail = null;
+  p.diving = false; p.airJumps = 1; p.wallRuns = 1; p.airDash = 1; p.rail = null;
   a.hits++; run.swings++; run.firstSwing = true;
   addChain(); addFlow(8); award(20);
   FX.zip(p.x, p.y, a.x, a.y); FX.burst(a.x, a.y, 12, "#4ff3ff", 260);
@@ -981,11 +1079,13 @@ function land(top, b) {
     FX.ring(p.x, top, "#4ff3ff", 260); FX.shake(13); FX.dust(p.x, top, 22); Sound.fx.slam();
     let k = 0;
     for (const d of world.drones) if (d.alive && Math.abs(d.x - p.x) < 260 && Math.abs(d.y - top) < 200) { killDrone(d, false); k++; }
+    for (const g of world.guards) if (g.alive && Math.abs(g.x - p.x) < 260 && Math.abs(g.top - top) < 60) { destroyEnemy(g, "guard", "slam"); k++; }
     FX.popup(p.x, top - 70, k ? "SLAM ×" + (k + 1) : "SLAM!", "#4ff3ff", 1.1);
     addFlow(6 + k * 8); addChain();
   } else if (hard) { FX.dust(p.x, top, 12); FX.shake(4); }
   else FX.dust(p.x, top, 5);
-  p.vy = 0; p.airJumps = 1; p.wallRuns = 1; p.airT = 0;
+  p.vy = 0; p.airJumps = 1; p.wallRuns = 1; p.airDash = 1; p.airT = 0;
+  if (p.dashT <= 0) p.dashCombo = 0;
   p.landK = clamp(impact / 1400, 0.2, 1); p.landT = 0; p.landN++;
   if (!wasDiving && impact > 1250 && run.od <= 0 && !run.dead) {
     p.rollT = ROLL_T; p.vx += 70; award(25); addFlow(4);
@@ -994,12 +1094,7 @@ function land(top, b) {
   if (impact > 900) FX.dust(p.x - 10, top, 6);
   Sound.fx.land(p.landK); if (impact > 1100) haptic(14);
 }
-function killDrone(d, bounce) {
-  d.alive = false; d.dead = 0; d.vx = player.vx * 0.6 + rand(-80, 80); d.vy = bounce ? 500 : -400; d.rot = rand(-8, 8);
-  run.drones++; award(60); addFlow(12); addChain();
-  FX.debris(d.x, d.y, "#ff2e63", 16); FX.burst(d.x, d.y, 10, "#ffd23f", 300);
-  Sound.fx.stomp();
-}
+function killDrone(d, bounce) { destroyEnemy(d, "drone", bounce ? "stomp" : "slam"); }
 
 // horizontal collisions shared by run / air / swing
 function collideX(prevFeet) {
@@ -1015,6 +1110,7 @@ function collideX(prevFeet) {
     }
     // wall
     if (p.state === "swing") { p.anchor.cool = 0.4; p.anchor = null; }
+    if (p.dashT > 0) { endDash(false); FX.shake(6); }
     p.x = b.x - PW / 2 - 0.5;
     if (p.wallRuns > 0 && b.top > p.y - 260) {
       p.wallRuns--; p.state = "wall"; p.wallB = b; p.wallT = 0.42; p.vy = Math.min(p.vy * 0.3, -860); p.vx = 0;
@@ -1027,7 +1123,7 @@ function collideX(prevFeet) {
     const feet = p.y + HALF_H;
     if (feet <= bx.top + 0.5 || p.y - HALF_H >= bx.top + bx.h) continue;
     if (prevFeet <= bx.top + 2 || feet - bx.top <= 14) { p.vy = Math.max(p.vy, 0); land(bx.top, null); continue; }
-    bx.hit = true; crash(bx.x + bx.w / 2, bx.top + bx.h / 2, "CRASH!");
+    bx.hit = true; crash(bx.x + bx.w / 2, bx.top + bx.h / 2, "CRASH!", "SMASH!");
   }
 }
 function supportTop() {
@@ -1048,13 +1144,17 @@ function playerUpdate(dt) {
   p.coyote -= dt; p.jumpBuf -= dt; p.stumbleT -= dt; p.squash = Math.max(0, p.squash - dt * 3);
   if (input.jumpPressed) { input.jumpPressed = false; p.jumpBuf = 0.13; }
   const dive = input.divePressed; input.divePressed = false;
+  if (input.dashPressed) { input.dashPressed = false; p.dashBuf = 0.14; }
+  p.dashBuf -= dt; p.dashCD -= dt; p.dashEndT += dt;
+  if (p.dashBuf > 0 && dashReady(p)) { p.dashBuf = 0; startDash(); }
   for (const a of world.anchors) a.cool -= dt;
   p.target = p.state === "swing" ? null : findAnchor();
   const prevFeet = p.y + HALF_H;
 
   if (p.state === "run") {
     p.groundT += dt; p.airT = 0;
-    if (p.vx < base) p.vx = Math.min(base, p.vx + (p.stumbleT > 0 ? 500 : 1300) * dt);
+    if (p.dashT > 0) p.vx = p.dashV;
+    else if (p.vx < base) p.vx = Math.min(base, p.vx + (p.stumbleT > 0 ? 500 : 1300) * dt);
     else p.vx = Math.max(base, p.vx - 150 * dt);
     p.runPhase += p.vx * dt * 0.03;
     p.x += p.vx * dt;
@@ -1066,11 +1166,13 @@ function playerUpdate(dt) {
     }
     if (p.state === "run") {
       for (const pad of world.pads) if (ovX(p.x, PW, pad.x, pad.w) && Math.abs(p.y + HALF_H - pad.top) < 4) {
+        if (p.dashT > 0) endDash(true);
         p.state = "air"; p.vy = -1380; p.vx = Math.max(p.vx, base + 260); p.jumpCut = true; pad.used = 1;
         addFlow(10); addChain(); award(40); FX.ring(p.x, pad.top, "#ffd23f", 160); FX.popup(p.x, pad.top - 70, "BOOST!", "#ffd23f", 1); Sound.fx.boost();
       }
     }
     if (p.state === "run" && p.jumpBuf > 0) {
+      if (p.dashT > 0) dashJump(base);
       p.jumpBuf = 0; p.state = "air"; p.vy = -880; p.jumpCut = false; p.jumpT = 0; p.jumpN++;
       FX.dust(p.x, p.y + HALF_H, 8); FX.ring(p.x, p.y + HALF_H, "#c9c2ff", 46); Sound.fx.jump();
     }
@@ -1084,16 +1186,20 @@ function playerUpdate(dt) {
     p.groundT = 0; p.airT += dt;
     if (!p.jumpCut && !input.jumpHeld && p.vy < -300) { p.vy *= 0.55; p.jumpCut = true; }
     if (p.jumpBuf > 0) {
-      if (p.coyote > 0) { p.jumpBuf = 0; p.vy = -880; p.coyote = 0; p.jumpCut = false; p.jumpT = 0; p.jumpN++; Sound.fx.jump(); }
+      if (p.coyote > 0) { if (p.dashT > 0) dashJump(base); p.jumpBuf = 0; p.vy = -880; p.coyote = 0; p.jumpCut = false; p.jumpT = 0; p.jumpN++; Sound.fx.jump(); }
       else if (p.airJumps > 0) {
+        if (p.dashT > 0) dashJump(base);
         p.jumpBuf = 0; p.airJumps--; p.vy = Math.min(p.vy, -800); p.jumpCut = false; p.diving = false; p.flipT = FLIP_T; p.jumpN++;
         FX.ring(p.x, p.y + HALF_H, "#4ff3ff", 70); FX.burst(p.x, p.y + HALF_H, 8, "#4ff3ff", 180); Sound.fx.dj();
       }
     }
-    if (dive && !p.diving) { p.diving = true; p.vy = Math.max(p.vy, 1350); FX.burst(p.x, p.y, 8, "#4ff3ff", 200); Sound.fx.zap(); }
-    p.vy += G * (p.diving ? 1.8 : 1) * dt;
-    p.vy = Math.min(p.vy, p.diving ? 2300 : 1700);
-    p.vx += (base - p.vx) * 0.12 * dt;
+    if (dive && !p.diving) { if (p.dashT > 0) endDash(false); p.diving = true; p.vy = Math.max(p.vy, 1350); FX.burst(p.x, p.y, 8, "#4ff3ff", 200); Sound.fx.zap(); }
+    if (p.dashT > 0) { p.vy = 0; p.vx = p.dashV; } // the dash is a straight line: no gravity while it lasts
+    else {
+      p.vy += G * (p.diving ? 1.8 : 1) * dt;
+      p.vy = Math.min(p.vy, p.diving ? 2300 : 1700);
+      p.vx += (base - p.vx) * 0.12 * dt;
+    }
     if (input.swingHeld && p.target) attach(p.target);
     else {
       p.x += p.vx * dt;
@@ -1190,16 +1296,9 @@ function playerUpdate(dt) {
     if (L.hit || Math.abs(L.x - p.x) > PW / 2 + 3 || bot < L.top || top > L.bottom) continue;
     L.hit = true;
     if (run.od > 0) { FX.popup(L.x, L.top - 20, "IMMUN", "#ffd23f", 0.7, false); continue; }
-    Sound.fx.zap(); crash(L.x, p.y, "ZAP!");
+    if (crash(L.x, p.y, "ZAP!", "PHASE!")) Sound.fx.zap();
   }
-  for (const d of world.drones) {
-    if (!d.alive || Math.abs(d.x - p.x) > 30 || Math.abs(d.y - p.y) > 36) continue;
-    if ((p.vy > 0 && bot < d.y + 8) || p.diving || run.od > 0) {
-      killDrone(d, true);
-      if (!p.diving && p.state !== "swing" && p.state !== "grind") { p.state = "air"; p.vy = -860; p.airJumps = 1; p.jumpCut = true; }
-      FX.popup(d.x, d.y - 30, "STOMP!", "#ffd23f", 0.9, false);
-    } else { d.alive = false; d.dead = 0; d.vx = 200; d.vy = -300; crash(d.x, d.y, "CRASH!"); }
-  }
+  enemyContacts(p, dt);
   run.coinT -= dt;
   if (run.coinT <= 0) run.coinStreak = 0;
   for (const c of world.coins) {
@@ -1211,13 +1310,321 @@ function playerUpdate(dt) {
       FX.burst(c.x, c.y, 5, "#ffd23f", 140); Sound.fx.coin(run.coinStreak);
     }
   }
+  // ---- dash timer (after the contacts so the last frame of a dash still cuts) ----
+  if (p.dashT > 0) {
+    if (p.state !== "run" && p.state !== "air") endDash(false);
+    else if (p.dashT <= dt) endDash(true);
+    else p.dashT -= dt;
+  }
   // ---- run bookkeeping ----
   run.dist = Math.max(run.dist, p.x / PX_PER_M);
   const sp = Math.hypot(p.vx, p.vy);
-  run.topSpeed = Math.max(run.topSpeed, Math.max(0, p.vx));
+  if (p.dashT <= 0) run.topSpeed = Math.max(run.topSpeed, Math.max(0, p.vx));
   p.lean = lerp(p.lean, clamp(p.vx / 1400, 0, 0.5), Math.min(1, dt * 6));
   if (p.y > TOP_MAX + 520) die("fall");
   return sp;
+}
+
+// ================= DASH + ENEMIES =================
+// Drohne: stomp it, slam it or dash through it.
+// Stachel-Drohne: spikes all round, landing on it hurts. Dash, slam or overdrive break it.
+// Wächter: robot holding a roof. It locks on with a laser sight, then fires a bolt along the roof.
+//          Jump the bolt or dash: the dash smashes the robot and knocks bolts back at whoever fired them.
+// Every dash kill (and every countered bolt) refills the dash, so kills chain into each other.
+const DASH_T = 0.17, DASH_CD = 0.55, DASH_CD_OD = 0.3;
+const KILL_WORDS = ["ZERLEGT!", "DOPPELT!", "DREIFACH!", "KAHLSCHLAG!"];
+
+function dashReady(p) {
+  if (run.dead || p.state === "wall" || p.state === "dead") return false;
+  return p.dashCD <= 0 && (p.state !== "air" || p.airDash > 0);
+}
+function startDash() {
+  const p = player, base = baseSpeedAt(p.x) * (run.od > 0 ? 1.3 : 1);
+  if (p.state === "swing") { if (p.anchor) p.anchor.cool = 0.4; p.anchor = null; p.state = "air"; }
+  else if (p.state === "grind") { p.rail = null; p.state = "air"; Sound.fx.grind(false); }
+  if (p.state === "air") p.airDash = 0;
+  p.diving = false; p.flipT = 0; p.jumpCut = true;
+  p.preDashVx = Math.max(p.vx, base);
+  p.dashV = clamp(p.preDashVx + 820, 1250, 1900);
+  p.dashT = DASH_T; p.dashCD = run.od > 0 ? DASH_CD_OD : DASH_CD; p.dashN++; p.dashKills = 0;
+  p.vx = p.dashV; p.vy = 0;
+  run.dashes++;
+  if (p.dashStreak) p.dashStreak.live = false;
+  p.dashStreak = FX.streak(p.x, p.y - 3, currentSkin.trail, 13);
+  if (p.state === "run") FX.dust(p.x - 6, p.y + HALF_H, 7);
+  FX.burst(p.x - 10, p.y, 7, currentSkin.trail, 240); FX.shake(3.5);
+  Sound.fx.dash(); haptic(9);
+}
+// carry = the dash ran out by itself: keep some of the speed. Otherwise the caller sets the speed.
+function endDash(carry) {
+  const p = player;
+  if (p.dashStreak) { p.dashStreak.live = false; p.dashStreak = null; }
+  if (p.dashT <= 0) return;
+  p.dashT = 0; p.dashEndT = 0;
+  if (p.dashKills === 0) p.dashCombo = 0;   // a dash that cut nothing ends the kill streak
+  if (carry && (p.state === "run" || p.state === "air")) {
+    // a burst, not a new top speed: drop back to what you had, plus a little
+    const base = baseSpeedAt(p.x) * (run.od > 0 ? 1.3 : 1);
+    p.vx = Math.max(base + 60, Math.min(p.vx, p.preDashVx + 90));
+    if (p.state === "air") p.vy = Math.min(p.vy, -60);
+  }
+}
+// jumping out of a dash: a longer, flatter leap than a normal jump
+function dashJump(base) {
+  const p = player;
+  p.vx = Math.max(base + 200, Math.min(p.vx, p.preDashVx + 260));
+  endDash(false);
+}
+
+function destroyEnemy(e, kind, how) {
+  const p = player, guard = kind === "guard";
+  e.alive = false; e.dead = 0; e.rot = rand(-8, 8);
+  if (guard) e.y = e.top - GUARD_H / 2;        // the wreck tumbles from its middle
+  if (how === "crash") { e.vx = 200; e.vy = -300; return; } // ran into it: no reward, it just breaks
+  if (how === "dash") { e.vx = p.vx * 0.5 + rand(60, 220); e.vy = rand(-560, -320); }
+  else if (how === "stomp") { e.vx = p.vx * 0.5 + rand(-80, 80); e.vy = 500; }
+  else if (how === "bolt") { e.vx = rand(200, 420); e.vy = rand(-500, -300); }
+  else { e.vx = p.vx * 0.6 + rand(-80, 80); e.vy = -400; }
+  run.kills++; if (!guard) run.drones++;
+  award(guard ? 110 : e.spike ? 90 : 60); addFlow(guard ? 14 : 12); addChain();
+  const col = e.spike ? "#ff8a3d" : "#ff2e63";
+  FX.debris(e.x, e.y, col, guard ? 24 : 16); FX.burst(e.x, e.y, guard ? 14 : 10, "#ffd23f", guard ? 360 : 300);
+  if (guard) { FX.ring(e.x, e.y, "#ff2e63", 130); FX.sparks(e.x, e.y, 1, -0.6, 14); }
+  if (how !== "dash") Sound.fx.stomp();
+}
+
+function dashKill(e, kind) {
+  const p = player;
+  p.dashKills++; p.dashCombo++; run.dashKills++;
+  if (p.dashCombo > run.maxDashKills) run.maxDashKills = p.dashCombo;
+  p.dashCD = 0; p.airDash = 1;               // a kill refills the dash: chain into the next one
+  p.dashT = Math.max(p.dashT, 0.07);          // and carries you through the wreck
+  if (!dashTutDone) { dashTutDone = true; store.set("dashTut", true); }
+  destroyEnemy(e, kind, "dash");
+  const k = p.dashCombo, ang = -0.5 + rand(-0.25, 0.2);
+  FX.slash(e.x, e.y, ang, currentSkin.trail, kind === "guard" ? 124 : 96);
+  if (k >= 2) FX.slash(e.x, e.y, ang + 1.3, "#ffffff", 72);
+  FX.hitstop(k >= 2 ? 0.075 : 0.06);
+  FX.shake(6 + Math.min(k, 4) * 2.5);
+  FX.popup(e.x, e.y - 52, k > KILL_WORDS.length ? "KAHLSCHLAG ×" + k : KILL_WORDS[k - 1], k >= 2 ? "#ffd23f" : "#4ff3ff", k >= 2 ? 1.15 : 0.9, false);
+  if (k >= 2) award(50 * k);
+  if (k >= 3) { FX.slowmo(0.4, 0.22); FX.impact(0.5); }
+  Sound.fx.slice(k); haptic(k >= 2 ? [18, 30, 18] : 20);
+}
+function reflectBolt(b) {
+  const p = player;
+  b.refl = true; b.vx = 2100; b.life = 0.75; b.col = currentSkin.trail;
+  p.dashCD = 0; p.airDash = 1; run.reflects++;
+  award(50); addFlow(6); addChain();
+  FX.popup(b.x, b.y - 30, "KONTER!", "#4ff3ff", 0.95, false);
+  FX.ring(b.x, b.y, currentSkin.trail, 60); FX.sparks(b.x, b.y, 1, -0.3, 10);
+  FX.hitstop(0.04); Sound.fx.reflect(); haptic(14);
+}
+
+// player against drones, guards and bolts (called from playerUpdate after it moved)
+function enemyContacts(p, dt) {
+  const dash = p.dashT > 0, top = p.y - HALF_H, bot = p.y + HALF_H;
+  for (const d of world.drones) {
+    if (!d.alive) continue;
+    const dx = d.x - p.x, dy = d.y - p.y;
+    if (dash) { if (dx > -28 && dx < 48 && Math.abs(dy) < 40) dashKill(d, "drone"); continue; }
+    if (Math.abs(dx) > 30 || Math.abs(dy) > 36) continue;
+    if (d.spike && run.od <= 0 && !p.diving) { // never land on the spikes
+      destroyEnemy(d, "drone", "crash"); crash(d.x, d.y, "STACHELN!");
+      if (p.state === "air") { p.vy = Math.min(p.vy, -520); p.jumpCut = true; }
+      continue;
+    }
+    if ((p.vy > 0 && bot < d.y + 8) || p.diving || run.od > 0) {
+      killDrone(d, true);
+      if (!p.diving && p.state !== "swing" && p.state !== "grind") { p.state = "air"; p.vy = -860; p.airJumps = 1; p.airDash = 1; p.jumpCut = true; }
+      FX.popup(d.x, d.y - 30, "STOMP!", "#ffd23f", 0.9, false);
+    } else { destroyEnemy(d, "drone", "crash"); crash(d.x, d.y, "CRASH!"); }
+  }
+  for (const g of world.guards) {
+    if (!g.alive) continue;
+    const dx = g.x - p.x, head = g.top - GUARD_H;
+    if (dash) { if (dx > -30 && dx < 50 && bot > head - 6 && top < g.top) dashKill(g, "guard"); continue; }
+    if (Math.abs(dx) > 15 + PW / 2 || bot < head || top > g.top) continue;
+    if (run.od > 0 || p.diving) { destroyEnemy(g, "guard", "slam"); FX.popup(g.x, head - 20, "SMASH!", "#ffd23f", 0.9, false); continue; }
+    if (p.vy > 0 && bot - p.vy * dt <= head + 10) { // came down on its head
+      destroyEnemy(g, "guard", "stomp");
+      if (p.state !== "swing" && p.state !== "grind") { p.state = "air"; p.vy = -860; p.airJumps = 1; p.airDash = 1; p.jumpCut = true; }
+      FX.popup(g.x, head - 24, "STOMP!", "#ffd23f", 0.9, false);
+    } else { destroyEnemy(g, "guard", "crash"); crash(g.x, g.top - GUARD_H / 2, "CRASH!"); }
+  }
+  for (const b of world.bolts) {
+    if (b.life <= 0 || b.refl) continue;
+    if (Math.abs(b.x - p.x) > PW / 2 + 9 || b.y < top - 5 || b.y > bot + 5) continue;
+    if (dash) { reflectBolt(b); continue; }
+    b.life = 0;
+    if (run.od > 0) { FX.popup(b.x, b.y - 24, "IMMUN", "#ffd23f", 0.7, false); FX.burst(b.x, b.y, 8, "#ff2e63", 200); continue; }
+    FX.burst(b.x, b.y, 10, "#ff2e63", 260);
+    if (crash(b.x, b.y, "TREFFER!")) Sound.fx.zap();
+  }
+}
+
+function fireBolt(g) {
+  const x = g.x - 34, y = g.top - 27;
+  world.bolts.push({ x, y, vx: -430, life: 2.6, refl: false, col: null });
+  g.recoil = 1;
+  FX.burst(x, y, 6, "#ff2e63", 160);
+  Sound.fx.shot();
+}
+function enemiesUpdate(dt) {
+  const p = player, t = run.t;
+  for (const d of world.drones) {
+    if (d.alive) d.y = d.y0 + Math.sin(t * 2.4 + d.ph) * d.amp;
+    else { d.dead += dt; d.vy += G * dt; d.x += d.vx * dt; d.y += d.vy * dt; }
+  }
+  const view = (W / Math.max(0.35, cam.zoom)) * 0.66, live = !run.dead && p.state !== "dead";
+  for (const g of world.guards) {
+    if (!g.alive) { g.dead += dt; g.vy += G * dt; g.x += g.vx * dt; g.y += g.vy * dt; continue; }
+    g.recoil = Math.max(0, g.recoil - dt * 6);
+    if (g.charge > 0) { g.charge -= dt; if (g.charge <= 0) { g.charge = 0; fireBolt(g); } continue; }
+    g.cd -= dt;
+    const dx = g.x - p.x;
+    // only fires when you are in front of it, on screen and roughly at its height (not while you swing high above)
+    if (g.cd <= 0 && live && dx > 220 && dx < Math.min(780, view) && Math.abs(p.y - (g.top - HALF_H)) < 140) {
+      g.charge = 0.48; g.cd = 1.25; Sound.fx.charge();
+    }
+  }
+  for (const b of world.bolts) {
+    if (b.life <= 0) continue;
+    b.life -= dt; b.x += b.vx * dt;
+    for (const bd of world.buildings) if (b.x > bd.x && b.x < bd.x + bd.w && b.y > bd.top) { b.life = 0; break; }
+    if (b.life > 0) for (const bx of world.boxes) if (!bx.hit && b.x > bx.x && b.x < bx.x + bx.w && b.y > bx.top) { b.life = 0; break; }
+    if (b.life <= 0) { FX.sparks(b.x, b.y, b.vx > 0 ? -1 : 1, -0.4, 6); continue; }
+    if (!b.refl) continue;
+    // a countered bolt takes out whatever it meets
+    for (const g of world.guards) if (g.alive && Math.abs(g.x - b.x) < 22 && b.y > g.top - GUARD_H - 6 && b.y < g.top + 4) {
+      b.life = 0; destroyEnemy(g, "guard", "bolt"); award(80); FX.shake(8);
+      FX.popup(g.x, g.top - GUARD_H - 26, "VOLLTREFFER!", "#ffd23f", 0.95, false); Sound.fx.slice(2); break;
+    }
+    if (b.life > 0) for (const d of world.drones) if (d.alive && Math.abs(d.x - b.x) < 24 && Math.abs(d.y - b.y) < 22) {
+      b.life = 0; destroyEnemy(d, "drone", "bolt"); award(60);
+      FX.popup(d.x, d.y - 30, "VOLLTREFFER!", "#ffd23f", 0.9, false); break;
+    }
+  }
+}
+
+// ---------- drawing ----------
+function drawEnemies(time, L, R) {
+  for (const d of world.drones) { if (d.x < L || d.x > R) continue; if (d.spike) drawSpikeDrone(d, time); else drawDrone(d, time); }
+  for (const g of world.guards) { if (g.x < L - 40 || g.x > R + 40) continue; drawGuard(g, time); }
+  drawBolts(L, R);
+}
+function drawDrone(d, time) {
+  ctx.save(); ctx.translate(d.x, d.y); if (!d.alive) { ctx.rotate(d.rot * d.dead); ctx.globalAlpha = Math.max(0, 1 - d.dead); }
+  ctx.fillStyle = "#120c26"; ctx.beginPath(); ctx.ellipse(0, 0, 19, 9, 0, 0, TAU); ctx.fill();
+  ctx.strokeStyle = "#3a2f70"; ctx.lineWidth = 2; ctx.stroke();
+  const rw = Math.abs(Math.sin(time * 30)) * 16 + 4;
+  ctx.strokeStyle = "rgba(220,220,255,0.7)"; ctx.beginPath(); ctx.moveTo(-14 - rw / 2, -12); ctx.lineTo(-14 + rw / 2, -12); ctx.moveTo(14 - rw / 2, -12); ctx.lineTo(14 + rw / 2, -12); ctx.stroke();
+  ctx.fillStyle = "#0a0716"; ctx.fillRect(-15, -11, 2, 5); ctx.fillRect(13, -11, 2, 5);
+  if (d.alive) {
+    ctx.globalCompositeOperation = "lighter"; ctx.drawImage(Art.glow("#ff2e63"), -16, -14, 32, 28); ctx.globalCompositeOperation = "source-over";
+    ctx.fillStyle = "#ff2e63"; ctx.fillRect(-6, -2, 12, 4); ctx.fillStyle = "#fff"; ctx.fillRect(-2 + Math.sin(time * 3) * 3, -1, 3, 2);
+  }
+  ctx.restore();
+}
+function drawSpikeDrone(d, time) {
+  ctx.save(); ctx.translate(d.x, d.y);
+  if (!d.alive) { ctx.rotate(d.rot * d.dead); ctx.globalAlpha = Math.max(0, 1 - d.dead); }
+  if (d.alive) {
+    ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 0.5 + Math.sin(time * 6 + d.ph) * 0.15;
+    ctx.drawImage(Art.glow("#ff8a3d"), -32, -26, 64, 52); ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+  }
+  // a ring of spikes that keeps turning, like a saw blade
+  const n = 10, rot = time * 2.2 + d.ph;
+  ctx.beginPath();
+  for (let i = 0; i < n; i++) {
+    const a = rot + (i * TAU) / n, ca = Math.cos(a), sa = Math.sin(a);
+    const bx = ca * 15, by = sa * 8.5, tx = ca * 25, ty = sa * 16.5, px = -sa * 3.6, py = ca * 2.4;
+    ctx.moveTo(bx + px, by + py); ctx.lineTo(tx, ty); ctx.lineTo(bx - px, by - py); ctx.closePath();
+  }
+  ctx.fillStyle = "#ff8a3d"; ctx.fill();
+  ctx.strokeStyle = "#ffd23f"; ctx.lineWidth = 0.8; ctx.stroke();
+  ctx.fillStyle = "#1d0f1f"; ctx.beginPath(); ctx.ellipse(0, 0, 17, 10, 0, 0, TAU); ctx.fill();
+  ctx.strokeStyle = "#ffb347"; ctx.lineWidth = 1.8; ctx.stroke();
+  ctx.fillStyle = "#3a1830"; ctx.fillRect(-16, -1.4, 32, 2.8);
+  if (d.alive) {
+    ctx.fillStyle = "#ff8a3d"; ctx.fillRect(-7, -2.6, 14, 5.2);
+    ctx.fillStyle = "#fff"; ctx.fillRect(-2 + Math.sin(time * 3 + d.ph) * 3.5, -1.2, 3, 2.4);
+  }
+  ctx.restore();
+}
+function drawGuard(g, time) {
+  const alive = g.alive, charging = alive && g.charge > 0, k = charging ? clamp(1 - g.charge / 0.48, 0, 1) : 0;
+  ctx.save();
+  if (alive) ctx.translate(g.x, g.top);
+  else { ctx.translate(g.x, g.y); ctx.rotate(g.rot * g.dead); ctx.translate(0, GUARD_H / 2); ctx.globalAlpha = Math.max(0, 1 - g.dead * 0.9); }
+  const bob = alive ? Math.sin(time * 3.2 + g.ph) * 0.9 : 0, rc = g.recoil * 2.6;
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  const poly = (pts) => { ctx.beginPath(); ctx.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]); ctx.closePath(); };
+  // reverse-jointed legs: armoured thigh back to the knee, shin forward to a claw foot. Far leg darker.
+  for (const [hx, far] of [[6, true], [-4, false]]) {
+    const hy = -21 + bob, kx = hx + 8, ky = -11 + bob * 0.5, ax = hx - 1, ay = -3;
+    ctx.fillStyle = far ? "#08060f" : "#17102f";
+    poly([hx - 3.2, hy - 1, hx + 3.4, hy - 1.6, kx + 2.2, ky, kx - 1.8, ky + 1.4]); ctx.fill();   // thigh plate
+    ctx.strokeStyle = far ? "#08060f" : "#120c26"; ctx.lineWidth = 3.4; line(kx, ky, ax, ay); // shin
+    poly([ax - 7, 0, ax + 5.5, 0, ax + 2.5, -3.8, ax - 3.5, -4.2]); ctx.fill();                  // foot
+    ctx.fillStyle = far ? "#251d4a" : "#4a3d8f"; ctx.beginPath(); ctx.arc(kx, ky, 2.3, 0, TAU); ctx.fill();
+    if (alive && !far) { ctx.fillStyle = "#ff2e63"; ctx.beginPath(); ctx.arc(kx, ky, 0.9, 0, TAU); ctx.fill(); }
+  }
+  ctx.translate(rc, bob);
+  // hull: a wedge with a sharp nose pointed at you
+  const HULL = [-22, -31, -13, -41, 5, -45.5, 16, -41, 18.5, -30, 12, -20, -9, -19];
+  ctx.fillStyle = "#140e2b"; poly(HULL); ctx.fill();
+  ctx.strokeStyle = "#3a2f70"; ctx.lineWidth = 1.8; ctx.stroke();
+  ctx.fillStyle = "#0c0820"; poly([-9, -19, 12, -20, 18.5, -30, 6, -27]); ctx.fill();          // shadowed belly
+  ctx.fillStyle = "#231b4a"; poly([-13, -41, 5, -45.5, 16, -41, 3, -38.5, -10, -36.5]); ctx.fill(); // brow plate
+  ctx.fillStyle = "#ffd23f";
+  for (let i = 0; i < 3; i++) { const x0 = 2 + i * 4.2; poly([x0, -23.5, x0 + 2.6, -23.5, x0 + 4.8, -28.2, x0 + 2.2, -28.2]); ctx.fill(); }
+  ctx.strokeStyle = "#0a0716"; ctx.lineWidth = 1.6; line(9, -45, 13, -53); line(13, -41, 21, -46);  // antenna + rear fin
+  if (alive) { // neon edge along the top, like the rooftops
+    ctx.strokeStyle = rgba("#ff2e63", 0.75); ctx.lineWidth = 1.1;
+    ctx.beginPath(); ctx.moveTo(-22, -31); ctx.lineTo(-13, -41); ctx.lineTo(5, -45.5); ctx.lineTo(16, -41); ctx.stroke();
+  }
+  // cannon under the nose
+  ctx.fillStyle = "#0a0716"; ctx.fillRect(-32, -29.5, 15, 5);
+  ctx.fillStyle = "#2b2357"; ctx.fillRect(-32, -29.5, 15, 1.4);
+  ctx.fillStyle = "#1c1538"; ctx.fillRect(-33.5, -30.3, 3, 6.6);
+  ctx.fillStyle = alive ? "#ff2e63" : "#3a2f70"; ctx.fillRect(-34, -28.5, 1.5, 3);
+  // visor slit
+  if (alive) {
+    const fl = charging ? 0.65 + 0.35 * Math.sin(time * 42) : 0.75 + Math.sin(time * 2 + g.ph) * 0.15;
+    ctx.globalCompositeOperation = "lighter";
+    ctx.globalAlpha = (0.45 + k * 0.55) * fl; ctx.drawImage(Art.glow("#ff2e63"), -27, -46, 32, 22);
+    ctx.globalAlpha = 0.9; if (Math.sin(time * 5 + g.ph) > 0.2) ctx.drawImage(Art.glow("#ff2e63"), 7, -59, 12, 12);
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+  }
+  ctx.fillStyle = alive ? "#ff2e63" : "#3a2f70";
+  poly([-19, -31.5, -12.5, -38.5, 0.5, -39.5, -3, -33.5]); ctx.fill();
+  if (alive) { ctx.fillStyle = "#ffe1e8"; ctx.fillRect(-13 + Math.sin(time * 2.4 + g.ph) * 1.8, -37, 4.2, 1.6); }
+  // charging: laser sight down the roof and a growing orb in the muzzle
+  if (charging) {
+    const mx = -34, my = -27;
+    ctx.globalCompositeOperation = "lighter";
+    ctx.strokeStyle = rgba("#ff2e63", 0.15 + k * 0.45); ctx.lineWidth = 1 + k * 1.2;
+    ctx.setLineDash([10, 7]); ctx.lineDashOffset = time * 140; line(mx, my, mx - 900, my); ctx.setLineDash([]);
+    const r = 2 + k * 6;
+    ctx.globalAlpha = 0.95; ctx.drawImage(Art.glow("#ff2e63"), mx - r * 3, my - r * 3, r * 6, r * 6); ctx.globalAlpha = 1;
+    ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(mx, my, r * 0.45, 0, TAU); ctx.fill();
+    ctx.globalCompositeOperation = "source-over";
+  }
+  ctx.restore();
+}
+function drawBolts(L, R) {
+  ctx.globalCompositeOperation = "lighter";
+  for (const b of world.bolts) {
+    if (b.life <= 0 || b.x < L || b.x > R) continue;
+    const col = b.refl ? b.col || "#4ff3ff" : "#ff2e63", dir = b.vx > 0 ? 1 : -1, len = b.refl ? 58 : 30;
+    ctx.globalAlpha = 0.7; ctx.drawImage(Art.glow(col), b.x - 18, b.y - 18, 36, 36); ctx.globalAlpha = 1;
+    const gr = ctx.createLinearGradient(b.x, b.y, b.x - dir * len, b.y);
+    gr.addColorStop(0, rgba(col, 0.95)); gr.addColorStop(1, rgba(col, 0));
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(b.x + dir * 4, b.y - 2.5); ctx.lineTo(b.x - dir * len, b.y); ctx.lineTo(b.x + dir * 4, b.y + 2.5); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.ellipse(b.x, b.y, 6.5, 3, 0, 0, TAU); ctx.fill();
+  }
+  ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha = 1;
 }
 
 // ================= ZONES (palettes) =================
@@ -1241,12 +1648,18 @@ const mkCanvas = (w, h) => { const c = document.createElement("canvas"); c.width
 
 // ================= FX =================
 const FX = (() => {
-  const parts = [], pops = [], rings = [], zips = [];
-  let shakeAmt = 0, flashA = 0, flashC = "#fff", impactT = 0, impactS = 0, slowT = 0, slowS = 1, ts = 1;
+  const parts = [], pops = [], rings = [], zips = [], slashes = [], streaks = [];
+  let shakeAmt = 0, flashA = 0, flashC = "#fff", impactT = 0, impactS = 0, slowT = 0, slowS = 1, ts = 1, hitT = 0;
   const MAXP = IS_TOUCH ? 260 : 520;
   function add(o) { if (parts.length >= MAXP) parts.shift(); parts.push(o); }
   const api = {
-    parts, pops, rings, zips,
+    parts, pops, rings, zips, slashes, streaks,
+    // a blade cut through a target: grows fast, then fades
+    slash(x, y, ang, color, len = 90) { if (slashes.length > 10) slashes.shift(); slashes.push({ x, y, ang, color, len, life: 0.28, max: 0.28 }); },
+    // the light trail of a dash: its head follows the runner until the dash ends, then it fades
+    streak(x, y, color, w) { if (streaks.length > 6) streaks.shift(); const s = { x1: x, y1: y, x2: x, y2: y, color, w, life: 0.3, max: 0.3, live: true }; streaks.push(s); return s; },
+    // freeze frame on a hit (real time)
+    hitstop(d) { hitT = Math.max(hitT, settings.fx ? d : d * 0.5); },
     burst(x, y, n, color, sp) {
       for (let i = 0; i < n; i++) { const a = rand(0, TAU), s = rand(0.3, 1) * sp; add({ t: "dot", x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: rand(0.25, 0.55), max: 0.55, size: rand(2, 4.5), color, g: 300, drag: 3 }); }
     },
@@ -1285,11 +1698,12 @@ const FX = (() => {
     flash(c, a) { flashC = c; flashA = Math.max(flashA, settings.fx ? a : a * 0.35); },
     impact(s) { if (settings.fx) { impactT = 0.075; impactS = s; } else api.flash("#ffffff", 0.15); },
     slowmo(scale, dur) { slowS = Math.min(slowT > 0 ? slowS : 1, scale); slowT = Math.max(slowT, dur); },
-    clear() { parts.length = pops.length = rings.length = zips.length = 0; shakeAmt = flashA = impactT = slowT = 0; ts = slowS = 1; },
+    clear() { parts.length = pops.length = rings.length = zips.length = slashes.length = streaks.length = 0; shakeAmt = flashA = impactT = slowT = hitT = 0; ts = slowS = 1; },
     // real-time step (not slowed): returns the game time scale
     tick(rdt) {
-      if (slowT > 0) { slowT -= rdt; ts = lerp(ts, slowS, Math.min(1, rdt * 30)); } else { ts = lerp(ts, 1, Math.min(1, rdt * 6)); slowS = 1; }
       shakeAmt *= Math.exp(-rdt * 9); flashA *= Math.exp(-rdt * 7); impactT -= rdt;
+      if (hitT > 0) { hitT -= rdt; return 0.02; }
+      if (slowT > 0) { slowT -= rdt; ts = lerp(ts, slowS, Math.min(1, rdt * 30)); } else { ts = lerp(ts, 1, Math.min(1, rdt * 6)); slowS = 1; }
       return ts;
     },
     update(dt) {
@@ -1302,6 +1716,8 @@ const FX = (() => {
       for (let i = pops.length - 1; i >= 0; i--) { const p = pops[i]; p.life -= dt; p.y -= 40 * dt; p.fy -= 40 * dt; if (p.life <= 0) pops.splice(i, 1); }
       for (let i = rings.length - 1; i >= 0; i--) { const r = rings[i]; r.life -= dt; r.r = lerp(r.max, 6, (r.life / r.maxLife) ** 2); if (r.life <= 0) rings.splice(i, 1); }
       for (let i = zips.length - 1; i >= 0; i--) { zips[i].life -= dt; if (zips[i].life <= 0) zips.splice(i, 1); }
+      for (let i = slashes.length - 1; i >= 0; i--) { slashes[i].life -= dt; if (slashes[i].life <= 0) slashes.splice(i, 1); }
+      for (let i = streaks.length - 1; i >= 0; i--) { const s = streaks[i]; if (!s.live) { s.life -= dt; if (s.life <= 0) streaks.splice(i, 1); } }
     },
     get shakeAmt() { return shakeAmt; }, get flashA() { return flashA; }, get flashC() { return flashC; },
     get impactT() { return impactT; }, get impactS() { return impactS; },
@@ -1446,7 +1862,7 @@ resize();
 const baseZoom = () => clamp(Math.min(H / 580, W / 820), 0.42, 1.5);
 
 function cameraUpdate(dt, snap) {
-  const p = player, sp = Math.max(0, p.vx);
+  const p = player, sp = Math.max(0, p.dashT > 0 ? p.preDashVx : p.vx); // a dash should not pump the zoom
   const zt = baseZoom() * lerp(1, 0.8, clamp((sp - 460) / 900, 0, 1)) * (run.dead ? 1.12 : 1);
   const vw = W / zt, vh = H / zt;
   const tx = p.x + (run.dead ? 0 : vw * 0.2);
@@ -1601,21 +2017,8 @@ function drawWorld(time, pulse, L, R, T, B) {
       ctx.beginPath(); ctx.moveTo(player.x, player.y - 10); ctx.lineTo(a.x, a.y); ctx.stroke(); ctx.setLineDash([]);
     }
   }
-  // ---- drones ----
-  for (const d of world.drones) {
-    if (d.x < L || d.x > R) continue;
-    ctx.save(); ctx.translate(d.x, d.y); if (!d.alive) { ctx.rotate(d.rot * d.dead); ctx.globalAlpha = Math.max(0, 1 - d.dead); }
-    ctx.fillStyle = "#120c26"; ctx.beginPath(); ctx.ellipse(0, 0, 19, 9, 0, 0, TAU); ctx.fill();
-    ctx.strokeStyle = "#3a2f70"; ctx.lineWidth = 2; ctx.stroke();
-    const rw = Math.abs(Math.sin(time * 30)) * 16 + 4;
-    ctx.strokeStyle = "rgba(220,220,255,0.7)"; ctx.beginPath(); ctx.moveTo(-14 - rw / 2, -12); ctx.lineTo(-14 + rw / 2, -12); ctx.moveTo(14 - rw / 2, -12); ctx.lineTo(14 + rw / 2, -12); ctx.stroke();
-    ctx.fillStyle = "#0a0716"; ctx.fillRect(-15, -11, 2, 5); ctx.fillRect(13, -11, 2, 5);
-    if (d.alive) {
-      ctx.globalCompositeOperation = "lighter"; ctx.drawImage(Art.glow("#ff2e63"), -16, -14, 32, 28); ctx.globalCompositeOperation = "source-over";
-      ctx.fillStyle = "#ff2e63"; ctx.fillRect(-6, -2, 12, 4); ctx.fillStyle = "#fff"; ctx.fillRect(-2 + Math.sin(time * 3) * 3, -1, 3, 2);
-    }
-    ctx.restore();
-  }
+  // ---- drones, guards, bolts ----
+  drawEnemies(time, L, R);
 }
 
 // ================= RUNNER RIG: procedural locomotion with 2-bone IK =================
@@ -1663,6 +2066,8 @@ const POSE_LIB = {
   flip:   { lean: 30, head: 14, hy: -1, fA: [6, 10, 20], fB: [2, 11, 30], hA: [9, 9], hB: [6, 10] },
   dive:   { lean: -8, head: 18, hy: -5, fA: [8, 24, -8], fB: [-5, 11, 40], hA: [-8, -12], hB: [-10, -9], rot: 0.4 },
   dead:   { lean: 10, head: 0, hy: -2, fA: [10, 16, 20], fB: [-12, 14, 40], hA: [12, -8], hB: [-12, -6] },
+  // dash: body nearly flat, head up, arms swept back, front knee tucked up, back leg trailing
+  dash:   { lean: 64, head: -44, hy: -2, fA: [-6, 12, 105], fB: [-23, 6, 150], hA: [1, 16], hB: [-1, 15], rot: 0.08 },
 };
 function libPose(name) {
   const L = POSE_LIB[name];
@@ -1675,6 +2080,7 @@ function mixPose(A, B, t) { const o = {}; for (const k of PK) o[k] = lerp(A[k] |
 function makeRig() { return { mode: "run", ph: 0, from: null, bt: 1, cur: { spin: 0, sx: 1, sy: 1, pivot: 0, dropY: 0 } }; }
 function rigMode(q) {
   if (q.st === "dead") return "dead";
+  if (q.dashT > 0 && (q.st === "run" || q.st === "air")) return "dash";
   if (q.st === "run" && q.rollT > 0) return "roll";
   if (q.st === "swing" || q.st === "grind" || q.st === "wall" || q.st === "run") return q.st;
   if (q.flipK >= 0) return "flip";
@@ -1685,9 +2091,10 @@ function rigMode(q) {
 function runPose(rig, q, wall) {
   const ph = rig.ph, speed = Math.max(0, q.vx), sf = clamp((speed - 440) / 450, 0, 1);
   const start = clamp(1 - (q.runT || 9) / 0.7, 0, 1);          // explosive first steps of a run
-  const nr = wall ? 0 : q.od ? 1 : clamp((speed - 800) / 200, 0, 1); // ninja run at top speed
+  const de = wall ? 0 : clamp(1 - (q.dashEnd == null ? 9 : q.dashEnd) / 0.32, 0, 1); // coming out of a dash
+  const nr = wall ? 0 : Math.max(q.od ? 1 : clamp((speed - 800) / 200, 0, 1), de); // ninja run at top speed
   const k = lerp(0.88, 1.1, sf), step = (ph * 2) % 1;
-  const lean = (lerp(28, 38, sf) + nr * 12 + start * 12 + Math.sin(step * TAU - 0.6) * 2.2) * DEG;
+  const lean = (lerp(28, 38, sf) + nr * 12 + start * 12 + de * 8 + Math.sin(step * TAU - 0.6) * 2.2) * DEG;
   const bob = (1.2 + 1.3 * sf) * Math.cos(TAU * 2 * (ph - STANCE / 2));
   const P = { rot: wall ? -1.32 : 0, lean, head: -lean * 0.7 + Math.sin(step * TAU + 1) * 1.5 * DEG, hx: 0, hy: HIP_Y + bob };
   legCycle(ph, k, _lc); P.fAx = _lc.x; P.fAy = _lc.y; P.pA = _lc.p;
@@ -1728,6 +2135,10 @@ function targetPose(rig, q, time) {
       const t = Math.sin((q.pumpT / 0.28) * Math.PI), d = q.pumpDir || 1;
       P.fAx += d * t * 11; P.fBx += d * t * 9; P.fAy -= t * 5; P.fBy -= t * 4; P.lean -= d * t * 0.15;
     }
+  } else if (m === "dash") {
+    P = libPose("dash");
+    const f = Math.sin(time * 38); // wind flutter on the trailing limbs
+    P.fBx += f * 1.3; P.fBy -= f * 0.8; P.hAy += f * 0.6; P.hBy -= f * 0.6;
   } else if (m === "grind") {
     P = { rot: 0, lean: 22 * DEG + Math.sin(time * 9) * 2 * DEG, head: -16 * DEG, hx: 0, hy: HIP_Y + 5,
       fAx: 9, fAy: ANKLE_Y, pA: 0, fBx: -10, fBy: ANKLE_Y, pB: 0, hAx: 13, hAy: 2, hBx: -12, hBy: 3 };
@@ -1752,7 +2163,7 @@ function rigUpdate(rig, q, dt, time) {
   if (m === "run") rig.ph = (rig.ph + clamp(Math.max(0, q.vx) / 165, 2.3, 4.2) * dt) % 1;
   else if (m === "wall") rig.ph = (rig.ph + 5.2 * dt) % 1;
   const T = targetPose(rig, q, time);
-  rig.bt = Math.min(1, rig.bt + dt / (m === "swing" ? 0.09 : 0.13));
+  rig.bt = Math.min(1, rig.bt + dt / (m === "swing" ? 0.09 : m === "dash" ? 0.045 : 0.13));
   const k = rig.from ? easeOut(rig.bt) : 1;
   for (const key of PK) rig.cur[key] = k >= 1 || rig.from[key] === undefined ? T[key] : lerp(rig.from[key], T[key], k);
   rig.cur.spin = m === "flip" ? easeOut(q.flipK) * TAU : m === "roll" ? (1 - q.rollT / ROLL_T) * TAU : m === "dead" ? q.deadT * 7 : 0;
@@ -2230,7 +2641,7 @@ function setSkin(sk) { currentSkin = sk; store.set("skin", sk.id); playerCloth =
 function scarfReset(x, y) {
   for (const c of playerCloth) c.init = false;
   rig.mode = "run"; rig.from = null; rig.ph = 0; rig.bt = 1;
-  if (typeof sq !== "undefined") { sq.v = sq.vel = 0; sq.land = sq.jump = sq.attach = sq.pump = 0; }
+  if (typeof sq !== "undefined") { sq.v = sq.vel = 0; sq.land = sq.jump = sq.attach = sq.pump = sq.dash = 0; }
 }
 function followChain(ch, kx, ky, dt, time, seg, ph) {
   ch[0].x = kx; ch[0].y = ky;
@@ -2259,16 +2670,18 @@ function playerQuery(p) {
   }
   return { st: p.state, vx: p.vx, vy: p.vy, swingAng: p.swingAngle, swingW, diving: p.diving,
     flipK: p.flipT > 0 ? 1 - p.flipT / FLIP_T : -1, stumble: p.stumbleT, deadT: run.deadT, od: run.od > 0, runT: run.t,
-    landK: p.landK, landT: p.landT, jumpT: p.jumpT, rollT: p.rollT, attachT: p.attachT, pumpT: p.pumpT, pumpDir: p.pumpDir };
+    landK: p.landK, landT: p.landT, jumpT: p.jumpT, rollT: p.rollT, attachT: p.attachT, pumpT: p.pumpT, pumpDir: p.pumpDir,
+    dashT: p.dashT, dashEnd: p.dashEndT };
 }
 // squash & stretch spring: landings squash, take-offs and rope snaps stretch, then it wobbles back
-const sq = { v: 0, vel: 0, land: 0, jump: 0, attach: 0, pump: 0 };
+const sq = { v: 0, vel: 0, land: 0, jump: 0, attach: 0, pump: 0, dash: 0 };
 function animatePlayer(dt, time) {
   const p = player, prev = rig.ph, wasRun = rig.mode === "run";
   if (p.landN !== sq.land) { sq.land = p.landN; sq.vel -= 1.6 + 4.6 * p.landK; }
   if (p.jumpN !== sq.jump) { sq.jump = p.jumpN; sq.vel += 2.8; }
   if (p.attachN !== sq.attach) { sq.attach = p.attachN; sq.vel += 2.2; }
   if (p.pumpN !== sq.pump) { sq.pump = p.pumpN; sq.vel -= 2; }
+  if (p.dashN !== sq.dash) { sq.dash = p.dashN; sq.vel -= 3.2; } // dash: flatten and stretch along the motion
   if (dt > 0) { sq.vel += (-200 * sq.v - 17 * sq.vel) * dt; sq.v = clamp(sq.v + sq.vel * dt, -0.28, 0.24); }
   pose = rigUpdate(rig, playerQuery(p), dt, time);
   const airS = p.state === "air" && p.flipT <= 0 ? clamp(Math.abs(p.vy) / 3800, 0, 0.09) : 0;
@@ -2317,12 +2730,14 @@ function drawPlayerAll(time, dt) {
   if (p.state === "run" || p.state === "grind") {
     ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.beginPath(); ctx.ellipse(p.x + 2, p.y + HALF_H + 1, 15, 3, 0, 0, TAU); ctx.fill();
   }
-  const od = run.od > 0, fast = p.vx > 720 || od || p.diving || sk.style === "line" && p.vx > 560;
+  const od = run.od > 0, dash = p.dashT > 0, fast = dash || p.vx > 720 || od || p.diving || sk.style === "line" && p.vx > 560;
+  if (p.dashStreak) { p.dashStreak.x2 = p.x - 4; p.dashStreak.y2 = p.y - 3; }
+  drawStreaks();
   afterT -= dt;
-  if (fast && afterT <= 0 && dt > 0) { after.push({ x: p.x, y: p.y, P: Object.assign({}, pose), life: 0.24 }); afterT = 0.03; }
+  if (fast && afterT <= 0 && dt > 0) { after.push({ x: p.x, y: p.y, P: Object.assign({}, pose), life: 0.24, dash }); afterT = dash ? 0.011 : 0.03; }
   for (let i = after.length - 1; i >= 0; i--) { after[i].life -= dt; if (after[i].life <= 0) after.splice(i, 1); }
   ctx.globalCompositeOperation = "lighter";
-  for (const g of after) drawRunner(ctx, sk, g.x, g.y, g.P, { mono: od ? "#ff2e63" : sk.trail, alpha: (g.life / 0.24) * 0.3 });
+  for (const g of after) drawRunner(ctx, sk, g.x, g.y, g.P, { mono: od ? "#ff2e63" : sk.trail, alpha: (g.life / 0.24) * (g.dash ? 0.42 : 0.3) });
   const hurt = p.stumbleT > 0 && Math.sin(time * 50) > 0;
   const rimHex = hurt ? "#ff2e63" : od ? "#ffd23f" : sk.rim;
   ctx.globalAlpha = od ? 0.42 + Math.sin(time * 20) * 0.12 : 0.15;
@@ -2338,8 +2753,9 @@ function drawPlayerAll(time, dt) {
 
 function drawGhost(gp, dt, time) {
   if (!gp) return;
-  const gpz = rigUpdate(ghostRig, { st: gp.st, vx: 620, vy: gp.st === "air" ? 200 : 0, swingAng: gp.ang || 0, swingW: 0, diving: false, flipK: -1,
-    stumble: 0, deadT: 0, od: false, runT: 9, landK: 0, landT: 9, jumpT: 9, rollT: 0, attachT: 9, pumpT: 9, pumpDir: 1 }, dt, time);
+  const gd = gp.st === "dash", st = gd ? "air" : gp.st;
+  const gpz = rigUpdate(ghostRig, { st, vx: 620, vy: st === "air" ? 200 : 0, swingAng: gp.ang || 0, swingW: 0, diving: false, flipK: -1,
+    stumble: 0, deadT: 0, od: false, runT: 9, landK: 0, landT: 9, jumpT: 9, rollT: 0, attachT: 9, pumpT: 9, pumpDir: 1, dashT: gd ? 0.1 : 0 }, dt, time);
   ctx.globalCompositeOperation = "lighter";
   drawRunner(ctx, currentSkin, gp.x, gp.y, gpz, { mono: "#7df9ff", alpha: 0.26 });
   ctx.globalCompositeOperation = "source-over";
@@ -2407,6 +2823,7 @@ function drawFxWorld() {
   ctx.globalAlpha = 1;
   for (const r of FX.rings) { ctx.strokeStyle = rgba(r.color, clamp(r.life / r.maxLife, 0, 1)); ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, TAU); ctx.stroke(); }
   for (const z of FX.zips) { ctx.strokeStyle = rgba("#ffffff", z.life / 0.14); ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(z.x1, z.y1); ctx.lineTo(z.x2, z.y2); ctx.stroke(); }
+  drawSlashes();
   ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.lineJoin = "round";
   for (const p of FX.pops) {
     const age = p.max - p.life, k = age < 0.12 ? 1 + (1 - age / 0.12) * 0.7 : 1, a = clamp(p.life / 0.3, 0, 1);
@@ -2419,6 +2836,48 @@ function drawFxWorld() {
     ctx.restore();
   }
   ctx.globalAlpha = 1;
+}
+
+// crescent blade: curved on one side, straight-ish on the other, pointed at both ends
+function blade(x, y, c, s, L, w, col) {
+  const hx = (c * L) / 2, hy = (s * L) / 2, nx = -s * w, ny = c * w;
+  ctx.fillStyle = col; ctx.beginPath();
+  ctx.moveTo(x - hx, y - hy);
+  ctx.quadraticCurveTo(x + nx, y + ny, x + hx, y + hy);
+  ctx.quadraticCurveTo(x - nx * 0.25, y - ny * 0.25, x - hx, y - hy);
+  ctx.fill();
+}
+function drawSlashes() {
+  if (!FX.slashes.length) return;
+  ctx.globalCompositeOperation = "lighter";
+  for (const s of FX.slashes) {
+    const age = 1 - s.life / s.max, grow = easeOut(clamp(age / 0.14, 0, 1)), fade = 1 - clamp((age - 0.22) / 0.78, 0, 1);
+    const c = Math.cos(s.ang), si = Math.sin(s.ang), L = s.len * (0.3 + 0.7 * grow);
+    const ox = s.x + c * s.len * 0.12 * (grow - 0.5), oy = s.y + si * s.len * 0.12 * (grow - 0.5); // the cut travels a little
+    ctx.globalAlpha = 0.5 * fade; ctx.drawImage(Art.glow(s.color), ox - L * 0.45, oy - L * 0.22, L * 0.9, L * 0.44);
+    ctx.globalAlpha = 1;
+    blade(ox, oy, c, si, L * 1.05, 10 * fade + 2, rgba(s.color, 0.55 * fade));
+    blade(ox, oy, c, si, L, 3.2 * fade + 0.8, rgba("#ffffff", 0.95 * fade));
+  }
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+}
+// dash trails: a light wedge from where the dash started to the runner
+function drawStreaks() {
+  if (!FX.streaks.length) return;
+  ctx.globalCompositeOperation = "lighter";
+  for (const s of FX.streaks) {
+    const a = s.live ? 1 : clamp(s.life / s.max, 0, 1), dx = s.x2 - s.x1, dy = s.y2 - s.y1, L = Math.hypot(dx, dy);
+    if (L < 6) continue;
+    const ux = dx / L, uy = dy / L, nx = -uy, ny = ux, w = s.w * (0.5 + 0.5 * a);
+    const g = ctx.createLinearGradient(s.x1, s.y1, s.x2, s.y2);
+    g.addColorStop(0, rgba(s.color, 0)); g.addColorStop(0.65, rgba(s.color, 0.22 * a)); g.addColorStop(1, rgba(s.color, 0.6 * a));
+    ctx.fillStyle = g; ctx.beginPath();
+    ctx.moveTo(s.x1, s.y1); ctx.lineTo(s.x2 + nx * w, s.y2 + ny * w); ctx.lineTo(s.x2 + ux * 8, s.y2 + uy * 8); ctx.lineTo(s.x2 - nx * w, s.y2 - ny * w); ctx.closePath(); ctx.fill();
+    const g2 = ctx.createLinearGradient(s.x1, s.y1, s.x2, s.y2);
+    g2.addColorStop(0, "rgba(255,255,255,0)"); g2.addColorStop(1, "rgba(255,255,255," + (0.75 * a).toFixed(3) + ")");
+    ctx.strokeStyle = g2; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(s.x1 + dx * 0.3, s.y1 + dy * 0.3); ctx.lineTo(s.x2, s.y2); ctx.stroke();
+  }
+  ctx.globalCompositeOperation = "source-over";
 }
 
 function drawScreenFx(time, speed) {
@@ -2525,6 +2984,7 @@ let botOn = false;            // attract-mode autopilot (also used by tests)
 const ui = {
   hud: $("hud"), dist: $("dist"), score: $("score"), mult: $("mult"), flowfill: $("flowfill"), flowbar: $("flowbar"),
   chain: $("chain"), speed: $("speed"), hint: $("hint"), zone: $("zone"), touch: $("touchHints"),
+  dashbar: $("dashbar"), dashfill: $("dashfill"),
   start: $("screenStart"), pause: $("screenPause"), over: $("screenOver"),
 };
 const ghostLine = document.createElement("div");
@@ -2533,10 +2993,10 @@ document.querySelector(".hud-left").appendChild(ghostLine);
 const fmt = (n) => Math.round(n).toLocaleString("de-DE");
 
 // ---------- best + ghost (this browser only) ----------
-const bestKey = "best_" + SEED, ghostKey = "ghost_" + SEED;
+const bestKey = "best_" + SEED, ghostKey = "ghost2_" + SEED; // ghost2: the level layout changed with the enemies update
 let bestToday = store.get(bestKey, { dist: 0, score: 0 });
 let ghost = store.get(ghostKey, null);   // { d: [x,y,st,ang, ...], step }
-const ST_CODE = { run: 0, air: 1, swing: 2, grind: 3, wall: 4, dead: 1 }, ST_NAME = ["run", "air", "swing", "grind", "wall"];
+const ST_CODE = { run: 0, air: 1, swing: 2, grind: 3, wall: 4, dead: 1 }, ST_NAME = ["run", "air", "swing", "grind", "wall", "dash"];
 const GH_STEP = 0.05;
 let rec = [], recT = 0;
 function ghostAt(t) {
@@ -2601,16 +3061,21 @@ const HINTS = IS_TOUCH ? {
   release: "Im <kbd>goldenen Bogen</kbd> loslassen = PERFEKT + Zeitlupe",
   dive: "Nach unten <kbd>wischen</kbd> = SLAM durch Drohnen",
   pump: "Am Seil links <kbd>tippen</kbd> = Schwung holen · unten am stärksten",
+  dash: "Nach rechts <kbd>wischen</kbd> = DASH · zerlegt Drohnen und Wächter",
+  spike: "Stachel-Drohne: nicht draufspringen · <kbd>DASH</kbd> durch!",
 } : {
   jump: "<kbd>LEER</kbd> springen · nochmal in der Luft = Doppelsprung",
   swing: "<kbd>J</kbd> oder <kbd>MAUS</kbd> halten = Seil an den Leuchtanker",
   release: "Im <kbd>goldenen Bogen</kbd> loslassen = PERFEKT + Zeitlupe",
   dive: "<kbd>S</kbd> in der Luft = SLAM · von oben auf Drohnen springen",
   pump: "Am Seil <kbd>LEER</kbd> = Schwung holen · unten am stärksten",
+  dash: "<kbd>D</kbd> <kbd>→</kbd> oder <kbd>SHIFT</kbd> = DASH · zerlegt Drohnen und Wächter",
+  spike: "Stachel-Drohne: nicht draufspringen · <kbd>DASH</kbd> durch!",
 };
 let hintShown = {}, hintT = 0, zoneShownIdx = 0, zoneT = 0;
 const tutDone = () => store.get("tut", false);
 let pumpTutDone = store.get("pumpTut", false);
+let dashTutDone = store.get("dashTut", false), spikeTutDone = store.get("spikeTut", false);
 function showHint(key, dur = 3.2, force = false) {
   if (hintShown[key] || (tutDone() && !force)) return;
   hintShown[key] = true; ui.hint.innerHTML = HINTS[key]; ui.hint.classList.remove("fade"); hintT = dur;
@@ -2649,12 +3114,12 @@ function gameOver() {
   ui.hud.hidden = true; ui.hint.classList.add("fade"); hintT = 0; ui.touch.hidden = true; ui.zone.classList.add("fade");
   const wall = run.reason === "wall";
   $("overTitle").textContent = wall ? "VOM BLACKOUT GEFRESSEN" : "SIGNAL VERLOREN";
-  $("overReason").textContent = wall ? "Zu langsam. Perfekte Swings und Boosts halten dich vor der Dunkelheit." : "Ab in die Straßenschlucht. Ein Doppelsprung oder ein Anker hätte gereicht.";
+  $("overReason").textContent = wall ? "Zu langsam. Perfekte Swings, Boosts und Dashes halten dich vor der Dunkelheit." : "Ab in die Straßenschlucht. Doppelsprung, Dash oder ein Anker hätten gereicht.";
   const d = Math.floor(run.dist), rec_ = d > bestToday.dist;
   $("newRecord").hidden = !rec_;
   $("stDist").textContent = fmt(d) + " m"; $("stScore").textContent = fmt(run.score);
   $("stTop").textContent = fmt(run.topSpeed / PX_PER_M * 3.6) + " km/h";
-  $("stPerfect").textContent = run.perfect; $("stDrones").textContent = run.drones; $("stChain").textContent = run.maxChain;
+  $("stPerfect").textContent = run.perfect; $("stDrones").textContent = run.kills; $("stChain").textContent = run.maxChain;
   if (rec_) {
     bestToday = { dist: d, score: Math.round(run.score) }; store.set(bestKey, bestToday);
     ghost = { d: rec }; store.set(ghostKey, ghost);
@@ -2670,26 +3135,48 @@ function botLandsSafely(p) { // ballistic look-ahead: will this arc end on a roo
   let x = p.x, y = p.y, vx = p.vx, vy = p.vy;
   for (let t = 0; t < 1.6; t += 1 / 60) {
     vy += G / 60; x += vx / 60; y += vy / 60;
-    if (vy > 0) { const r = roofAt(x); if (r && y + HALF_H >= r.top && y + HALF_H - vy / 60 <= r.top + 2) return true; }
+    if (vy > 0) { const r = roofAt(x); if (r && y + HALF_H >= r.top && y + HALF_H <= r.top + 34) return true; } // incl. the vault onto a ledge
     if (y > TOP_MAX + 100) return false;
   }
   return false;
 }
+// something to cut within [lo, hi] px ahead at about the runner's height?
+function botFoe(p, lo, hi, dyMax) {
+  for (const d of world.drones) if (d.alive && d.x - p.x > lo && d.x - p.x < hi && Math.abs(d.y - p.y) < dyMax) return true;
+  for (const g of world.guards) if (g.alive && g.x - p.x > lo && g.x - p.x < hi && Math.abs(g.top - GUARD_H / 2 - p.y) < dyMax + 12) return true;
+  for (const b of world.bolts) if (b.life > 0 && !b.refl && b.x - p.x > lo - 40 && b.x - p.x < hi + 90 && Math.abs(b.y - p.y) < 28) return true;
+  return false;
+}
+// would a dash right now carry the runner to a roof (no wall in the way)?
+function botDashLands(p) {
+  const v = clamp(Math.max(p.vx, baseSpeedAt(p.x)) + 820, 1250, 1900), x = p.x + v * DASH_T;
+  for (const b of world.buildings) if (b.x > p.x && b.x < x + PW && p.y + HALF_H > b.top + 36) return false;
+  return botLandsSafely({ x, y: p.y, vx: Math.max(baseSpeedAt(x) + 180, v * 0.62), vy: -60 });
+}
 function botThink() {
   const p = player, la = Math.max(120, p.vx * 0.2);
   const here = roofAt(p.x), ahead = roofAt(p.x + la);
+  const ready = dashReady(p);
   let swing = false;
   input.jumpSrc.delete("bot");
   if (p.state === "run") {
     const edge = !ahead || (here && ahead !== here && ahead.top < here.top - 8);
-    const obst = world.boxes.some((b) => !b.hit && b.x > p.x && b.x - p.x < p.vx * 0.2) ||
-      world.lasers.some((l) => !l.hit && l.x > p.x && l.x - p.x < p.vx * 0.2) ||
-      world.drones.some((d) => d.alive && d.x > p.x && d.x - p.x < p.vx * 0.26 && Math.abs(d.y - p.y) < 90);
-    if (edge || obst) { input.jumpPressed = true; input.jumpSrc.add("bot"); }
+    if (ready && botFoe(p, 24, 175, 36)) input.dashPressed = true;
+    else if (p.dashT <= 0) {
+      const obst = world.boxes.some((b) => !b.hit && b.x > p.x && b.x - p.x < p.vx * 0.2) ||
+        world.lasers.some((l) => !l.hit && l.x > p.x && l.x - p.x < p.vx * 0.2) ||
+        world.drones.some((d) => d.alive && d.x > p.x && d.x - p.x < p.vx * 0.26 && Math.abs(d.y - p.y) < 90) ||
+        world.guards.some((g) => g.alive && g.x > p.x && g.x - p.x < p.vx * 0.22) ||
+        world.bolts.some((b) => b.life > 0 && !b.refl && b.x > p.x && b.x - p.x < (p.vx + 430) * 0.16 && Math.abs(b.y - p.y) < 30);
+      if (edge || obst) { input.jumpPressed = true; input.jumpSrc.add("bot"); }
+    }
   } else if (p.state === "air") {
     if (p.vy < 0) input.jumpSrc.add("bot");
     const below = roofAt(p.x + p.vx * 0.3);
-    if (p.target && (!below || p.y > below.top - 150) && !botLandsSafely(p)) swing = true;
+    if (ready && botFoe(p, 12, 205, 36)) input.dashPressed = true;
+    else if (p.dashT > 0) { /* let the dash play out */ }
+    else if (p.target && (!below || p.y > below.top - 150) && !botLandsSafely(p)) swing = true;
+    else if (ready && p.vy > -120 && !botLandsSafely(p) && botDashLands(p)) input.dashPressed = true; // rescue dash near the apex, not right off the edge
     else if (p.vy > 150 && p.airJumps > 0 && !botLandsSafely(p)) input.jumpPressed = true;
   } else if (p.state === "swing") {
     const deg = (p.swingAngle * 180) / Math.PI;
@@ -2705,10 +3192,7 @@ function step(dt) {
   if (botOn) botThink();
   playerUpdate(dt);
   run.t += dt;
-  for (const d of world.drones) {
-    if (d.alive) d.y = d.y0 + Math.sin(run.t * 2.4 + d.ph) * d.amp;
-    else { d.dead += dt; d.vy += G * dt; d.x += d.vx * dt; d.y += d.vy * dt; }
-  }
+  enemiesUpdate(dt);
   FX.update(dt);
   worldGenerate(player.x + Math.max(3600, (W / cam.zoom) * 0.8 + 1200));
   worldCull(Math.min(player.x, cam.x) - (W / cam.zoom) * 0.7 - 400);
@@ -2728,7 +3212,7 @@ function step(dt) {
   // ghost recording
   if (state === "play") {
     recT += dt;
-    while (recT >= GH_STEP && rec.length < 24000) { recT -= GH_STEP; rec.push(Math.round(player.x), Math.round(player.y), ST_CODE[player.state] || 0, Math.round(player.swingAngle * 100)); }
+    while (recT >= GH_STEP && rec.length < 24000) { recT -= GH_STEP; rec.push(Math.round(player.x), Math.round(player.y), player.dashT > 0 ? 5 : ST_CODE[player.state] || 0, Math.round(player.swingAngle * 100)); }
   }
 }
 
@@ -2745,6 +3229,16 @@ function hudUpdate(rdt, gp) {
   ui.flowbar.classList.toggle("od", run.od > 0);
   setText(ui.chain, "chain", run.od > 0 ? "OVERDRIVE " + run.od.toFixed(1) + "s" : run.chain >= 2 ? "KETTE ×" + run.chain : "");
   setText(ui.speed, "speed", fmt(Math.max(0, player.vx) / PX_PER_M * 3.6));
+  // dash meter: fills while it cools down, glows when ready, red when the air dash is spent
+  {
+    const p = player, max = run.od > 0 ? DASH_CD_OD : DASH_CD;
+    let f = 1, cls = "ready";
+    if (p.state === "air" && p.airDash <= 0) { f = 0; cls = "empty"; }
+    else if (p.dashCD > 0 || p.state === "wall") { f = clamp(1 - p.dashCD / max, 0, 1); cls = ""; }
+    const fq = Math.round(f * 40) / 40;
+    if (hudCache.df !== fq) { hudCache.df = fq; ui.dashfill.style.transform = "scaleX(" + fq + ")"; }
+    if (hudCache.dc !== cls) { hudCache.dc = cls; ui.dashbar.className = cls; }
+  }
   let gtxt = "";
   if (ghost && ghost.d && state === "play") {
     if (gp) { const dm = Math.round((player.x - gp.x) / PX_PER_M); gtxt = "GEIST " + (dm >= 0 ? "+" : "−") + Math.abs(dm) + " m"; }
@@ -2757,7 +3251,13 @@ function hudUpdate(rdt, gp) {
     if (player.target && !run.firstSwing) { if (!hintShown.swing) showHint("swing", 99); }
     else if (hintShown.swing && run.firstSwing && !hintShown.release) { ui.hint.classList.add("fade"); hintT = 0; showHint("release", 3.4); }
     if (!hintShown.pump && player.state === "swing" && player.swingT > 0.9 && !pumpTutDone) { ui.hint.classList.add("fade"); hintT = 0; showHint("pump", 3.6, true); }
-    if (!hintShown.dive && run.dist > 120 && world.drones.some((d) => d.alive && d.x > player.x && d.x - player.x < 700)) showHint("dive", 3.4);
+    const foeNear = (w) => world.guards.some((g) => g.alive && g.x > player.x && g.x - player.x < w) ||
+      world.drones.some((d) => d.alive && d.x > player.x && d.x - player.x < w);
+    if (!dashTutDone && !hintShown.dash && run.dist > 15 && foeNear(760)) { ui.hint.classList.add("fade"); hintT = 0; showHint("dash", 3.8, true); }
+    if (!spikeTutDone && !hintShown.spike && world.drones.some((d) => d.alive && d.spike && d.x > player.x && d.x - player.x < 720)) {
+      ui.hint.classList.add("fade"); hintT = 0; showHint("spike", 3.4, true); spikeTutDone = true; store.set("spikeTut", true);
+    }
+    if (!hintShown.dive && hintT <= 0 && run.dist > 120 && world.drones.some((d) => d.alive && !d.spike && d.x > player.x && d.x - player.x < 700)) showHint("dive", 3.4);
     if (hintShown.swing && run.firstSwing && hintT > 50) { hintT = 0.01; }
   }
   // zone banner
