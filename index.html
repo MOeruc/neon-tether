@@ -227,7 +227,7 @@ body {
   <div class="panel">
     <div>
       <h1 class="logo">NEON<span>TETHER</span></h1>
-      <p class="tag">Sprinte als Schatten-Ninja über die Dächer, schieß dein Seil an die Leuchtanker und schwing dich schneller als der Blackout, der die Stadt hinter dir frisst.</p>
+      <p class="tag">Sprinte über die Dächer, schieß dein Seil an die Leuchtanker und schwing dich schneller als der Blackout, der die Stadt hinter dir frisst.</p>
       <div class="meta-row"><span>Tagesstrecke <b id="seedLabel">–</b></span><span>Bestweite heute <b id="bestLabel">–</b></span></div>
       <div class="actions">
         <button class="btn" id="btnStart"><span>LOS GEHT'S</span></button>
@@ -1622,7 +1622,7 @@ function drawWorld(time, pulse, L, R, T, B) {
 // Model space: origin = hitbox centre, x forward, y down, scaled by RG.s when drawn.
 // A pose stores targets (hip, ankles, hands) that blend smoothly; knees and elbows come from IK.
 const DEG = Math.PI / 180;
-const RG = { s: 0.9, thigh: 13, shin: 13, foot: 5.6, up: 8.6, fore: 8.2, torso: 15, neck: 2.2, headR: 4.3 };
+const RG = { s: 1.0, thigh: 13, shin: 13, foot: 5.6, up: 8.6, fore: 8.2, torso: 15, neck: 2.2, headR: 4.3 };
 const LEG = RG.thigh + RG.shin;
 const GROUND_M = HALF_H / RG.s;           // sole level
 const ANKLE_H = 2;                         // ankle above the sole
@@ -1812,26 +1812,13 @@ function knotModel(P) { return headLocal(P, -RG.headR * 0.95, -1.4); }
 function eyeModel(P) { return headLocal(P, 2.6, -0.4); }
 function handModel(P) { return { x: P.wAx, y: P.wAy }; }
 
-// ================= SKINS: how the runner looks =================
-// Every skin draws the same rig. Solid skins are sleek silhouettes made of tapered capsules
-// with a moonlight rim from the upper right; the neon skin is drawn with light; the hologram scanlines.
-const SLIM = { th0: 3.4, th1: 2.15, sh0: 2.25, sh1: 1.35, ft0: 1.4, ft1: 0.95, ua0: 2.0, ua1: 1.45, fa0: 1.5, fa1: 1.1, hand: 1.55, hip: 3.2, chest: 4.5, neck: 1.45, hrx: 3.9, hry: 4.4 };
-const SKINS = [
-  { id: "ninja", name: "Schatten", tag: "Ninja", style: "solid", dims: SLIM,
-    col: { armFar: "#07060b", legFar: "#07060b", core: "#0d0c14", legNear: "#121019", armNear: "#121019" },
-    rim: "#4ff3ff", eye: "#effeff", glow: "#4ff3ff", trail: "#29c9ff", tails: ["#ff2e63", "#b3123d"], sword: true, band: "#ff2e63" },
-  { id: "neon", name: "Neon", tag: "Stickman", style: "line", glow: "#4ff3ff", core: "#ffffff", rim: "#4ff3ff", eye: "#ffffff", trail: "#4ff3ff" },
-  { id: "cyborg", name: "Chrom", tag: "Cyborg", style: "solid",
-    dims: Object.assign({}, SLIM, { th0: 3.7, th1: 2.4, sh0: 2.5, sh1: 1.6, ft0: 1.6, ft1: 1.15, ua0: 2.3, ua1: 1.7, fa0: 1.8, fa1: 1.3, hand: 1.7, hip: 3.5, chest: 5.1, neck: 1.6, hrx: 4.0, hry: 4.3 }),
-    col: { armFar: "#1c2029", legFar: "#1c2029", core: "#2b313d", legNear: "#363d4b", armNear: "#363d4b" },
-    rim: "#d6e8f5", eye: "#ff8a3d", glow: "#ff8a3d", trail: "#ff8a3d", joints: "#ff8a3d", reactor: "#4ff3ff", visor: true },
-  { id: "holo", name: "Phantom", tag: "Hologramm", style: "holo", dims: SLIM, a: "#4ff3ff", b: "#ff2e63", rim: "#4ff3ff", eye: "#ffffff", glow: "#4ff3ff", trail: "#ff2e63" },
-  { id: "street", name: "Street", tag: "Runner", style: "solid",
-    dims: Object.assign({}, SLIM, { th0: 3.9, th1: 2.8, sh0: 2.8, sh1: 1.9, ft0: 2.1, ft1: 1.7, ua0: 2.5, ua1: 2.0, fa0: 2.0, fa1: 1.55, hand: 1.5, hip: 3.7, chest: 5.2, neck: 1.7, hrx: 3.9, hry: 4.3 }),
-    col: { armFar: "#3d1aa3", legFar: "#100d1f", core: "#6a2cf5", legNear: "#1a1630", armNear: "#5a24e0" },
-    rim: "#ffd23f", eye: "#4ff3ff", glow: "#a17bff", trail: "#a17bff", hood: true, shoes: "#f3f0ff", shoeAccent: "#4ff3ff", phones: "#4ff3ff" },
-];
-let currentSkin = SKINS.find((s) => s.id === store.get("skin", "ninja")) || SKINS[0];
+// ================= CHARACTERS: costumes, cel shading, cloth =================
+// Every character is drawn on the same IK rig: shaded body parts (light from the upper right),
+// a costume (head, torso, gear), cloth that flutters in world space, and glowing details.
+const BUILD = { th0: 4.2, th1: 2.9, sh0: 3.0, sh1: 1.9, boot0: 2.7, boot1: 2.2, toe: 1.7, ua0: 2.7, ua1: 2.1, fa0: 2.2, fa1: 1.7, glove: 2.3, hip: 4.5, chest: 6.0, neck: 1.9, head: 4.6 };
+const shadeHex = (h, k) => mixHex(h, "#000000", k);
+const pal = (hex) => ({ b: hex, s: shadeHex(hex, 0.42), fb: shadeHex(hex, 0.38), fs: shadeHex(hex, 0.62) });
+let LX = 0.7, LY = -0.8;
 
 function capsule(g, ax, ay, ar, bx, by, br) {
   const dx = bx - ax, dy = by - ay, d = Math.hypot(dx, dy);
@@ -1842,123 +1829,311 @@ function capsule(g, ax, ay, ar, bx, by, br) {
   g.arc(bx, by, br, ang - off, ang + off);
   g.closePath();
 }
-function legPath(g, P, s, d, withFoot) {
-  const qx = P["q" + s + "x"], qy = P["q" + s + "y"], kx = P["k" + s + "x"], ky = P["k" + s + "y"], ax = P["a" + s + "x"], ay = P["a" + s + "y"];
-  capsule(g, qx, qy, d.th0, kx, ky, d.th1);
-  capsule(g, kx, ky, d.th1 * 0.98, ax, ay, d.sh1);
-  // calf: a soft bulge behind the upper shin
-  const nx = -(ay - ky), ny = ax - kx, nl = Math.hypot(nx, ny) || 1;
-  const cx = lerp(kx, ax, 0.32) + (nx / nl) * 0.5, cy = lerp(ky, ay, 0.32) + (ny / nl) * 0.5;
-  g.moveTo(cx + d.sh0, cy); g.arc(cx, cy, d.sh0, 0, TAU);
-  if (withFoot) capsule(g, ax, ay, d.ft0, P["t" + s + "x"], P["t" + s + "y"], d.ft1);
+const circ = (g, x, y, r) => { g.moveTo(x + r, y); g.arc(x, y, r, 0, TAU); };
+function ell(g, c, rx, ry, a) { g.moveTo(c.x + Math.cos(a) * rx, c.y + Math.sin(a) * rx); g.ellipse(c.x, c.y, rx, ry, a, 0, TAU); }
+function polyH(g, P, pts) { // polygon given in head space
+  let p = headLocal(P, pts[0], pts[1]); g.moveTo(p.x, p.y);
+  for (let i = 2; i < pts.length; i += 2) { p = headLocal(P, pts[i], pts[i + 1]); g.lineTo(p.x, p.y); }
+  g.closePath();
 }
-function footPath(g, P, s, d) { capsule(g, P["a" + s + "x"], P["a" + s + "y"], d.ft0, P["t" + s + "x"], P["t" + s + "y"], d.ft1); }
-function armPath(g, P, s, d) {
-  const ox = P["o" + s + "x"], oy = P["o" + s + "y"], ex = P["e" + s + "x"], ey = P["e" + s + "y"], wx = P["w" + s + "x"], wy = P["w" + s + "y"];
-  capsule(g, ox, oy, d.ua0, ex, ey, d.ua1);
-  capsule(g, ex, ey, d.ua1 * 0.95, wx, wy, d.fa1);
-  g.moveTo(wx + d.hand, wy); g.arc(wx, wy, d.hand, 0, TAU);
-}
-function headPath(g, P, d) { g.moveTo(P.Dx + Math.cos(P.ha) * d.hrx, P.Dy + Math.sin(P.ha) * d.hrx); g.ellipse(P.Dx, P.Dy, d.hrx, d.hry, P.ha, 0, TAU); }
-function corePath(g, P, d, sk) {
-  const ux = Math.sin(P.lean), uy = -Math.cos(P.lean);
-  capsule(g, P.Hx, P.Hy, d.hip, P.Cx - ux * 1.5, P.Cy - uy * 1.5, d.chest);
-  capsule(g, P.Cx - ux * 1.2, P.Cy - uy * 1.2, d.neck + 0.3, P.Dx, P.Dy, d.neck);
-  if (sk && sk.hood) { const hb = headLocal(P, -1.6, -0.6); g.moveTo(hb.x + d.hrx + 1.4, hb.y); g.arc(hb.x, hb.y, d.hrx + 1.4, 0, TAU); }
-  headPath(g, P, d);
-}
-function silhouette(g, P, d, sk) {
-  g.beginPath(); armPath(g, P, "B", d); legPath(g, P, "B", d, true); corePath(g, P, d, sk); legPath(g, P, "A", d, true); armPath(g, P, "A", d);
+const jx = (P, k, s) => P[k + s + "x"], jy = (P, k, s) => P[k + s + "y"];
+// shaded part: rim edge toward the light, shadow colour, then the lit colour shifted toward the light
+function part(g, path, c, far, rim) {
+  const base = far ? c.fb : c.b, shade = far ? c.fs : c.s;
+  if (rim && !far) { g.save(); g.translate(LX, LY); g.beginPath(); path(); g.fillStyle = rim; g.fill(); g.restore(); }
+  g.beginPath(); path(); g.fillStyle = shade; g.fill();
+  g.save(); g.clip(); g.translate(LX * 1.9, LY * 1.9); g.beginPath(); path(); g.fillStyle = base; g.fill(); g.restore();
 }
 function glowDot(g, x, y, col, r) { g.globalCompositeOperation = "lighter"; g.drawImage(Art.glow(col), x - r, y - r, r * 2, r * 2); g.globalCompositeOperation = "source-over"; }
-
-function drawRunner(g, sk, x, y, P, o) {
-  const rot = (P.rot || 0) + (P.spin || 0);
-  g.save(); g.translate(x, y + (P.dropY || 0));
-  if ((P.sx || 1) !== 1 || (P.sy || 1) !== 1) { const pv = P.pivot || 0; g.translate(0, pv); g.scale(P.sx || 1, P.sy || 1); g.translate(0, -pv); }
-  g.rotate(rot); g.scale(RG.s, RG.s);
-  g.globalAlpha = o.alpha == null ? 1 : o.alpha;
-  g.lineCap = "round"; g.lineJoin = "round";
-  if (sk.style === "line") drawLineRunner(g, sk, P, o);
-  else if (o.mono) { silhouette(g, P, sk.dims || SLIM, sk); g.fillStyle = o.mono; g.fill(); }
-  else if (sk.style === "holo") drawHoloRunner(g, sk, P, o);
-  else drawSolidRunner(g, sk, P, o, rot);
-  g.restore();
+function glowPoly(g, pts, col, w) {
+  g.globalCompositeOperation = "lighter";
+  for (const [a, lw] of [[0.3, w * 3.2], [0.95, w]]) {
+    g.strokeStyle = rgba(col, a); g.lineWidth = lw; g.beginPath(); g.moveTo(pts[0], pts[1]);
+    for (let i = 2; i < pts.length; i += 2) g.lineTo(pts[i], pts[i + 1]);
+    g.stroke();
+  }
+  g.globalCompositeOperation = "source-over";
+}
+// a point on a limb, pushed sideways (side > 0 = toward the front of the limb)
+function onLimb(P, k1, k2, s, t, off) {
+  const ax = jx(P, k1, s), ay = jy(P, k1, s), bx = jx(P, k2, s), by = jy(P, k2, s);
+  const dx = bx - ax, dy = by - ay, l = Math.hypot(dx, dy) || 1;
+  return [lerp(ax, bx, t) + (dy / l) * off, lerp(ay, by, t) - (dx / l) * off];
 }
 
-function drawSolidRunner(g, sk, P, o, rot) {
-  const d = sk.dims, C = sk.col, rim = o.rim || sk.rim;
-  const c = Math.cos(-rot), s = Math.sin(-rot), lx = 0.72 * c + 0.85 * s, ly = 0.72 * s - 0.85 * c; // world light (0.72,-0.85) in model space
-  const parts = [
-    [C.armFar, () => armPath(g, P, "B", d)],
-    [C.legFar, () => legPath(g, P, "B", d, !sk.shoes)],
-    [C.core, () => corePath(g, P, d, sk)],
-    [C.legNear, () => legPath(g, P, "A", d, !sk.shoes)],
-    [C.armNear, () => armPath(g, P, "A", d)],
-  ];
-  parts.forEach(([col, path], i) => {
-    if (i === 2 && sk.sword) { // katana across the back, behind the torso
-      const ux = Math.sin(P.lean), uy = -Math.cos(P.lean), fx = Math.cos(P.lean), fy = Math.sin(P.lean);
-      const x1 = P.Hx - fx * 3.6 - ux * 2, y1 = P.Hy - fy * 3.6 - uy * 2, x2 = P.Cx - fx * 3.4 + ux * 5.5, y2 = P.Cy - fy * 3.4 + uy * 5.5;
-      const L = Math.hypot(x2 - x1, y2 - y1) || 1, dx = (x2 - x1) / L, dy = (y2 - y1) / L;
-      g.strokeStyle = rgba(rim, 0.7); g.lineWidth = 2.6; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2 + dx * 5.5, y2 + dy * 5.5); g.stroke();
-      g.strokeStyle = "#191723"; g.lineWidth = 1.7; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
-      g.strokeStyle = "#c4173f"; g.lineWidth = 1.6; g.beginPath(); g.moveTo(x2, y2); g.lineTo(x2 + dx * 5.5, y2 + dy * 5.5); g.stroke();
-      g.strokeStyle = "#ffd23f"; g.lineWidth = 1; g.beginPath(); g.moveTo(x2 - dy * 1.8, y2 + dx * 1.8); g.lineTo(x2 + dy * 1.8, y2 - dx * 1.8); g.stroke();
+// ---------- body parts ----------
+const pThigh = (g, P, s, b) => capsule(g, jx(P, "q", s), jy(P, "q", s), b.th0, jx(P, "k", s), jy(P, "k", s), b.th1);
+function pShin(g, P, s, b) {
+  const kx = jx(P, "k", s), ky = jy(P, "k", s), ax = jx(P, "a", s), ay = jy(P, "a", s);
+  capsule(g, kx, ky, b.th1 * 0.96, ax, ay, b.sh1);
+  const nx = -(ay - ky), ny = ax - kx, nl = Math.hypot(nx, ny) || 1;
+  circ(g, lerp(kx, ax, 0.32) + (nx / nl) * 0.6, lerp(ky, ay, 0.32) + (ny / nl) * 0.6, b.sh0);
+}
+function pBoot(g, P, s, b) {
+  const kx = jx(P, "k", s), ky = jy(P, "k", s), ax = jx(P, "a", s), ay = jy(P, "a", s);
+  capsule(g, lerp(kx, ax, 0.58), lerp(ky, ay, 0.58), b.boot0 * 0.9, ax, ay, b.boot0);
+  capsule(g, ax, ay, b.boot1, jx(P, "t", s), jy(P, "t", s), b.toe);
+}
+const pUpperArm = (g, P, s, b) => capsule(g, jx(P, "o", s), jy(P, "o", s), b.ua0, jx(P, "e", s), jy(P, "e", s), b.ua1);
+const pForearm = (g, P, s, b) => capsule(g, jx(P, "e", s), jy(P, "e", s), b.ua1 * 0.95, jx(P, "w", s), jy(P, "w", s), b.fa1);
+function pGlove(g, P, s, b) {
+  const ex = jx(P, "e", s), ey = jy(P, "e", s), wx = jx(P, "w", s), wy = jy(P, "w", s), l = Math.hypot(wx - ex, wy - ey) || 1;
+  circ(g, wx + ((wx - ex) / l) * 0.7, wy + ((wy - ey) / l) * 0.7, b.glove);
+}
+function pTorso(g, P, b) {
+  const ux = Math.sin(P.lean), uy = -Math.cos(P.lean);
+  capsule(g, P.Hx, P.Hy, b.hip, P.Cx - ux * 1.3, P.Cy - uy * 1.3, b.chest);
+}
+function pNeck(g, P, b) { const ux = Math.sin(P.lean), uy = -Math.cos(P.lean); capsule(g, P.Cx - ux * 0.6, P.Cy - uy * 0.6, b.neck + 0.5, P.Dx, P.Dy, b.neck); }
+const pHead = (g, P, b) => ell(g, headLocal(P, 0, 0), b.head * 0.92, b.head, P.ha);
+// torso frame helpers: point at fraction t from hip to chest, pushed forward by f
+function tp(P, t, f) { const fx = Math.cos(P.lean), fy = Math.sin(P.lean); return [lerp(P.Hx, P.Cx, t) + fx * f, lerp(P.Hy, P.Cy, t) + fy * f]; }
+
+// ---------- heads ----------
+const HEADS = {
+  hood(g, P, sk, b, o) {
+    const r = b.head;
+    part(g, () => { ell(g, headLocal(P, -0.6, -0.3), r * 1.12, r * 1.16, P.ha); polyH(g, P, [-r * 0.6, -r * 0.95, -r * 2.1, -r * 0.05, -r * 0.7, r * 0.85]); }, sk.c.hood, false, o.rim);
+    g.fillStyle = "#050409"; g.beginPath(); ell(g, headLocal(P, r * 0.42, r * 0.08), r * 0.6, r * 0.62, P.ha); g.fill();
+    g.fillStyle = sk.c.mask.b; g.beginPath(); polyH(g, P, [-r * 0.15, r * 0.15, r * 1.02, r * 0.05, r * 0.95, r * 0.75, -r * 0.1, r * 0.95]); g.fill();
+    const e1 = headLocal(P, r * 0.25, -r * 0.18), e2 = headLocal(P, r * 0.98, -r * 0.24);
+    glowPoly(g, [e1.x, e1.y, e2.x, e2.y], o.eye, 0.85);
+  },
+  hair(g, P, sk, b, o) {
+    const r = b.head;
+    part(g, () => pHead(g, P, b), sk.c.skin, false, o.rim);
+    part(g, () => polyH(g, P, [r * 0.8, -r * 0.5, r * 0.15, -r * 1.12, -r * 2.4, -r * 1.05, -r * 0.95, -r * 0.55, -r * 2.55, -r * 0.12, -r * 1.0, r * 0.08, -r * 1.95, r * 0.75, -r * 0.55, r * 0.62, -r * 0.92, r * 0.05, r * 0.2, -r * 0.62]), sk.c.hair, false, o.rim);
+    const e1 = headLocal(P, r * 0.3, -r * 0.1), e2 = headLocal(P, r * 0.95, -r * 0.14);
+    glowPoly(g, [e1.x, e1.y, e2.x, e2.y], o.eye, 0.9);
+  },
+  visor(g, P, sk, b, o) {
+    const r = b.head;
+    part(g, () => ell(g, headLocal(P, -0.2, -0.3), r * 1.08, r * 1.14, P.ha), sk.c.helmet, false, o.rim);
+    const a = headLocal(P, -r * 0.05, -r * 0.62), z = headLocal(P, r * 1.1, r * 0.35);
+    const gr = g.createLinearGradient(a.x, a.y, z.x, z.y); gr.addColorStop(0, sk.visor[0]); gr.addColorStop(1, sk.visor[1]);
+    g.fillStyle = gr; g.beginPath(); polyH(g, P, [-r * 0.1, -r * 0.6, r * 0.75, -r * 0.72, r * 1.14, -r * 0.2, r * 1.06, r * 0.36, r * 0.1, r * 0.42]); g.fill();
+    const s1 = headLocal(P, r * 0.2, -r * 0.45), s2 = headLocal(P, r * 0.85, -r * 0.5);
+    g.strokeStyle = "rgba(255,255,255,0.75)"; g.lineWidth = 0.6; g.beginPath(); g.moveTo(s1.x, s1.y); g.lineTo(s2.x, s2.y); g.stroke();
+    glowDot(g, (a.x + z.x) / 2, (a.y + z.y) / 2, sk.visor[0], 5);
+  },
+  kabuto(g, P, sk, b, o) {
+    const r = b.head;
+    part(g, () => { pHead(g, P, b); polyH(g, P, [-r * 1.1, -r * 0.2, -r * 2.0, r * 0.95, -r * 0.9, r * 1.05, -r * 0.2, r * 0.3]); }, sk.c.top, false, o.rim);
+    part(g, () => ell(g, headLocal(P, -0.2, -r * 0.45), r * 1.08, r * 0.78, P.ha), sk.c.helmet, false, o.rim);
+    g.strokeStyle = sk.gold; g.lineWidth = 1.1; g.lineCap = "round";
+    const c0 = headLocal(P, r * 0.35, -r * 0.95);
+    for (const sgn of [1, -1]) {
+      const m = headLocal(P, r * 0.35 + sgn * r * 0.9, -r * 1.9), e = headLocal(P, r * 0.35 + sgn * r * 1.55, -r * 2.55);
+      g.beginPath(); g.moveTo(c0.x, c0.y); g.quadraticCurveTo(m.x, m.y, e.x, e.y); g.stroke();
     }
-    g.save(); g.translate(lx, ly); g.beginPath(); path(); g.fillStyle = rgba(rim, 0.78); g.fill(); g.restore();
-    g.beginPath(); path(); g.fillStyle = col; g.fill();
-    if (sk.shoes && (i === 1 || i === 3)) { // chunky sneakers
-      const sd = i === 1 ? "B" : "A";
-      g.beginPath(); footPath(g, P, sd, d); g.fillStyle = i === 1 ? "#bdb8d6" : sk.shoes; g.fill();
-      g.strokeStyle = sk.shoeAccent; g.lineWidth = 0.8;
-      g.beginPath(); g.moveTo(lerp(P["a" + sd + "x"], P["t" + sd + "x"], 0.15), lerp(P["a" + sd + "y"], P["t" + sd + "y"], 0.15) + 0.6); g.lineTo(lerp(P["a" + sd + "x"], P["t" + sd + "x"], 0.85), lerp(P["a" + sd + "y"], P["t" + sd + "y"], 0.85) + 0.6); g.stroke();
+    g.fillStyle = sk.c.mask.b; g.beginPath(); polyH(g, P, [r * 0.1, -r * 0.05, r * 1.05, -r * 0.1, r * 1.1, r * 0.55, r * 0.55, r * 0.95, 0, r * 0.7]); g.fill();
+    g.strokeStyle = sk.gold; g.lineWidth = 0.45; const t1 = headLocal(P, r * 0.45, r * 0.55), t2 = headLocal(P, r * 1.0, r * 0.5); g.beginPath(); g.moveTo(t1.x, t1.y); g.lineTo(t2.x, t2.y); g.stroke();
+    const e1 = headLocal(P, r * 0.35, -r * 0.18), e2 = headLocal(P, r * 0.95, -r * 0.24);
+    glowPoly(g, [e1.x, e1.y, e2.x, e2.y], o.eye, 0.85);
+  },
+  dome(g, P, sk, b, o) {
+    const r = b.head, c = headLocal(P, r * 0.15, -r * 0.1), R = r * 1.42;
+    part(g, () => ell(g, headLocal(P, -0.2, r * 0.95), r * 1.05, r * 0.55, P.ha), sk.c.top, false, o.rim);
+    const gr = g.createRadialGradient(c.x + R * 0.3, c.y - R * 0.3, R * 0.1, c.x, c.y, R);
+    gr.addColorStop(0, "rgba(120,240,255,0.55)"); gr.addColorStop(0.55, "rgba(30,40,90,0.85)"); gr.addColorStop(1, "rgba(10,10,30,0.95)");
+    g.fillStyle = gr; g.beginPath(); circ(g, c.x, c.y, R); g.fill();
+    g.strokeStyle = "rgba(233,236,245,0.9)"; g.lineWidth = 0.9; g.beginPath(); circ(g, c.x, c.y, R); g.stroke();
+    g.strokeStyle = "rgba(255,255,255,0.8)"; g.lineWidth = 0.8; g.beginPath(); g.arc(c.x, c.y, R * 0.72, -2.4 + P.ha, -1.5 + P.ha); g.stroke();
+    glowDot(g, headLocal(P, r * 0.7, -r * 0.05).x, headLocal(P, r * 0.7, -r * 0.05).y, o.eye, 3.4);
+  },
+  flame(g, P, sk, b, o) {
+    const r = b.head, t = o.time || 0;
+    g.globalCompositeOperation = "lighter";
+    for (let i = 0; i < 6; i++) {
+      const bx = -r * 0.2 - i * r * 0.28, by = -r * (0.85 - i * 0.12);
+      const len = r * (1.5 + 0.45 * Math.sin(t * 13 + i * 1.7)), lift = r * (0.9 + 0.35 * Math.cos(t * 11 + i));
+      const p0 = headLocal(P, bx + r * 0.35, by + r * 0.2), tip = headLocal(P, bx - len, by - lift), p1 = headLocal(P, bx - r * 0.35, by + r * 0.35);
+      const gr = g.createLinearGradient(p0.x, p0.y, tip.x, tip.y);
+      gr.addColorStop(0, "rgba(255,240,170,0.95)"); gr.addColorStop(0.45, "rgba(255,138,61,0.85)"); gr.addColorStop(1, "rgba(255,46,99,0)");
+      g.fillStyle = gr; g.beginPath(); g.moveTo(p0.x, p0.y);
+      const m = headLocal(P, bx - len * 0.5, by - lift * 0.9); g.quadraticCurveTo(m.x, m.y, tip.x, tip.y);
+      const m2 = headLocal(P, bx - len * 0.35, by - lift * 0.1); g.quadraticCurveTo(m2.x, m2.y, p1.x, p1.y); g.closePath(); g.fill();
     }
-    if (i === 2) drawHeadDetails(g, sk, P, o);
-  });
-  if (sk.joints) for (const s2 of ["A"]) { // glowing servo joints on the near side
-    glowDot(g, P["k" + s2 + "x"], P["k" + s2 + "y"], sk.joints, 4.2); glowDot(g, P["e" + s2 + "x"], P["e" + s2 + "y"], sk.joints, 3.6);
-    g.fillStyle = "#ffe0c4"; g.beginPath(); g.arc(P["k" + s2 + "x"], P["k" + s2 + "y"], 0.7, 0, TAU); g.arc(P["e" + s2 + "x"], P["e" + s2 + "y"], 0.6, 0, TAU); g.fill();
+    g.globalCompositeOperation = "source-over";
+    part(g, () => pHead(g, P, b), sk.c.skin, false, o.rim);
+    const e1 = headLocal(P, r * 0.35, -r * 0.12), e2 = headLocal(P, r * 0.95, -r * 0.15);
+    glowPoly(g, [e1.x, e1.y, e2.x, e2.y], o.eye, 0.9);
+  },
+  hoodie(g, P, sk, b, o) {
+    const r = b.head;
+    part(g, () => ell(g, headLocal(P, -r * 0.35, -r * 0.05), r * 1.25, r * 1.22, P.ha), sk.c.top, false, o.rim);
+    g.fillStyle = "#0d0a18"; g.beginPath(); ell(g, headLocal(P, r * 0.35, r * 0.1), r * 0.75, r * 0.82, P.ha); g.fill();
+    const e1 = headLocal(P, r * 0.45, -r * 0.05), e2 = headLocal(P, r * 0.95, -r * 0.08);
+    glowPoly(g, [e1.x, e1.y, e2.x, e2.y], o.eye, 0.8);
+    const a = headLocal(P, -r * 1.1, -r * 0.4), m = headLocal(P, -r * 0.1, -r * 1.75), z = headLocal(P, r * 0.85, -r * 0.55);
+    g.strokeStyle = sk.c.phones.b; g.lineWidth = 1.1; g.beginPath(); g.moveTo(a.x, a.y); g.quadraticCurveTo(m.x, m.y, z.x, z.y); g.stroke();
+    const cup = headLocal(P, -r * 0.55, r * 0.15);
+    part(g, () => ell(g, cup, r * 0.42, r * 0.55, P.ha), pal("#1b1630"), false, null);
+    glowDot(g, cup.x, cup.y, sk.c.phones.b, 3);
+  },
+};
+
+// ---------- torsos / gear ----------
+function drawKatana(g, P, sk) {
+  const [x1, y1] = tp(P, -0.05, -4.2), [x2, y2] = tp(P, 1.25, -3.6);
+  const L = Math.hypot(x2 - x1, y2 - y1) || 1, dx = (x2 - x1) / L, dy = (y2 - y1) / L;
+  g.lineCap = "round";
+  g.strokeStyle = "#0b0a10"; g.lineWidth = 2.2; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
+  g.strokeStyle = sk.c.accent.b; g.lineWidth = 1.9; g.beginPath(); g.moveTo(x2, y2); g.lineTo(x2 + dx * 6.5, y2 + dy * 6.5); g.stroke();
+  g.strokeStyle = "#ffd23f"; g.lineWidth = 1.1; g.beginPath(); g.moveTo(x2 - dy * 2.2, y2 + dx * 2.2); g.lineTo(x2 + dy * 2.2, y2 - dx * 2.2); g.stroke();
+}
+function drawBackpack(g, P, sk, o, q) {
+  const [cx, cy] = tp(P, 0.55, -b0(sk).chest - 2.2), ux = Math.sin(P.lean), uy = -Math.cos(P.lean);
+  part(g, () => capsule(g, cx - ux * 4.5, cy - uy * 4.5, 3.3, cx + ux * 4.5, cy + uy * 4.5, 3.3), sk.c.gear, false, o.rim);
+  if (sk.thrust && q && q.air) { // thrusters flare in the air
+    const fl = 7 + Math.random() * 5, bx = cx - ux * 6.5, by = cy - uy * 6.5;
+    g.globalCompositeOperation = "lighter";
+    const gr = g.createLinearGradient(bx, by, bx - ux * fl, by - uy * fl); gr.addColorStop(0, "rgba(255,240,170,0.95)"); gr.addColorStop(1, "rgba(255,138,61,0)");
+    g.fillStyle = gr; g.beginPath(); g.moveTo(bx + uy * 1.6, by - ux * 1.6); g.lineTo(bx - ux * fl, by - uy * fl); g.lineTo(bx - uy * 1.6, by + ux * 1.6); g.closePath(); g.fill();
+    g.globalCompositeOperation = "source-over";
   }
 }
-function drawHeadDetails(g, sk, P, o) {
-  const eye = o.eye || sk.eye;
-  g.save(); g.translate(P.Dx, P.Dy); g.rotate(P.ha);
-  const r = (sk.dims || SLIM).hrx;
-  if (sk.band) { // ninja: red headband and a sharp eye slit
-    g.fillStyle = sk.band; g.fillRect(-r - 0.2, -2.6, r * 2, 1.25);
-    g.fillStyle = eye; g.beginPath(); g.moveTo(0.4, -0.95); g.lineTo(r + 0.2, -0.75); g.lineTo(r - 0.2, 0.25); g.lineTo(0.9, 0.05); g.closePath(); g.fill();
+const b0 = (sk) => sk.build;
+function shoulderPad(g, P, sk, s, far, o) {
+  const ox = jx(P, "o", s), oy = jy(P, "o", s), ex = jx(P, "e", s), ey = jy(P, "e", s);
+  const a = Math.atan2(ey - oy, ex - ox);
+  part(g, () => { g.moveTo(ox + 4.6, oy); g.ellipse(ox + Math.cos(a) * 1.2, oy + Math.sin(a) * 1.2, 4.3, 3.2, a, 0, TAU); }, sk.c.plate, far, o.rim);
+}
+function samuraiPlate(g, P, sk, s, far, o, back) { // kusazuri: armour plates that hang from the waist and follow the thigh
+  const qx = jx(P, "q", s), qy = jy(P, "q", s), kx = jx(P, "k", s), ky = jy(P, "k", s);
+  const a = Math.atan2(ky - qy, kx - qx) * 0.6 + (Math.PI / 2) * 0.4, off = back ? -2.4 : 1.4;
+  const cx = qx + Math.cos(a) * 4.2 + Math.cos(a - Math.PI / 2) * off, cy = qy + Math.sin(a) * 4.2 + Math.sin(a - Math.PI / 2) * off;
+  part(g, () => { const w = 3.6, h = 5.2, c = Math.cos(a), si = Math.sin(a);
+    g.moveTo(cx - c * h - si * w, cy - si * h + c * w); g.lineTo(cx + c * h - si * w * 1.15, cy + si * h + c * w * 1.15);
+    g.lineTo(cx + c * h + si * w * 1.15, cy + si * h - c * w * 1.15); g.lineTo(cx - c * h + si * w, cy - si * h - c * w); g.closePath(); }, sk.c.top, far, o.rim);
+  g.strokeStyle = sk.gold; g.lineWidth = 0.45; g.beginPath(); g.moveTo(cx - Math.sin(a) * 3.4, cy + Math.cos(a) * 3.4); g.lineTo(cx + Math.sin(a) * 3.4, cy - Math.cos(a) * 3.4); g.stroke();
+}
+
+// ---------- the roster ----------
+const mk = (o) => { const c = {}; for (const k in o.colors) c[k] = typeof o.colors[k] === "string" && o.colors[k][0] === "#" ? pal(o.colors[k]) : o.colors[k]; o.c = c; o.build = Object.assign({}, BUILD, o.build || {}); return o; };
+const SKINS = [
+  mk({ id: "kage", name: "Kage", tag: "Ninja", head: "hood", torso: "gi", rim: "#4ff3ff", eye: "#e9feff", glow: "#4ff3ff", trail: "#29c9ff",
+    colors: { top: "#1b1824", pants: "#15131d", boots: "#0f0e15", gloves: "#0f0e15", hood: "#1b1824", mask: "#0a0910", accent: "#ff2e63", skin: "#1b1824" },
+    gear: { katana: true, wraps: "#2c2838", sash: true },
+    cloth: [{ at: "neck", n: 13, seg: 5.6, w0: 4.6, w1: 1.1, col: "#ff2e63", edge: "#a30f36", ph: 0 }, { at: "neck", n: 9, seg: 5.4, w0: 3.4, w1: 0.9, col: "#c4173f", ph: 2.1, dy: 1.2 }] }),
+  mk({ id: "raven", name: "Raven", tag: "Assassine", head: "hair", torso: "coat", rim: "#ff6f8f", eye: "#ff2e63", glow: "#ff2e63", trail: "#ff2e63",
+    colors: { top: "#17151f", pants: "#100e16", boots: "#0b0a10", gloves: "#0b0a10", skin: "#241f2b", hair: "#e6e8f5", accent: "#b3123d", lining: "#ff2e63" },
+    gear: { collar: true, buckles: "#ffd23f" }, build: { chest: 6.2 },
+    cloth: [{ at: "waist", n: 8, seg: 5.4, w0: 8.5, w1: 5.2, col: "#17151f", edge: "#ff2e63", ph: 0 }, { at: "waist", n: 7, seg: 5.2, w0: 7, w1: 4.2, col: "#100e16", ph: 1.4, dy: 1.5 }] }),
+  mk({ id: "volt", name: "Volt", tag: "Cyber", head: "visor", torso: "jacket", rim: "#bdfcff", eye: "#4ff3ff", glow: "#4ff3ff", trail: "#4ff3ff", visor: ["#4ff3ff", "#ff2e63"],
+    colors: { top: "#e8e6f2", pants: "#191726", boots: "#f3f0ff", gloves: "#191726", helmet: "#f3f0ff", accent: "#4ff3ff" },
+    gear: { seams: "#4ff3ff", soles: "#4ff3ff", collarRing: true } }),
+  mk({ id: "chrom", name: "Chrom", tag: "Cyborg", head: "visor", torso: "armor", rim: "#e6f2fb", eye: "#ff8a3d", glow: "#ff8a3d", trail: "#ff8a3d", visor: ["#ff8a3d", "#ff2e63"],
+    colors: { top: "#3b4354", pants: "#2a303c", boots: "#454e61", gloves: "#454e61", helmet: "#4a5468", plate: "#5b667d", accent: "#ff8a3d" },
+    gear: { joints: "#ff8a3d", reactor: "#4ff3ff", pads: true, robo: "#ff8a3d" }, build: { th0: 4.5, th1: 3.1, sh0: 3.2, sh1: 2.1, ua0: 3.0, ua1: 2.3, fa0: 2.6, fa1: 2.1, glove: 2.6, chest: 6.5, boot0: 3.0, boot1: 2.5, toe: 1.9 } }),
+  mk({ id: "oni", name: "Oni", tag: "Samurai", head: "kabuto", torso: "samurai", rim: "#ffd23f", eye: "#ff8a3d", glow: "#ff2e63", trail: "#ff2e63", gold: "#ffd23f",
+    colors: { top: "#a3122f", pants: "#1a1220", boots: "#140d18", gloves: "#140d18", helmet: "#1a1220", mask: "#7a0f25", plate: "#a3122f", accent: "#ffd23f" },
+    gear: { katanaHip: true, sode: true, kusazuri: true } }),
+  mk({ id: "nova", name: "Nova", tag: "Astronaut", head: "dome", torso: "astro", rim: "#ffffff", eye: "#4ff3ff", glow: "#a8f6ff", trail: "#a8f6ff",
+    colors: { top: "#e9ecf5", pants: "#d9dde9", boots: "#c9cede", gloves: "#ff8a3d", gear: "#c4c9d8", accent: "#ff8a3d" },
+    gear: { backpack: true, thrust: true, panel: true }, build: { th0: 4.6, th1: 3.3, sh0: 3.3, sh1: 2.4, ua0: 3.0, ua1: 2.5, fa0: 2.6, fa1: 2.2, glove: 2.6, chest: 6.6, hip: 5.0, boot0: 3.2, boot1: 2.7, toe: 2.0 } }),
+  mk({ id: "blaze", name: "Blaze", tag: "Feuer", head: "flame", torso: "lava", rim: "#ffb347", eye: "#fff2c4", glow: "#ff8a3d", trail: "#ff8a3d",
+    colors: { top: "#1e1716", pants: "#1a1413", boots: "#120d0c", gloves: "#120d0c", skin: "#1e1716", accent: "#ff8a3d" },
+    gear: { cracks: "#ff8a3d", embers: true } }),
+  mk({ id: "phantom", name: "Phantom", tag: "Hologramm", head: "hair", torso: "coat", style: "holo", rim: "#4ff3ff", eye: "#ffffff", glow: "#4ff3ff", trail: "#ff2e63", a: "#4ff3ff", b: "#ff2e63",
+    colors: { top: "#4ff3ff", pants: "#4ff3ff", boots: "#4ff3ff", gloves: "#4ff3ff", skin: "#4ff3ff", hair: "#4ff3ff" },
+    cloth: [{ at: "waist", n: 8, seg: 5.4, w0: 8.5, w1: 5, col: "rgba(79,243,255,0.35)", edge: "rgba(255,46,99,0.8)", ph: 0 }] }),
+  mk({ id: "street", name: "Street", tag: "Runner", head: "hoodie", torso: "hoodie", rim: "#ffd23f", eye: "#4ff3ff", glow: "#a17bff", trail: "#a17bff",
+    colors: { top: "#6a2cf5", pants: "#232036", boots: "#f3f0ff", gloves: "#2b1d1a", phones: "#4ff3ff", accent: "#4ff3ff" },
+    gear: { soles: "#4ff3ff", pocket: true }, build: { th0: 4.6, th1: 3.4, sh0: 3.3, sh1: 2.5, ua0: 3.1, ua1: 2.6, fa0: 2.6, fa1: 2.2, chest: 6.9, hip: 5.0, boot0: 3.0, boot1: 2.8, toe: 2.3 } }),
+  mk({ id: "neon", name: "Neon", tag: "Stickman", style: "line", rim: "#4ff3ff", eye: "#ffffff", glow: "#4ff3ff", trail: "#4ff3ff", core: "#ffffff", colors: {} }),
+];
+let currentSkin = SKINS.find((s) => s.id === store.get("skin", "kage")) || SKINS[0];
+
+// ---------- full character ----------
+function drawCharacter(g, sk, P, o) {
+  const b = sk.build, C = sk.c, G = sk.gear || {}, rim = rgba(o.rim || sk.rim, 0.8), oo = Object.assign({ eye: sk.eye }, o, { rim });
+  // back gear + far side
+  if (G.kusazuri) samuraiPlate(g, P, sk, "B", true, oo, true);
+  part(g, () => { pUpperArm(g, P, "B", b); pForearm(g, P, "B", b); }, C.top, true);
+  part(g, () => pGlove(g, P, "B", b), C.gloves, true);
+  part(g, () => { pThigh(g, P, "B", b); pShin(g, P, "B", b); }, C.pants, true);
+  part(g, () => pBoot(g, P, "B", b), C.boots, true);
+  if (G.sode || G.pads) shoulderPad(g, P, sk, "B", true, oo);
+  if (G.katana) drawKatana(g, P, sk);
+  if (G.backpack) drawBackpack(g, P, sk, oo, o.q);
+  // torso
+  part(g, () => { pTorso(g, P, b); pNeck(g, P, b); }, C.top, false, rim);
+  torsoDetails(g, P, sk, oo);
+  // head
+  if (HEADS[sk.head]) HEADS[sk.head](g, P, sk, b, oo);
+  // near side
+  part(g, () => { pThigh(g, P, "A", b); pShin(g, P, "A", b); }, C.pants, false, rim);
+  part(g, () => pBoot(g, P, "A", b), C.boots, false, rim);
+  legDetails(g, P, sk, oo);
+  if (G.kusazuri) samuraiPlate(g, P, sk, "A", false, oo, false);
+  if (sk.torso === "coat") { // coat front panel over the near thigh
+    part(g, () => { const [hx, hy] = tp(P, 0.05, 2.2); capsule(g, hx, hy, b.hip * 0.95, lerp(P.qAx, P.kAx, 0.62) + 1.2, lerp(P.qAy, P.kAy, 0.62), b.th0 * 0.9); }, C.top, false, rim);
   }
-  if (sk.visor) { // cyborg: LED visor strip + antenna
-    g.fillStyle = "#0b0d12"; g.fillRect(-0.6, -1.7, r + 0.9, 2.6);
-    g.fillStyle = eye; g.fillRect(0.2, -1.05, r + 0.1, 1.15);
-    g.strokeStyle = "#8a96a8"; g.lineWidth = 0.6; g.beginPath(); g.moveTo(-r * 0.6, -r * 0.7); g.lineTo(-r * 1.3, -r * 1.55); g.stroke();
-    g.fillStyle = eye; g.beginPath(); g.arc(-r * 1.3, -r * 1.55, 0.6, 0, TAU); g.fill();
+  part(g, () => { pUpperArm(g, P, "A", b); pForearm(g, P, "A", b); }, C.top, false, rim);
+  part(g, () => pGlove(g, P, "A", b), C.gloves, false, rim);
+  if (G.sode || G.pads) shoulderPad(g, P, sk, "A", false, oo);
+  armDetails(g, P, sk, oo);
+}
+function torsoDetails(g, P, sk, o) {
+  const G = sk.gear || {}, b = sk.build, C = sk.c;
+  if (G.sash) { const [x1, y1] = tp(P, 0.12, -b.hip), [x2, y2] = tp(P, 0.12, b.hip); g.strokeStyle = C.accent.b; g.lineWidth = 1.8; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); }
+  if (sk.torso === "gi") { const [a1, a2] = tp(P, 0.95, -2), [b1, b2] = tp(P, 0.35, 3.2); g.strokeStyle = "rgba(255,255,255,0.08)"; g.lineWidth = 0.8; g.beginPath(); g.moveTo(a1, a2); g.lineTo(b1, b2); g.stroke(); }
+  if (G.collar) part(g, () => { const [x1, y1] = tp(P, 0.88, -b.chest * 0.85), [x2, y2] = tp(P, 1.32, -b.chest * 0.55); capsule(g, x1, y1, 2.2, x2, y2, 1.4); }, C.top, false, o.rim);
+  if (sk.torso === "coat") { const [x1, y1] = tp(P, 0.95, 2.8), [x2, y2] = tp(P, 0.1, 3.6); g.strokeStyle = C.lining ? C.lining.b : "#ff2e63"; g.lineWidth = 0.8; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); }
+  if (G.collarRing) { const [x, y] = tp(P, 1.0, 0); part(g, () => circ(g, x, y, b.neck + 1.4), pal("#c9c6d8"), false, o.rim); }
+  if (G.seams) glowPoly(g, [...tp(P, 0.05, b.hip * 0.75), ...tp(P, 0.95, b.chest * 0.8)], G.seams, 0.7);
+  if (G.reactor) { const [x, y] = tp(P, 0.72, 2.6); glowDot(g, x, y, G.reactor, 6); g.fillStyle = "#e9feff"; g.beginPath(); circ(g, x, y, 1.1); g.fill(); }
+  if (sk.torso === "armor") { // chest plate seams
+    g.strokeStyle = "rgba(0,0,0,0.35)"; g.lineWidth = 0.6;
+    for (const t of [0.3, 0.45]) { const [x1, y1] = tp(P, t, -b.hip * 0.6), [x2, y2] = tp(P, t, b.hip * 0.95); g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); }
   }
-  if (sk.hood) { // street: face in the hood shadow, glowing headphones
-    g.fillStyle = "#120d22"; g.beginPath(); g.ellipse(0.9, 0.4, r * 0.82, r * 0.86, 0, 0, TAU); g.fill();
-    g.fillStyle = eye; g.fillRect(1.6, -0.6, 2.2, 0.8);
-    g.strokeStyle = sk.phones; g.lineWidth = 0.9; g.beginPath(); g.arc(-0.6, 0, r + 1.1, -Math.PI * 0.95, -Math.PI * 0.2); g.stroke();
-    g.fillStyle = "#1b1630"; g.beginPath(); g.ellipse(-0.9, 0.5, 1.4, 1.8, 0, 0, TAU); g.fill();
-    g.strokeStyle = sk.phones; g.lineWidth = 0.6; g.stroke();
+  if (sk.torso === "samurai") { g.strokeStyle = sk.gold; g.lineWidth = 0.5; for (const t of [0.35, 0.55, 0.75]) { const [x1, y1] = tp(P, t, -b.chest * 0.8), [x2, y2] = tp(P, t, b.chest * 0.85); g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); } }
+  if (G.panel) { const [x, y] = tp(P, 0.7, b.chest * 0.55); g.fillStyle = "#1d2233"; g.fillRect(x - 1.6, y - 1.6, 3.2, 3.2); g.fillStyle = "#ff8a3d"; g.fillRect(x - 1.1, y - 1.1, 1, 1); g.fillStyle = "#4ff3ff"; g.fillRect(x + 0.2, y - 1.1, 1, 1); }
+  if (G.pocket) { const [x1, y1] = tp(P, 0.18, 1.5), [x2, y2] = tp(P, 0.42, 4.8); g.strokeStyle = "rgba(0,0,0,0.3)"; g.lineWidth = 0.8; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); }
+  if (G.cracks) glowPoly(g, [...tp(P, 0.1, -1), ...tp(P, 0.45, 2.5), ...tp(P, 0.6, 0.5), ...tp(P, 0.95, 3.5)], G.cracks, 0.55);
+  if (G.katanaHip) { const [x1, y1] = tp(P, 0.1, -3), [x2, y2] = tp(P, -0.12, -12); g.strokeStyle = "#0b0a10"; g.lineWidth = 1.8; g.beginPath(); g.moveTo(x1 + 6, y1); g.lineTo(x2, y2 + 3); g.stroke(); }
+}
+function legDetails(g, P, sk, o) {
+  const G = sk.gear || {};
+  if (G.wraps) { g.strokeStyle = G.wraps; g.lineWidth = 0.7; for (const t of [0.22, 0.36, 0.5]) { const p1 = onLimb(P, "k", "a", "A", t, 2.6), p2 = onLimb(P, "k", "a", "A", t + 0.08, -2.4); g.beginPath(); g.moveTo(p1[0], p1[1]); g.lineTo(p2[0], p2[1]); g.stroke(); } }
+  if (G.seams) glowPoly(g, [...onLimb(P, "q", "k", "A", 0.1, 2.6), ...onLimb(P, "q", "k", "A", 0.95, 2.1), ...onLimb(P, "k", "a", "A", 0.6, 1.6)], G.seams, 0.6);
+  if (G.soles) for (const s of ["A", "B"]) glowPoly(g, [jx(P, "a", s) - 0.5, jy(P, "a", s) + 2.1, jx(P, "t", s), jy(P, "t", s) + 1.6], G.soles, 0.75);
+  if (G.joints) glowDot(g, P.kAx, P.kAy, G.joints, 4.4);
+  if (G.cracks) glowPoly(g, [...onLimb(P, "q", "k", "A", 0.2, 0.8), ...onLimb(P, "q", "k", "A", 0.7, -1.2), ...onLimb(P, "k", "a", "A", 0.5, 0.6)], G.cracks, 0.5);
+  if (G.buckles) { const p = onLimb(P, "k", "a", "A", 0.72, 0); g.fillStyle = G.buckles; g.fillRect(p[0] - 0.9, p[1] - 0.5, 1.8, 1); }
+}
+function armDetails(g, P, sk, o) {
+  const G = sk.gear || {};
+  if (G.wraps) { g.strokeStyle = G.wraps; g.lineWidth = 0.6; for (const t of [0.35, 0.55, 0.75]) { const p1 = onLimb(P, "e", "w", "A", t, 1.9), p2 = onLimb(P, "e", "w", "A", t + 0.08, -1.8); g.beginPath(); g.moveTo(p1[0], p1[1]); g.lineTo(p2[0], p2[1]); g.stroke(); } }
+  if (G.robo) glowPoly(g, [...onLimb(P, "e", "w", "A", 0.15, 1.2), ...onLimb(P, "e", "w", "A", 0.85, 1.0)], G.robo, 0.55);
+  if (G.joints) glowDot(g, P.eAx, P.eAy, G.joints, 3.8);
+  if (G.seams) glowPoly(g, [...onLimb(P, "o", "e", "A", 0.15, 1.8), ...onLimb(P, "e", "w", "A", 0.8, 1.3)], G.seams, 0.55);
+  if (G.cracks) glowPoly(g, [...onLimb(P, "o", "e", "A", 0.3, 0.5), ...onLimb(P, "e", "w", "A", 0.6, -0.4)], G.cracks, 0.5);
+}
+
+// ---------- silhouettes for trails, ghost and hologram ----------
+function silhouette(g, P, sk) {
+  const b = sk.build;
+  g.beginPath();
+  pUpperArm(g, P, "B", b); pForearm(g, P, "B", b); pGlove(g, P, "B", b); pThigh(g, P, "B", b); pShin(g, P, "B", b); pBoot(g, P, "B", b);
+  pTorso(g, P, b); pNeck(g, P, b);
+  ell(g, headLocal(P, -0.3, -0.2), b.head * 1.08, b.head * 1.12, P.ha);
+  pThigh(g, P, "A", b); pShin(g, P, "A", b); pBoot(g, P, "A", b); pUpperArm(g, P, "A", b); pForearm(g, P, "A", b); pGlove(g, P, "A", b);
+}
+let _holoPat = null;
+function holoPattern(g) {
+  if (!_holoPat) {
+    const c = mkCanvas(2, 3), h = c.getContext("2d");
+    h.fillStyle = "rgba(79,243,255,0.85)"; h.fillRect(0, 0, 2, 1.4); h.fillStyle = "rgba(79,243,255,0.22)"; h.fillRect(0, 1.4, 2, 1.6);
+    _holoPat = c;
   }
-  g.restore();
-  if (sk.reactor) { // cyborg chest core
-    const cx = lerp(P.Hx, P.Cx, 0.72) + Math.cos(P.lean) * 1.6, cy = lerp(P.Hy, P.Cy, 0.72) + Math.sin(P.lean) * 1.6;
-    glowDot(g, cx, cy, sk.reactor, 5); g.fillStyle = "#e9feff"; g.beginPath(); g.arc(cx, cy, 0.9, 0, TAU); g.fill();
-  }
+  return g.createPattern(_holoPat, "repeat");
 }
 function drawLineRunner(g, sk, P, o) {
   const col = o.mono || o.rim || sk.glow;
-  const limbs = (side) => {
-    g.beginPath();
-    g.moveTo(P["q" + side + "x"], P["q" + side + "y"]); g.lineTo(P["k" + side + "x"], P["k" + side + "y"]); g.lineTo(P["a" + side + "x"], P["a" + side + "y"]); g.lineTo(P["t" + side + "x"], P["t" + side + "y"]);
-    g.moveTo(P["o" + side + "x"], P["o" + side + "y"]); g.lineTo(P["e" + side + "x"], P["e" + side + "y"]); g.lineTo(P["w" + side + "x"], P["w" + side + "y"]);
-  };
-  const body = () => {
-    g.beginPath(); g.moveTo(P.Hx, P.Hy); g.lineTo(P.Cx, P.Cy);
-    g.moveTo(P.Dx + RG.headR * 0.9, P.Dy); g.arc(P.Dx, P.Dy, RG.headR * 0.9, 0, TAU);
-  };
+  const limbs = (s) => { g.beginPath(); g.moveTo(jx(P, "q", s), jy(P, "q", s)); g.lineTo(jx(P, "k", s), jy(P, "k", s)); g.lineTo(jx(P, "a", s), jy(P, "a", s)); g.lineTo(jx(P, "t", s), jy(P, "t", s)); g.moveTo(jx(P, "o", s), jy(P, "o", s)); g.lineTo(jx(P, "e", s), jy(P, "e", s)); g.lineTo(jx(P, "w", s), jy(P, "w", s)); };
+  const body = () => { g.beginPath(); g.moveTo(P.Hx, P.Hy); g.lineTo(P.Cx, P.Cy); g.moveTo(P.Dx + RG.headR * 0.9, P.Dy); g.arc(P.Dx, P.Dy, RG.headR * 0.9, 0, TAU); };
   const a0 = g.globalAlpha;
   for (const [draw, k] of [[() => limbs("B"), 0.55], [body, 1], [() => limbs("A"), 1]]) {
     if (!o.mono) {
@@ -1971,35 +2146,78 @@ function drawLineRunner(g, sk, P, o) {
   }
   g.globalAlpha = a0;
 }
-let _holoPat = null;
-function holoPattern(g) {
-  if (!_holoPat) {
-    const c = mkCanvas(2, 3), h = c.getContext("2d");
-    h.fillStyle = "rgba(79,243,255,0.85)"; h.fillRect(0, 0, 2, 1.4);
-    h.fillStyle = "rgba(79,243,255,0.25)"; h.fillRect(0, 1.4, 2, 1.6);
-    _holoPat = c;
-  }
-  return g.createPattern(_holoPat, "repeat");
-}
 function drawHoloRunner(g, sk, P, o) {
-  const d = sk.dims, a0 = g.globalAlpha, flick = 0.72 + Math.random() * 0.28;
+  const a0 = g.globalAlpha, flick = 0.72 + Math.random() * 0.28;
   if (Math.random() < 0.07) g.translate(rand(-2.5, 2.5), 0);
   g.globalCompositeOperation = "lighter";
-  g.save(); g.translate(-1.5, 0.5); g.globalAlpha = a0 * 0.5 * flick; silhouette(g, P, d, sk); g.fillStyle = rgba(sk.b, 0.7); g.fill(); g.restore();
-  g.globalAlpha = a0 * flick; silhouette(g, P, d, sk); g.fillStyle = holoPattern(g); g.fill();
+  g.save(); g.translate(-1.5, 0.5); g.globalAlpha = a0 * 0.5 * flick; silhouette(g, P, sk); g.fillStyle = rgba(sk.b, 0.7); g.fill(); g.restore();
+  g.globalAlpha = a0 * flick; silhouette(g, P, sk); g.fillStyle = holoPattern(g); g.fill();
+  if (HEADS.hair) { g.globalAlpha = a0 * 0.6 * flick; g.beginPath(); const r = sk.build.head; polyH(g, P, [r * 0.8, -r * 0.5, r * 0.15, -r * 1.12, -r * 2.4, -r * 1.05, -r * 0.95, -r * 0.55, -r * 2.55, -r * 0.12, -r * 1.0, r * 0.08, -r * 1.95, r * 0.75, -r * 0.55, r * 0.62]); g.fillStyle = rgba(sk.a, 0.6); g.fill(); }
   g.globalCompositeOperation = "source-over"; g.globalAlpha = a0;
-  g.save(); g.translate(P.Dx, P.Dy); g.rotate(P.ha); g.fillStyle = "#ffffff"; g.fillRect(0.6, -0.9, d.hrx - 0.2, 1.1); g.restore();
+  const e1 = headLocal(P, sk.build.head * 0.3, -sk.build.head * 0.1), e2 = headLocal(P, sk.build.head * 0.95, -sk.build.head * 0.14);
+  g.strokeStyle = "#ffffff"; g.lineWidth = 0.9; g.beginPath(); g.moveTo(e1.x, e1.y); g.lineTo(e2.x, e2.y); g.stroke();
+}
+
+function drawRunner(g, sk, x, y, P, o) {
+  const rot = (P.rot || 0) + (P.spin || 0);
+  g.save(); g.translate(x, y + (P.dropY || 0));
+  if ((P.sx || 1) !== 1 || (P.sy || 1) !== 1) { const pv = P.pivot || 0; g.translate(0, pv); g.scale(P.sx || 1, P.sy || 1); g.translate(0, -pv); }
+  g.rotate(rot); g.scale(RG.s, RG.s);
+  g.globalAlpha = o.alpha == null ? 1 : o.alpha;
+  g.lineCap = "round"; g.lineJoin = "round";
+  const c = Math.cos(-rot), s = Math.sin(-rot); LX = 0.7 * c + 0.8 * s; LY = 0.7 * s - 0.8 * c; // world light (0.7,-0.8) in model space
+  if (sk.style === "line") drawLineRunner(g, sk, P, o);
+  else if (o.mono) { silhouette(g, P, sk); g.fillStyle = o.mono; g.fill(); }
+  else if (sk.style === "holo") drawHoloRunner(g, sk, P, o);
+  else drawCharacter(g, sk, P, o);
+  g.restore();
+}
+
+// ---------- cloth: scarves, coat tails, hems (simulated in world space) ----------
+function clothAnchor(P, sk, at) {
+  const b = sk.build, ux = Math.sin(P.lean), uy = -Math.cos(P.lean), fx = Math.cos(P.lean), fy = Math.sin(P.lean);
+  if (at === "neck") return { x: P.Cx - fx * 2.2 + ux * 0.8, y: P.Cy - fy * 2.2 + uy * 0.8 };
+  return { x: P.Hx - fx * b.hip * 0.85 + ux * 0.5, y: P.Hy - fy * b.hip * 0.85 + uy * 0.5 };
+}
+function makeCloth(sk) { return (sk.cloth || []).map((d) => ({ d, pts: Array.from({ length: d.n }, () => ({ x: 0, y: 0 })), init: false })); }
+function updateCloth(cl, P, sk, x, y, dt, time, wind) {
+  for (const c of cl) {
+    const a = clothAnchor(P, sk, c.d.at), w = rigToWorld(P, x, y, a.x, a.y);
+    const pts = c.pts, n = pts.length, seg = c.d.seg * RG.s;
+    if (!c.init) { for (let i = 0; i < n; i++) { pts[i].x = w.x - i * seg; pts[i].y = w.y + (c.d.dy || 0); } c.init = true; }
+    pts[0].x = w.x; pts[0].y = w.y + (c.d.dy || 0);
+    for (let i = 1; i < n; i++) {
+      const p = pts[i], q = pts[i - 1], k = i / n;
+      p.x -= (wind + 30) * dt; p.y += 95 * dt + Math.sin(time * 15 + i * 0.8 + c.d.ph) * 1.0 * k;
+      const dx = p.x - q.x, dy = p.y - q.y, d = Math.hypot(dx, dy) || 1;
+      p.x = q.x + (dx / d) * seg; p.y = q.y + (dy / d) * seg;
+    }
+  }
+}
+function drawCloth(g, cl, scale) {
+  for (const c of cl) {
+    const pts = c.pts, n = pts.length, L = [], R = [];
+    for (let i = 0; i < n; i++) {
+      const a = pts[Math.max(0, i - 1)], b2 = pts[Math.min(n - 1, i + 1)], tx = b2.x - a.x, ty = b2.y - a.y, tl = Math.hypot(tx, ty) || 1;
+      const w = lerp(c.d.w0, c.d.w1, i / (n - 1)) * 0.5 * RG.s * scale;
+      L.push([pts[i].x - (ty / tl) * w, pts[i].y + (tx / tl) * w]); R.push([pts[i].x + (ty / tl) * w, pts[i].y - (tx / tl) * w]);
+    }
+    g.beginPath(); g.moveTo(L[0][0], L[0][1]);
+    for (let i = 1; i < n; i++) g.lineTo(L[i][0], L[i][1]);
+    for (let i = n - 1; i >= 0; i--) g.lineTo(R[i][0], R[i][1]);
+    g.closePath(); g.fillStyle = c.d.col; g.fill();
+    if (c.d.edge) { g.strokeStyle = c.d.edge; g.lineWidth = 0.9 * scale; g.beginPath(); g.moveTo(L[0][0], L[0][1]); for (let i = 1; i < n; i++) g.lineTo(L[i][0], L[i][1]); g.stroke(); }
+  }
 }
 
 // ================= PLAYER DRAWING: runner, headband tails, rope, ghost, skin previews =================
 const FLIP_T = 0.46;
 const rig = makeRig(), ghostRig = makeRig();
 let pose = rig.cur;
-const tailA = Array.from({ length: 12 }, () => ({ x: 0, y: 0 }));
-const tailB = Array.from({ length: 9 }, () => ({ x: 0, y: 0 }));
+let playerCloth = makeCloth(currentSkin);
+function setSkin(sk) { currentSkin = sk; store.set("skin", sk.id); playerCloth = makeCloth(sk); }
 function scarfReset(x, y) {
-  for (const s of tailA) { s.x = x; s.y = y; }
-  for (const s of tailB) { s.x = x; s.y = y; }
+  for (const c of playerCloth) c.init = false;
   rig.mode = "run"; rig.from = null; rig.ph = 0; rig.bt = 1;
   if (typeof sq !== "undefined") { sq.v = sq.vel = 0; sq.land = sq.jump = sq.attach = sq.pump = 0; }
 }
@@ -2049,10 +2267,9 @@ function animatePlayer(dt, time) {
   if (wasRun && rig.mode === "run" && dt > 0 && ((prev < 0.5 && rig.ph >= 0.5) || rig.ph < prev)) {
     FX.dust(p.x + 4, p.y + HALF_H, p.vx > 700 ? 3 : 2); Sound.fx.step(); // foot strike
   }
-  if (currentSkin.tails) {
-    const k = knotModel(pose), w = rigToWorld(pose, p.x, p.y, k.x, k.y);
-    followChain(tailA, w.x, w.y, dt, time, 6.2, 0);
-    followChain(tailB, w.x, w.y + 1.2, dt, time, 5.6, 2.1);
+  updateCloth(playerCloth, pose, currentSkin, p.x, p.y, dt, time, 0);
+  if (currentSkin.gear && currentSkin.gear.embers && dt > 0 && Math.random() < 0.35) {
+    const e = rigToWorld(pose, p.x, p.y, pose.Dx - 3, pose.Dy - 4); FX.trail(e.x, e.y, Math.random() < 0.5 ? "#ff8a3d" : "#ffd23f");
   }
   return pose;
 }
@@ -2100,8 +2317,8 @@ function drawPlayerAll(time, dt) {
   ctx.globalAlpha = od ? 0.42 + Math.sin(time * 20) * 0.12 : 0.15;
   ctx.drawImage(Art.glow(od ? "#ffd23f" : sk.glow), p.x - 42, p.y - 52, 84, 96);
   ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
-  if (sk.tails) { drawTail(ctx, tailB, 2.6, sk.tails[1]); drawTail(ctx, tailA, 3.4, sk.tails[0]); }
-  drawRunner(ctx, sk, p.x, p.y, pose, { rim: rimHex, eye: od ? "#ffd23f" : sk.eye });
+  drawCloth(ctx, playerCloth, 1);
+  drawRunner(ctx, sk, p.x, p.y, pose, { rim: rimHex, eye: od ? "#ffd23f" : sk.eye, time, q: { air: p.state === "air" } });
   const em = eyeModel(pose), ew = rigToWorld(pose, p.x, p.y, em.x, em.y);
   ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 0.8;
   ctx.drawImage(Art.glow(od ? "#ffd23f" : sk.eye === "#ffffff" || sk.eye === "#effeff" ? sk.glow : sk.eye), ew.x - 8, ew.y - 8, 16, 16);
@@ -2134,11 +2351,11 @@ function buildSkinPicker() {
     const n = document.createElement("span"); n.className = "skin-name"; n.textContent = sk.name;
     const t = document.createElement("span"); t.className = "skin-tag"; t.textContent = sk.tag;
     b.append(cv, n, t); row.appendChild(b);
-    const card = { sk, cv, g: cv.getContext("2d"), dpr, rig: makeRig(), ph: Math.random() };
+    const card = { sk, cv, g: cv.getContext("2d"), dpr, rig: makeRig(), ph: Math.random(), cloth: makeCloth(sk) };
     card.rig.ph = card.ph;
     skinCards.push(card);
     b.addEventListener("click", () => {
-      currentSkin = sk; store.set("skin", sk.id); Sound.fx.ui();
+      setSkin(sk); Sound.fx.ui();
       for (const el of row.querySelectorAll(".skin")) el.setAttribute("aria-checked", String(el.dataset.id === sk.id));
     });
   }
@@ -2150,20 +2367,13 @@ function updateSkinPreviews(dt, time) {
     const P = rigUpdate(c.rig, { st: "run", vx: 560, vy: 0, swingAng: 0, swingW: 0, diving: false, flipK: -1, stumble: 0, deadT: 0, od: false,
       runT: 9, landK: 0, landT: 9, jumpT: 9, rollT: 0, attachT: 9, pumpT: 9, pumpDir: 1 }, dt, time);
     P.sx = P.sy = 1; P.pivot = 0;
-    const sc = c.dpr * 1.42;
-    g.setTransform(sc, 0, 0, sc, W2 / 2 - 2 * c.dpr, H2 * 0.5);
+    const sc = c.dpr * 1.18;
+    g.setTransform(sc, 0, 0, sc, W2 / 2 + 2 * c.dpr, H2 * 0.56);
     g.fillStyle = "rgba(0,0,0,0.45)"; g.beginPath(); g.ellipse(2, HALF_H + 1, 13, 2.4, 0, 0, TAU); g.fill();
     g.globalCompositeOperation = "lighter"; g.globalAlpha = 0.35; g.drawImage(Art.glow(c.sk.glow), -30, -36, 60, 66); g.globalAlpha = 1; g.globalCompositeOperation = "source-over";
-    if (c.sk.tails) { // simple waving tails for the preview
-      const k = knotModel(P), w = rigToWorld(P, 0, 0, k.x, k.y);
-      g.lineCap = "round";
-      for (const [col, wd, off] of [[c.sk.tails[1], 2.2, 2], [c.sk.tails[0], 3, 0]]) {
-        g.strokeStyle = col; g.lineWidth = wd; g.beginPath(); g.moveTo(w.x, w.y);
-        for (let i = 1; i <= 6; i++) g.lineTo(w.x - i * 4.2, w.y + i * 0.9 + Math.sin(time * 14 + i * 0.9 + off) * 1.6 + off * 0.4);
-        g.stroke();
-      }
-    }
-    drawRunner(g, c.sk, 0, 0, P, { rim: c.sk.rim, eye: c.sk.eye });
+    updateCloth(c.cloth, P, c.sk, 0, 0, dt, time, 260);
+    drawCloth(g, c.cloth, 1);
+    drawRunner(g, c.sk, 0, 0, P, { rim: c.sk.rim, eye: c.sk.eye, time, q: { air: false } });
   }
 }
 
