@@ -3,15 +3,11 @@
   "short_name": "Neon Tether",
   "description": "Ninja-Jump'n'Run über nächtliche Dächer mit Seilschwingen.",
   "lang": "de",
-  "id": "./",
+  "dir": "ltr",
   "start_url": "./",
   "scope": "./",
-  "display": "fullscreen",
-  "display_override": [
-    "fullscreen",
-    "standalone"
-  ],
-  "orientation": "landscape",
+  "display": "standalone",
+  "orientation": "any",
   "background_color": "#07051a",
   "theme_color": "#07051a",
   "categories": [

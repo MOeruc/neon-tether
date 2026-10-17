@@ -2413,8 +2413,38 @@ if (window.claude?.hot?.ready) window.claude.hot.ready(() => boot()); else boot(
 
 </script>
 
+<style>
+#btnInstall { border-color: var(--volt); color: var(--volt); }
+#installNote { margin: 14px 0 0; color: var(--volt); font-weight: 600; letter-spacing: 0.03em; max-width: 40ch; line-height: 1.4; }
+</style>
 <script>
-if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+(function () {
+  const standalone = matchMedia("(display-mode: standalone)").matches || matchMedia("(display-mode: fullscreen)").matches || navigator.standalone === true;
+  const actions = document.querySelector("#screenStart .actions");
+  const btn = document.createElement("button");
+  btn.className = "chip"; btn.id = "btnInstall"; btn.textContent = "Als App installieren"; btn.hidden = true;
+  const note = document.createElement("p"); note.id = "installNote"; note.hidden = true;
+  if (actions) { actions.appendChild(btn); actions.parentNode.insertBefore(note, actions.nextSibling); }
+  let deferred = null;
+  addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); deferred = e; if (!standalone) btn.hidden = false; });
+  btn.addEventListener("click", async () => {
+    if (!deferred) return;
+    deferred.prompt();
+    try { const c = await deferred.userChoice; if (c && c.outcome === "accepted") { note.textContent = "Wird installiert. Gleich erscheint das Mond-Icon auf deinem Startbildschirm."; note.hidden = false; } } catch (e) {}
+    deferred = null; btn.hidden = true;
+  });
+  addEventListener("appinstalled", () => { btn.hidden = true; note.textContent = "Installiert. Starte Neon Tether ab jetzt über das Mond-Icon."; note.hidden = false; });
+  if (/iphone|ipad|ipod/i.test(navigator.userAgent) && !standalone) { note.textContent = "Als App: unten auf das Teilen-Symbol tippen, dann „Zum Home-Bildschirm“."; note.hidden = false; }
+  // on phones: go fullscreen and turn to landscape when a run starts (needs the tap)
+  function immersive() {
+    if (typeof IS_TOUCH === "undefined" || !IS_TOUCH) return;
+    const el = document.documentElement;
+    const go = !document.fullscreenElement && el.requestFullscreen ? el.requestFullscreen({ navigationUI: "hide" }) : Promise.resolve();
+    Promise.resolve(go).then(() => (screen.orientation && screen.orientation.lock ? screen.orientation.lock("landscape") : null)).catch(() => {});
+  }
+  ["btnStart", "btnAgain", "btnRestartP", "btnResume"].forEach((id) => { const b = document.getElementById(id); if (b) b.addEventListener("click", immersive); });
+  if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").then((r) => r.update().catch(() => {})).catch(() => {}));
+})();
 </script>
 </body>
 </html>
