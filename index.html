@@ -1885,7 +1885,14 @@ function pTorso(g, P, b) {
   capsule(g, P.Hx, P.Hy, b.hip, P.Cx - ux * 1.3, P.Cy - uy * 1.3, b.chest);
 }
 function pNeck(g, P, b) { const ux = Math.sin(P.lean), uy = -Math.cos(P.lean); capsule(g, P.Cx - ux * 0.6, P.Cy - uy * 0.6, b.neck + 0.5, P.Dx, P.Dy, b.neck); }
-const pHead = (g, P, b) => ell(g, headLocal(P, 0, 0), b.head * 0.92, b.head, P.ha);
+// aerodynamic head: sharp brow, angled face, pointed tail swept back (head space: +x forward, -y up)
+const AERO = { tail: 1.6, crown: 1.0, chin: 1.0 };
+function aeroPts(r, s) {
+  const t = s.tail, c = s.crown, ch = s.chin;
+  return [r * 1.04, -r * 0.62, r * 1.16, -r * 0.04, r * 0.84, r * 0.62 * ch, r * 0.22, r * 0.94 * ch, -r * 0.48, r * 0.74, -r * t, -r * 0.16, -r * 0.6, -r * 0.88 * c, r * 0.4, -r * 1.02 * c];
+}
+const offPts = (pts, ox, oy) => pts.map((v, i) => v + (i % 2 ? oy : ox));
+const pHead = (g, P, b, s) => polyH(g, P, aeroPts(b.head, s || AERO));
 // torso frame helpers: point at fraction t from hip to chest, pushed forward by f
 function tp(P, t, f) { const fx = Math.cos(P.lean), fy = Math.sin(P.lean); return [lerp(P.Hx, P.Cx, t) + fx * f, lerp(P.Hy, P.Cy, t) + fy * f]; }
 
@@ -1893,9 +1900,9 @@ function tp(P, t, f) { const fx = Math.cos(P.lean), fy = Math.sin(P.lean); retur
 const HEADS = {
   hood(g, P, sk, b, o) {
     const r = b.head;
-    part(g, () => { ell(g, headLocal(P, -0.6, -0.3), r * 1.12, r * 1.16, P.ha); polyH(g, P, [-r * 0.6, -r * 0.95, -r * 2.1, -r * 0.05, -r * 0.7, r * 0.85]); }, sk.c.hood, false, o.rim);
-    g.fillStyle = "#050409"; g.beginPath(); ell(g, headLocal(P, r * 0.42, r * 0.08), r * 0.6, r * 0.62, P.ha); g.fill();
-    g.fillStyle = sk.c.mask.b; g.beginPath(); polyH(g, P, [-r * 0.15, r * 0.15, r * 1.02, r * 0.05, r * 0.95, r * 0.75, -r * 0.1, r * 0.95]); g.fill();
+    part(g, () => polyH(g, P, offPts(aeroPts(r * 1.15, { tail: 2.05, crown: 1.06, chin: 1.04 }), -0.55, -0.25)), sk.c.hood, false, o.rim);
+    g.fillStyle = "#050409"; g.beginPath(); polyH(g, P, [r * 0.12, -r * 0.5, r * 1.06, -r * 0.6, r * 1.14, r * 0.04, r * 0.28, r * 0.16]); g.fill();
+    g.fillStyle = sk.c.mask.b; g.beginPath(); polyH(g, P, [r * 0.12, r * 0.12, r * 1.12, r * 0.04, r * 0.84, r * 0.66, r * 0.2, r * 0.92]); g.fill();
     const e1 = headLocal(P, r * 0.25, -r * 0.18), e2 = headLocal(P, r * 0.98, -r * 0.24);
     glowPoly(g, [e1.x, e1.y, e2.x, e2.y], o.eye, 0.85);
   },
@@ -1908,7 +1915,10 @@ const HEADS = {
   },
   visor(g, P, sk, b, o) {
     const r = b.head;
-    part(g, () => ell(g, headLocal(P, -0.2, -0.3), r * 1.08, r * 1.14, P.ha), sk.c.helmet, false, o.rim);
+    part(g, () => {
+      polyH(g, P, offPts(aeroPts(r * 1.1, { tail: sk.id === "chrom" ? 1.45 : 1.9, crown: 1.05, chin: 1.0 }), -0.2, -0.3));
+      if (sk.id === "chrom") polyH(g, P, [-r * 0.05, -r * 1.0, -r * 1.35, -r * 1.55, -r * 0.95, -r * 0.8]);
+    }, sk.c.helmet, false, o.rim);
     const a = headLocal(P, -r * 0.05, -r * 0.62), z = headLocal(P, r * 1.1, r * 0.35);
     const gr = g.createLinearGradient(a.x, a.y, z.x, z.y); gr.addColorStop(0, sk.visor[0]); gr.addColorStop(1, sk.visor[1]);
     g.fillStyle = gr; g.beginPath(); polyH(g, P, [-r * 0.1, -r * 0.6, r * 0.75, -r * 0.72, r * 1.14, -r * 0.2, r * 1.06, r * 0.36, r * 0.1, r * 0.42]); g.fill();
@@ -1919,7 +1929,7 @@ const HEADS = {
   kabuto(g, P, sk, b, o) {
     const r = b.head;
     part(g, () => { pHead(g, P, b); polyH(g, P, [-r * 1.1, -r * 0.2, -r * 2.0, r * 0.95, -r * 0.9, r * 1.05, -r * 0.2, r * 0.3]); }, sk.c.top, false, o.rim);
-    part(g, () => ell(g, headLocal(P, -0.2, -r * 0.45), r * 1.08, r * 0.78, P.ha), sk.c.helmet, false, o.rim);
+    part(g, () => polyH(g, P, [r * 1.0, -r * 0.5, r * 0.62, -r * 1.12, -r * 0.35, -r * 1.25, -r * 1.3, -r * 0.8, -r * 1.05, -r * 0.3, r * 0.2, -r * 0.42]), sk.c.helmet, false, o.rim);
     g.strokeStyle = sk.gold; g.lineWidth = 1.1; g.lineCap = "round";
     const c0 = headLocal(P, r * 0.35, -r * 0.95);
     for (const sgn of [1, -1]) {
@@ -1961,8 +1971,8 @@ const HEADS = {
   },
   hoodie(g, P, sk, b, o) {
     const r = b.head;
-    part(g, () => ell(g, headLocal(P, -r * 0.35, -r * 0.05), r * 1.25, r * 1.22, P.ha), sk.c.top, false, o.rim);
-    g.fillStyle = "#0d0a18"; g.beginPath(); ell(g, headLocal(P, r * 0.35, r * 0.1), r * 0.75, r * 0.82, P.ha); g.fill();
+    part(g, () => polyH(g, P, offPts(aeroPts(r * 1.28, { tail: 1.75, crown: 1.02, chin: 1.06 }), -r * 0.3, -0.1)), sk.c.top, false, o.rim);
+    g.fillStyle = "#0d0a18"; g.beginPath(); polyH(g, P, [r * 0.05, -r * 0.55, r * 1.12, -r * 0.46, r * 1.0, r * 0.52, r * 0.15, r * 0.74]); g.fill();
     const e1 = headLocal(P, r * 0.45, -r * 0.05), e2 = headLocal(P, r * 0.95, -r * 0.08);
     glowPoly(g, [e1.x, e1.y, e2.x, e2.y], o.eye, 0.8);
     const a = headLocal(P, -r * 1.1, -r * 0.4), m = headLocal(P, -r * 0.1, -r * 1.75), z = headLocal(P, r * 0.85, -r * 0.55);
@@ -2118,7 +2128,8 @@ function silhouette(g, P, sk) {
   g.beginPath();
   pUpperArm(g, P, "B", b); pForearm(g, P, "B", b); pGlove(g, P, "B", b); pThigh(g, P, "B", b); pShin(g, P, "B", b); pBoot(g, P, "B", b);
   pTorso(g, P, b); pNeck(g, P, b);
-  ell(g, headLocal(P, -0.3, -0.2), b.head * 1.08, b.head * 1.12, P.ha);
+  if (sk.head === "dome") circ(g, headLocal(P, b.head * 0.15, -b.head * 0.1).x, headLocal(P, b.head * 0.15, -b.head * 0.1).y, b.head * 1.42);
+  else polyH(g, P, offPts(aeroPts(b.head * 1.1, { tail: 1.85, crown: 1.04, chin: 1.0 }), -0.3, -0.2));
   pThigh(g, P, "A", b); pShin(g, P, "A", b); pBoot(g, P, "A", b); pUpperArm(g, P, "A", b); pForearm(g, P, "A", b); pGlove(g, P, "A", b);
 }
 let _holoPat = null;
@@ -2133,7 +2144,7 @@ function holoPattern(g) {
 function drawLineRunner(g, sk, P, o) {
   const col = o.mono || o.rim || sk.glow;
   const limbs = (s) => { g.beginPath(); g.moveTo(jx(P, "q", s), jy(P, "q", s)); g.lineTo(jx(P, "k", s), jy(P, "k", s)); g.lineTo(jx(P, "a", s), jy(P, "a", s)); g.lineTo(jx(P, "t", s), jy(P, "t", s)); g.moveTo(jx(P, "o", s), jy(P, "o", s)); g.lineTo(jx(P, "e", s), jy(P, "e", s)); g.lineTo(jx(P, "w", s), jy(P, "w", s)); };
-  const body = () => { g.beginPath(); g.moveTo(P.Hx, P.Hy); g.lineTo(P.Cx, P.Cy); g.moveTo(P.Dx + RG.headR * 0.9, P.Dy); g.arc(P.Dx, P.Dy, RG.headR * 0.9, 0, TAU); };
+  const body = () => { g.beginPath(); g.moveTo(P.Hx, P.Hy); g.lineTo(P.Cx, P.Cy); polyH(g, P, aeroPts(RG.headR * 0.95, { tail: 1.75, crown: 1.0, chin: 1.0 })); };
   const a0 = g.globalAlpha;
   for (const [draw, k] of [[() => limbs("B"), 0.55], [body, 1], [() => limbs("A"), 1]]) {
     if (!o.mono) {
