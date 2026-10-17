@@ -146,6 +146,21 @@ body {
 .crew li .r { color: var(--mute); }
 .crew li .v { font-weight: 700; color: var(--volt); }
 .crew .empty { color: var(--mute); line-height: 1.45; }
+.skins { margin-top: 22px; min-width: 0; }
+.skins-h { margin: 0 0 8px; font-size: var(--step--1); letter-spacing: 0.24em; color: var(--mute); font-weight: 700; }
+.skin-row { display: flex; gap: 10px; overflow-x: auto; padding: 2px 2px 8px; scrollbar-width: thin; }
+.skin {
+  flex: 0 0 auto; width: 90px; display: grid; justify-items: center; gap: 1px; padding: 6px 4px 8px;
+  background: color-mix(in srgb, var(--ink-2) 82%, transparent); color: var(--paper); cursor: pointer; font: inherit;
+  border: 1px solid color-mix(in srgb, var(--paper) 16%, transparent); border-radius: 6px; transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+.skin canvas { width: 76px; height: 84px; display: block; }
+.skin-name { font-weight: 700; font-size: 13px; letter-spacing: 0.04em; }
+.skin-tag { font-size: 10px; color: var(--mute); letter-spacing: 0.14em; text-transform: uppercase; }
+.skin:hover { transform: translateY(-2px); }
+.skin[aria-checked="true"] { border-color: var(--tether); box-shadow: 0 0 0 1px var(--tether), 0 0 22px color-mix(in srgb, var(--tether) 32%, transparent); }
+.skin[aria-checked="true"] .skin-tag { color: var(--tether); }
+.skin:focus-visible { outline: 2px solid var(--volt); outline-offset: 2px; }
 .rotate { display: none; margin-top: 16px; color: var(--volt); font-weight: 600; letter-spacing: 0.04em; }
 @media (orientation: portrait) and (max-width: 700px) { .rotate { display: block; } }
 
@@ -218,6 +233,10 @@ body {
         <button class="btn" id="btnStart"><span>LOS GEHT'S</span></button>
         <button class="chip" id="btnSound" aria-pressed="true">Sound an</button>
         <button class="chip" id="btnFx" aria-pressed="true">Blitze an</button>
+      </div>
+      <div class="skins">
+        <h3 class="skins-h">CHARAKTER</h3>
+        <div class="skin-row" id="skinRow" role="radiogroup" aria-label="Charakter wählen"></div>
       </div>
       <p class="rotate">Tipp: Handy quer halten – dann siehst du mehr von der Strecke.</p>
     </div>
@@ -1424,7 +1443,7 @@ function resize() {
 }
 window.addEventListener("resize", resize);
 resize();
-const baseZoom = () => clamp(Math.min(H / 640, W / 840), 0.42, 1.5);
+const baseZoom = () => clamp(Math.min(H / 580, W / 820), 0.42, 1.5);
 
 function cameraUpdate(dt, snap) {
   const p = player, sp = Math.max(0, p.vx);
@@ -1599,51 +1618,57 @@ function drawWorld(time, pulse, L, R, T, B) {
   }
 }
 
-// ================= NINJA RIG (procedural keyframe animation) =================
-// Angles are measured from "straight down", positive = forward (towards +x). Model units, scaled by RG.s.
+// ================= RUNNER RIG: procedural locomotion with 2-bone IK =================
+// Model space: origin = hitbox centre, x forward, y down, scaled by RG.s when drawn.
+// A pose stores targets (hip, ankles, hands) that blend smoothly; knees and elbows come from IK.
 const DEG = Math.PI / 180;
-const RG = { s: 0.9, thigh: 12, shin: 12.6, foot: 5.2, up: 8.8, fore: 8.6, torso: 15, headR: 5.4 };
-const PK = ["rot", "lean", "hipY", "tA", "kA", "tB", "kB", "sA", "eA", "sB", "eB", "head"];
-const GROUND_M = HALF_H / RG.s;
-// running cycle, 8 evenly spaced keys. phase 0 = near foot lands under the hip,
-// 0-0.3 stance + push-off, 0.3-0.5 flight, 0.5-0.75 heel kick + knee drive, 0.75-1 reach.
-const SPR_T = [24, 4, -22, -38, -24, 16, 62, 50].map((d) => d * DEG);   // thigh
-const SPR_K = [14, 38, 20, 26, 100, 134, 104, 36].map((d) => d * DEG);  // knee bend
-const SPR_S = [-70, -46, -6, 40, 66, 46, 8, -42].map((d) => d * DEG);   // shoulder (vs torso), opposite to the leg
-const SPR_E = [78, 88, 100, 112, 108, 96, 86, 80].map((d) => d * DEG);  // elbow bend
-const POSES = {
-  rise:   { lean: 20, head: -12, hipY: 0, tA: 82, kA: 112, tB: -26, kB: 64, sA: -106, eA: 48, sB: 78, eB: 74 },
-  apex:   { lean: 16, head: -4, hipY: 0, tA: 74, kA: 120, tB: 34, kB: 110, sA: 124, eA: 34, sB: -88, eB: 44 },
-  fall:   { lean: 10, head: 4, hipY: -1, tA: 32, kA: 44, tB: -4, kB: 30, sA: 152, eA: 22, sB: -132, eB: 30 },
-  push:   { lean: 30, head: -10, hipY: 0, tA: 14, kA: 6, tB: -34, kB: 12, sA: 142, eA: 30, sB: 118, eB: 40 },
-  crouch: { lean: 44, head: -18, hipY: 0, tA: 74, kA: 130, tB: 22, kB: 112, sA: 66, eA: 42, sB: 26, eB: 62 },
-  flip:   { lean: 26, head: 12, hipY: 4, tA: 118, kA: 152, tB: 104, kB: 146, sA: 72, eA: 96, sB: 56, eB: 104 },
-  dive:   { lean: -6, head: 16, hipY: -6, tA: 22, kA: 4, tB: -18, kB: 98, sA: -136, eA: 10, sB: -122, eB: 22 },
-  grind:  { lean: 24, head: -12, hipY: 0, tA: 52, kA: 86, tB: -32, kB: 60, sA: 84, eA: 16, sB: -98, eB: 22 },
-  dead:   { lean: 10, head: 0, hipY: 0, tA: 60, kA: 40, tB: -40, kB: 70, sA: 150, eA: 30, sB: -150, eB: 40 },
-};
-for (const k in POSES) { const p = POSES[k]; for (const key in p) if (key !== "hipY") p[key] *= DEG; p.rot = 0; }
+const RG = { s: 0.9, thigh: 13, shin: 13, foot: 5.6, up: 8.6, fore: 8.2, torso: 15, neck: 2.2, headR: 4.3 };
+const LEG = RG.thigh + RG.shin;
+const GROUND_M = HALF_H / RG.s;           // sole level
+const ANKLE_H = 2;                         // ankle above the sole
+const ANKLE_Y = GROUND_M - ANKLE_H;
+const HIP_Y = ANKLE_Y - LEG * 0.92;        // hip height at mid-stance
+const PK = ["rot", "lean", "head", "hx", "hy", "fAx", "fAy", "fBx", "fBy", "pA", "pB", "hAx", "hAy", "hBx", "hBy"];
+const STANCE = 0.34;
 
-function crs(keys, ph) { // periodic Catmull-Rom -> smooth (C1) motion between keys
-  const n = keys.length, f = (((ph % 1) + 1) % 1) * n, i = Math.floor(f), t = f - i;
-  const p0 = keys[(i - 1 + n) % n], p1 = keys[i], p2 = keys[(i + 1) % n], p3 = keys[(i + 2) % n];
-  return 0.5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (-p0 + 3 * p1 - 3 * p2 + p3) * t * t * t);
-}
-function legFK(t, k, o, hx, hy) {
-  o.kx = hx + Math.sin(t) * RG.thigh; o.ky = hy + Math.cos(t) * RG.thigh;
-  const sa = t - k; o.ax = o.kx + Math.sin(sa) * RG.shin; o.ay = o.ky + Math.cos(sa) * RG.shin;
-  const fa = sa + 82 * DEG; o.tx = o.ax + Math.sin(fa) * RG.foot; o.ty = o.ay + Math.cos(fa) * RG.foot;
+function line(x1, y1, x2, y2) { ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); }
+
+// one leg of the running cycle: ankle (x relative to the hip, y absolute) and foot pitch
+function legCycle(ph, k, o) {
+  ph = ((ph % 1) + 1) % 1;
+  const xc = 0.34 * LEG * k, xt = -0.5 * LEG * k, toeOff = 50 * DEG;
+  if (ph < STANCE) { // foot planted, slides back under the body, heel peels off at the end
+    const u = ph / STANCE, p = u < 0.55 ? 0 : ((u - 0.55) / 0.45) * toeOff;
+    o.x = lerp(xc, xt, u); o.y = ANKLE_Y - RG.foot * 0.7 * Math.sin(p); o.p = p;
+  } else { // heel kicks up behind, knee drives forward, foot reaches and claws back down
+    const v = (ph - STANCE) / (1 - STANCE), iv = 1 - v;
+    const p0x = xt, p0y = ANKLE_Y - RG.foot * 0.7 * Math.sin(toeOff);
+    const c1x = xt - 0.16 * LEG, c1y = ANKLE_Y - 0.95 * LEG * (0.8 + 0.2 * k);
+    const c2x = xc + 0.55 * LEG * k, c2y = ANKLE_Y - 0.5 * LEG;
+    const a = iv * iv * iv, b = 3 * iv * iv * v, c = 3 * iv * v * v, d = v * v * v;
+    o.x = a * p0x + b * c1x + c * c2x + d * xc;
+    o.y = a * p0y + b * c1y + c * c2y + d * ANKLE_Y;
+    o.p = (v < 0.3 ? lerp(50, 72, v / 0.3) : v < 0.75 ? lerp(72, 22, (v - 0.3) / 0.45) : lerp(22, 6, (v - 0.75) / 0.25)) * DEG;
+  }
   return o;
 }
-function armFK(s, e, o, sx, sy) {
-  o.ex = sx + Math.sin(s) * RG.up; o.ey = sy + Math.cos(s) * RG.up;
-  o.hx = o.ex + Math.sin(s + e) * RG.fore; o.hy = o.ey + Math.cos(s + e) * RG.fore;
-  return o;
-}
-const _la = {}, _lb = {};
-function plant(P, lift) { // put the lowest foot on the floor (minus a flight lift)
-  const a = legFK(P.tA, P.kA, _la, 0, 0), b = legFK(P.tB, P.kB, _lb, 0, 0);
-  P.hipY = GROUND_M - (Math.max(a.ay, a.ty, b.ay, b.ty) + 2) - (lift || 0);
+const _lc = {};
+
+// static poses: ankles relative to the hip, hands in torso space (x forward, y down the spine)
+const POSE_LIB = {
+  rise:   { lean: 18, head: -12, hy: -3, fA: [8, 12, 40], fB: [-13, 18, 62], hA: [-10, -1], hB: [9, -3] },
+  apex:   { lean: 14, head: -5, hy: -3, fA: [7, 10, 30], fB: [-3, 13, 50], hA: [11, -5], hB: [-9, -4] },
+  fall:   { lean: 8, head: 4, hy: -3, fA: [6, 22, 18], fB: [-4, 21, 30], hA: [9, -11], hB: [-8, -10] },
+  push:   { lean: 26, head: -10, hy: -4, fA: [3, 24, 30], fB: [-13, 21, 55], hA: [10, -9], hB: [6, -11] },
+  flip:   { lean: 30, head: 14, hy: -1, fA: [6, 10, 20], fB: [2, 11, 30], hA: [9, 9], hB: [6, 10] },
+  dive:   { lean: -8, head: 18, hy: -5, fA: [8, 24, -8], fB: [-5, 11, 40], hA: [-8, -12], hB: [-10, -9], rot: 0.4 },
+  dead:   { lean: 10, head: 0, hy: -2, fA: [10, 16, 20], fB: [-12, 14, 40], hA: [12, -8], hB: [-12, -6] },
+};
+function libPose(name) {
+  const L = POSE_LIB[name];
+  return { rot: L.rot || 0, lean: L.lean * DEG, head: L.head * DEG, hx: 0, hy: L.hy,
+    fAx: L.fA[0], fAy: L.hy + L.fA[1], pA: L.fA[2] * DEG, fBx: L.fB[0], fBy: L.hy + L.fB[1], pB: L.fB[2] * DEG,
+    hAx: L.hA[0], hAy: L.hA[1], hBx: L.hB[0], hBy: L.hB[1] };
 }
 function mixPose(A, B, t) { const o = {}; for (const k of PK) o[k] = lerp(A[k] || 0, B[k] || 0, t); return o; }
 
@@ -1656,94 +1681,125 @@ function rigMode(q) {
   if (q.diving) return "dive";
   return "air";
 }
+
+function runPose(rig, q, wall) {
+  const ph = rig.ph, speed = Math.max(0, q.vx), sf = clamp((speed - 440) / 450, 0, 1);
+  const start = clamp(1 - (q.runT || 9) / 0.7, 0, 1);          // explosive first steps of a run
+  const nr = wall ? 0 : q.od ? 1 : clamp((speed - 800) / 200, 0, 1); // ninja run at top speed
+  const k = lerp(0.88, 1.1, sf), step = (ph * 2) % 1;
+  const lean = (lerp(28, 38, sf) + nr * 12 + start * 12 + Math.sin(step * TAU - 0.6) * 2.2) * DEG;
+  const bob = (1.2 + 1.3 * sf) * Math.cos(TAU * 2 * (ph - STANCE / 2));
+  const P = { rot: wall ? -1.32 : 0, lean, head: -lean * 0.7 + Math.sin(step * TAU + 1) * 1.5 * DEG, hx: 0, hy: HIP_Y + bob };
+  legCycle(ph, k, _lc); P.fAx = _lc.x; P.fAy = _lc.y; P.pA = _lc.p;
+  legCycle(ph + 0.5, k, _lc); P.fBx = _lc.x; P.fBy = _lc.y; P.pB = _lc.p;
+  const ka = lerp(0.9, 1.15, sf) + start * 0.3, ca = Math.cos(TAU * ph), cb = -ca;
+  const sway = Math.sin(TAU * ph * 2) * 1.2;
+  P.hAx = lerp(-9.5 * ka * ca, -13, nr); P.hAy = lerp(6.5 + 6 * ca, 5 + sway, nr);
+  P.hBx = lerp(-9.5 * ka * cb, -12, nr); P.hBy = lerp(6.5 + 6 * cb, 8 - sway, nr);
+  if (!wall && q.landT < 0.3) { // absorb the landing: hips drop, feet stay planted, then spring up
+    const w = (q.landK || 0) * Math.pow(1 - q.landT / 0.3, 2);
+    P.hy += 8 * w; P.lean += 0.25 * w; P.head -= 0.15 * w;
+    P.hAx = lerp(P.hAx, 10, w * 0.7); P.hAy = lerp(P.hAy, 6, w * 0.7); P.hBx = lerp(P.hBx, 6, w * 0.7); P.hBy = lerp(P.hBy, 8, w * 0.7);
+  }
+  return P;
+}
+
 function targetPose(rig, q, time) {
-  const m = rig.mode, speed = Math.max(0, q.vx);
+  const m = rig.mode;
   let P;
-  if (m === "run" || m === "wall") {
-    const ph = rig.ph, sf = clamp((speed - 440) / 500, 0, 1);
-    const nr = m === "wall" ? 0 : q.od ? 1 : clamp((speed - 800) / 200, 0, 1); // ninja run at top speed
-    const step = (ph * 2) % 1;
-    const lean = (lerp(lerp(32, 40, sf), 50, nr) + Math.sin(step * TAU) * 2.5) * DEG;
-    const amp = 1 + sf * 0.18;
-    P = { rot: m === "wall" ? -1.32 : 0, lean, head: -lean * 0.68 + Math.sin(step * TAU + 1) * 2 * DEG,
-      tA: crs(SPR_T, ph) * amp, kA: crs(SPR_K, ph), tB: crs(SPR_T, ph + 0.5) * amp, kB: crs(SPR_K, ph + 0.5) };
-    const sway = Math.sin(ph * TAU * 2) * 5 * DEG;
-    P.sA = lerp(crs(SPR_S, ph) - lean, -118 * DEG + sway, nr); P.eA = lerp(crs(SPR_E, ph), 8 * DEG, nr);
-    P.sB = lerp(crs(SPR_S, ph + 0.5) - lean, -106 * DEG - sway, nr); P.eB = lerp(crs(SPR_E, ph + 0.5), 14 * DEG, nr);
-    if (m === "run" && q.landT < 0.28) { // absorb the landing: deep crouch that springs back up
-      const w = q.landK * Math.pow(1 - q.landT / 0.28, 2);
-      P = Object.assign(P, mixPose(P, POSES.crouch, w * 0.85));
-    }
-    plant(P, step > 0.6 ? Math.sin(((step - 0.6) / 0.4) * Math.PI) * 4.2 : 0);
-  } else if (m === "roll") {
-    P = Object.assign({}, POSES.flip);
-    P.dropY = 10;
-  } else if (m === "swing") {
-    const rope = q.swingAng + Math.PI, w = clamp(q.swingW || 0, -4, 4);
-    const R = -0.9 * q.swingAng - w * 0.035;
-    P = { rot: R, lean: 0, head: -0.2, hipY: 3,
-      tA: (20 - w * 11) * DEG, kA: (32 + Math.max(0, -w) * 14) * DEG,
-      tB: (2 - w * 15) * DEG, kB: (64 + Math.max(0, w) * 16) * DEG,
-      sA: rope + R, eA: 0, sB: (-40 - w * 12) * DEG, eB: 72 * DEG };
-    if (q.pumpT < 0.28) { // pump kick: legs whip in the swing direction, body arches
-      const k = Math.sin((q.pumpT / 0.28) * Math.PI), d = q.pumpDir || 1;
-      P.tA += d * k * 0.95; P.tB += d * k * 0.8; P.kA *= 1 - k * 0.75; P.kB *= 1 - k * 0.55; P.lean -= d * k * 0.18; P.sB -= d * k * 0.6;
-    }
-    if (q.attachT < 0.18) { // reach and stretch when the line snaps tight
-      const k = 1 - q.attachT / 0.18;
-      P.kA *= 1 - k * 0.8; P.kB *= 1 - k * 0.6; P.tA -= k * 0.25; P.tB -= k * 0.35;
-    }
-  } else if (m === "air") {
+  if (m === "run" || m === "wall") P = runPose(rig, q, m === "wall");
+  else if (m === "roll") { P = libPose("flip"); P.dropY = 10; }
+  else if (m === "air") {
     const k = clamp((q.vy + 650) / 1300, 0, 1);
-    P = k < 0.5 ? mixPose(POSES.rise, POSES.apex, k * 2) : mixPose(POSES.apex, POSES.fall, (k - 0.5) * 2);
-    if (q.jumpT < 0.15) P = mixPose(P, POSES.push, 1 - q.jumpT / 0.15); // explosive push-off
-    const s = Math.sin(time * 10) * (4 + k * 8) * DEG; P.sA += s; P.sB -= s;
+    P = k < 0.5 ? mixPose(libPose("rise"), libPose("apex"), k * 2) : mixPose(libPose("apex"), libPose("fall"), (k - 0.5) * 2);
+    if (q.jumpT < 0.16) P = mixPose(P, libPose("push"), 1 - q.jumpT / 0.16);
+    const s = Math.sin(time * 9) * (0.6 + k);
+    P.hAx += s; P.hBx -= s;
+  } else if (m === "swing") {
+    const w = clamp(q.swingW || 0, -4, 4), R = -0.9 * q.swingAng - w * 0.035;
+    const rope = q.swingAng + Math.PI + R;              // rope direction in model space (from down, + forward)
+    const reach = RG.up + RG.fore - 0.6;
+    P = { rot: R, lean: 0, head: -0.25, hx: 0, hy: 0,
+      fAx: 3 - w * 4, fAy: 21 + Math.max(0, -w) * -2, pA: (20 + w * 8) * DEG,
+      fBx: -3 - w * 6, fBy: 20 - Math.max(0, w) * 3, pB: (35 + w * 8) * DEG,
+      hAx: Math.sin(rope) * reach, hAy: Math.cos(rope) * reach + 1.6, hBx: -5 - w * 2, hBy: 11 };
+    if (q.attachT < 0.18) { const t = 1 - q.attachT / 0.18; P.fAy += 2 * t; P.fBy += 2 * t; P.fAx -= 3 * t; P.fBx -= 4 * t; }
+    if (q.pumpT < 0.28) { // pump kick: legs whip in the swing direction
+      const t = Math.sin((q.pumpT / 0.28) * Math.PI), d = q.pumpDir || 1;
+      P.fAx += d * t * 11; P.fBx += d * t * 9; P.fAy -= t * 5; P.fBy -= t * 4; P.lean -= d * t * 0.15;
+    }
+  } else if (m === "grind") {
+    P = { rot: 0, lean: 22 * DEG + Math.sin(time * 9) * 2 * DEG, head: -16 * DEG, hx: 0, hy: HIP_Y + 5,
+      fAx: 9, fAy: ANKLE_Y, pA: 0, fBx: -10, fBy: ANKLE_Y, pB: 0, hAx: 13, hAy: 2, hBx: -12, hBy: 3 };
   } else {
-    P = Object.assign({}, POSES[m]);
-    if (m === "grind") { plant(P, 0); P.lean += Math.sin(time * 9) * 3 * DEG; }
-    if (m === "dead") { const s = Math.sin(time * 22); P.tA += s * 0.5; P.tB -= s * 0.6; P.sA += s * 0.7; P.sB -= s * 0.8; }
-    if (m === "dive") P.rot = 0.42;
+    P = libPose(m);
+    if (m === "dead") { const s = Math.sin(time * 22); P.fAx += s * 4; P.fBx -= s * 5; P.hAx += s * 6; P.hBy -= s * 5; }
   }
   if (q.stumble > 0) P.rot += Math.sin(time * 34) * 0.13;
   P.rot = P.rot || 0;
+  // ankles of static poses are hip-relative in x
   return P;
 }
-// rope swing: the stored rope direction can wrap; keep arm angles continuous
+
 const easeOut = (t) => 1 - (1 - t) * (1 - t) * (1 - t);
 function rigUpdate(rig, q, dt, time) {
   const m = rigMode(q);
   if (m !== rig.mode) {
     rig.from = Object.assign({}, rig.cur); rig.bt = 0;
-    if (m === "run" && rig.mode !== "wall" && rig.mode !== "roll") rig.ph = 0.0;
+    if (m === "run" && rig.mode !== "wall" && rig.mode !== "roll") rig.ph = 0.02;
     rig.mode = m;
   }
-  if (m === "run") rig.ph = (rig.ph + clamp(Math.max(0, q.vx) / 158, 2.4, 4.3) * dt) % 1;
-  else if (m === "wall") rig.ph = (rig.ph + 5.6 * dt) % 1;
+  if (m === "run") rig.ph = (rig.ph + clamp(Math.max(0, q.vx) / 165, 2.3, 4.2) * dt) % 1;
+  else if (m === "wall") rig.ph = (rig.ph + 5.2 * dt) % 1;
   const T = targetPose(rig, q, time);
-  rig.bt = Math.min(1, rig.bt + dt / (m === "swing" ? 0.09 : 0.12));
+  rig.bt = Math.min(1, rig.bt + dt / (m === "swing" ? 0.09 : 0.13));
   const k = rig.from ? easeOut(rig.bt) : 1;
   for (const key of PK) rig.cur[key] = k >= 1 || rig.from[key] === undefined ? T[key] : lerp(rig.from[key], T[key], k);
   rig.cur.spin = m === "flip" ? easeOut(q.flipK) * TAU : m === "roll" ? (1 - q.rollT / ROLL_T) * TAU : m === "dead" ? q.deadT * 7 : 0;
   rig.cur.dropY = lerp(rig.cur.dropY || 0, T.dropY || 0, Math.min(1, dt * 30));
+  solveJoints(rig.cur);
   return rig.cur;
 }
 
-// joint positions in model space
-const J = { A: {}, B: {}, aA: {}, aB: {} };
-function joints(P) {
-  const lean = P.lean, ux = Math.sin(lean), uy = -Math.cos(lean), fx = Math.cos(lean), fy = Math.sin(lean);
-  J.hx = 0; J.hy = P.hipY;
-  J.ux = ux; J.uy = uy; J.fx = fx; J.fy = fy;
-  J.sx = J.hx + ux * RG.torso; J.sy = J.hy + uy * RG.torso;
-  const sjx = J.hx + ux * (RG.torso - 2.2), sjy = J.hy + uy * (RG.torso - 2.2);
-  const ha = lean + P.head;
-  J.cx = J.sx + Math.sin(ha) * (RG.headR + 1.6); J.cy = J.sy - Math.cos(ha) * (RG.headR + 1.6); J.ha = ha;
-  legFK(P.tA, P.kA, J.A, J.hx, J.hy); legFK(P.tB, P.kB, J.B, J.hx, J.hy);
-  armFK(P.sA, P.eA, J.aA, sjx, sjy); armFK(P.sB, P.eB, J.aB, sjx, sjy);
-  J.sjx = sjx; J.sjy = sjy;
-  return J;
+// ---------- IK + joint positions (flat fields so a pose copies with Object.assign) ----------
+const _ik = {};
+function ik2(rx, ry, tx, ty, l1, l2, bend, o) {
+  let dx = tx - rx, dy = ty - ry, d = Math.hypot(dx, dy) || 0.001;
+  const max = l1 + l2 - 0.05, min = Math.abs(l1 - l2) + 0.5;
+  if (d > max) { dx *= max / d; dy *= max / d; d = max; }
+  else if (d < min) { dx *= min / d; dy *= min / d; d = min; }
+  const a = Math.acos(clamp((l1 * l1 + d * d - l2 * l2) / (2 * l1 * d), -1, 1)), base = Math.atan2(dy, dx), ang = base + bend * a;
+  o.jx = rx + Math.cos(ang) * l1; o.jy = ry + Math.sin(ang) * l1; o.ex = rx + dx; o.ey = ry + dy;
+  return o;
 }
-// model point -> world point (for rope hand and headband knot)
+function solveJoints(P) {
+  const l = P.lean, ux = Math.sin(l), uy = -Math.cos(l), fx = Math.cos(l), fy = Math.sin(l);
+  P.Hx = P.hx; P.Hy = P.hy;
+  P.Cx = P.Hx + ux * RG.torso; P.Cy = P.Hy + uy * RG.torso;                // chest
+  const sx = P.Hx + ux * (RG.torso - 1.8), sy = P.Hy + uy * (RG.torso - 1.8); // shoulder joint
+  P.Sx = sx; P.Sy = sy;
+  const ha = l + P.head;
+  P.ha = ha; P.Dx = P.Cx + Math.sin(ha) * (RG.neck + RG.headR); P.Dy = P.Cy - Math.cos(ha) * (RG.neck + RG.headR); // head centre
+  // legs (far hip sits a touch behind the near one)
+  for (const s of ["A", "B"]) {
+    const hipX = P.Hx - (s === "B" ? fx * 0.8 : 0), hipY = P.Hy - (s === "B" ? fy * 0.8 : 0);
+    ik2(hipX, hipY, P.Hx + P["f" + s + "x"], P["f" + s + "y"], RG.thigh, RG.shin, -1, _ik);
+    P["k" + s + "x"] = _ik.jx; P["k" + s + "y"] = _ik.jy; P["a" + s + "x"] = _ik.ex; P["a" + s + "y"] = _ik.ey;
+    const p = P["p" + s];
+    P["t" + s + "x"] = _ik.ex + Math.cos(p) * RG.foot; P["t" + s + "y"] = _ik.ey + Math.sin(p) * RG.foot;
+    P["q" + s + "x"] = hipX; P["q" + s + "y"] = hipY;
+  }
+  // arms: hand targets live in torso space (x forward, y down the spine)
+  for (const s of ["A", "B"]) {
+    const shx = sx - (s === "B" ? fx * 1.2 : 0), shy = sy - (s === "B" ? fy * 1.2 : 0);
+    const tx = shx + fx * P["h" + s + "x"] - ux * P["h" + s + "y"], ty = shy + fy * P["h" + s + "x"] - uy * P["h" + s + "y"];
+    ik2(shx, shy, tx, ty, RG.up, RG.fore, 1, _ik);
+    P["e" + s + "x"] = _ik.jx; P["e" + s + "y"] = _ik.jy; P["w" + s + "x"] = _ik.ex; P["w" + s + "y"] = _ik.ey;
+    P["o" + s + "x"] = shx; P["o" + s + "y"] = shy;
+  }
+}
+
+// model point -> world point (rope hand, headband knot, eye glow)
 function rigToWorld(P, x, y, mx, my) {
   const r = (P.rot || 0) + (P.spin || 0), c = Math.cos(r), s = Math.sin(r);
   mx *= RG.s; my *= RG.s;
@@ -1751,89 +1807,191 @@ function rigToWorld(P, x, y, mx, my) {
   const pv = P.pivot || 0; wx *= P.sx || 1; wy = (wy - pv) * (P.sy || 1) + pv;
   return { x: x + wx, y: y + (P.dropY || 0) + wy };
 }
+function headLocal(P, lx, ly) { const c = Math.cos(P.ha), s = Math.sin(P.ha); return { x: P.Dx + lx * c - ly * s, y: P.Dy + lx * s + ly * c }; }
+function knotModel(P) { return headLocal(P, -RG.headR * 0.95, -1.4); }
+function eyeModel(P) { return headLocal(P, 2.6, -0.4); }
+function handModel(P) { return { x: P.wAx, y: P.wAy }; }
 
-function line(x1, y1, x2, y2) { ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); }
-// look: { mono, alpha, rim, eye }. Black body, thin indigo outline, a moonlight rim from the upper right.
-function drawNinja(x, y, P, look) {
-  const j = joints(P), mono = look.mono, rot = (P.rot || 0) + (P.spin || 0);
-  ctx.save(); ctx.translate(x, y + (P.dropY || 0));
-  if ((P.sx || 1) !== 1 || (P.sy || 1) !== 1) { const pv = P.pivot || 0; ctx.translate(0, pv); ctx.scale(P.sx || 1, P.sy || 1); ctx.translate(0, -pv); }
-  ctx.rotate(rot); ctx.scale(RG.s, RG.s);
-  ctx.globalAlpha = look.alpha == null ? 1 : look.alpha;
-  ctx.lineCap = "round"; ctx.lineJoin = "round";
-  const c = Math.cos(-rot), s = Math.sin(-rot), wx = 1.15, wy = -1.25; // light offset, world-fixed
-  const lx = wx * c - wy * s, ly = wx * s + wy * c;
-  const W = { th: 5.8, sh: 4.7, ft: 3.3, ua: 4.1, fa: 3.5, hd: 1.9 };
-  const leg = (L, col, e) => {
-    ctx.strokeStyle = col; ctx.lineWidth = W.th + e; line(j.hx, j.hy, L.kx, L.ky);
-    ctx.lineWidth = W.sh + e; line(L.kx, L.ky, L.ax, L.ay); ctx.lineWidth = W.ft + e; line(L.ax, L.ay, L.tx, L.ty);
-  };
-  const arm = (A, col, e) => {
-    ctx.strokeStyle = col; ctx.lineWidth = W.ua + e; line(j.sjx, j.sjy, A.ex, A.ey);
-    ctx.lineWidth = W.fa + e; line(A.ex, A.ey, A.hx, A.hy);
-    ctx.fillStyle = col; ctx.beginPath(); ctx.arc(A.hx, A.hy, W.hd + e / 2, 0, TAU); ctx.fill();
-  };
-  const torsoPath = () => { // V-shaped athletic torso
-    const sx = j.sx, sy = j.sy, hx = j.hx, hy = j.hy, fx = j.fx, fy = j.fy, ux = j.ux, uy = j.uy;
-    ctx.beginPath();
-    ctx.moveTo(sx - fx * 6.4 - ux * 0.5, sy - fy * 6.4 - uy * 0.5);
-    ctx.quadraticCurveTo(sx + ux * 1.8, sy + uy * 1.8, sx + fx * 5.6, sy + fy * 5.6);
-    ctx.quadraticCurveTo(sx + fx * 6.4 - ux * 6, sy + fy * 6.4 - uy * 6, hx + fx * 3.6, hy + fy * 3.6);
-    ctx.lineTo(hx - fx * 4, hy - fy * 4);
-    ctx.quadraticCurveTo(sx - fx * 6.6 - ux * 7, sy - fy * 6.6 - uy * 7, sx - fx * 6.4 - ux * 0.5, sy - fy * 6.4 - uy * 0.5);
-    ctx.closePath();
-  };
-  const headPath = () => { // hood with a pointed cowl at the back
-    const ca = Math.cos(j.ha), sa = Math.sin(j.ha), r = RG.headR;
-    ctx.beginPath(); ctx.arc(j.cx, j.cy, r, 0, TAU);
-    ctx.moveTo(j.cx - ca * r * 0.4 - sa * r * 0.9, j.cy - sa * r * 0.4 + ca * r * 0.9);
-    ctx.lineTo(j.cx - ca * (r + 3.4) + sa * 1.5, j.cy - sa * (r + 3.4) - ca * 1.5);
-    ctx.lineTo(j.cx - ca * r * 0.7 + sa * r * 0.5, j.cy - sa * r * 0.7 - ca * r * 0.5);
-    ctx.closePath();
-  };
-  const bx1 = j.hx - j.fx * 4.6 - j.ux * 2.5, by1 = j.hy - j.fy * 4.6 - j.uy * 2.5;
-  const bx2 = j.sx - j.fx * 4.4 + j.ux * 6, by2 = j.sy - j.fy * 4.4 + j.uy * 6;
-  const dl = Math.hypot(bx2 - bx1, by2 - by1) || 1, dx = (bx2 - bx1) / dl, dy = (by2 - by1) / dl;
-  const core = (col, e, details) => {
-    ctx.strokeStyle = details ? "#1b1926" : col; ctx.lineWidth = 2.8 + e; line(bx1, by1, bx2, by2);
-    ctx.strokeStyle = details ? "#c4173f" : col; ctx.lineWidth = 2.4 + e; line(bx2, by2, bx2 + dx * 6.5, by2 + dy * 6.5);
-    if (details) { ctx.strokeStyle = "#ffd23f"; ctx.lineWidth = 1.4; line(bx2 - dy * 2.4, by2 + dx * 2.4, bx2 + dy * 2.4, by2 - dx * 2.4); }
-    ctx.fillStyle = details ? "#0b0a12" : col;
-    if (e) { ctx.strokeStyle = col; ctx.lineWidth = e; torsoPath(); ctx.stroke(); headPath(); ctx.stroke(); }
-    torsoPath(); ctx.fill(); headPath(); ctx.fill();
-    if (details && !mono) {
-      ctx.strokeStyle = "#ff2e63"; ctx.lineWidth = 1.7; // red belt
-      line(j.hx - j.fx * 4.2 + j.ux * 1.6, j.hy - j.fy * 4.2 + j.uy * 1.6, j.hx + j.fx * 4 + j.ux * 1.6, j.hy + j.fy * 4 + j.uy * 1.6);
-      ctx.save(); ctx.translate(j.cx, j.cy); ctx.rotate(j.ha); // headband + glowing eye slit
-      ctx.fillStyle = "#ff2e63"; ctx.fillRect(-RG.headR, -3.6, RG.headR * 2 - 0.4, 1.7);
-      ctx.fillStyle = look.eye; ctx.fillRect(0.9, -0.9, 4.4, 1.35);
-      ctx.restore();
-    }
-  };
-  const groups = [
-    (col, e) => { arm(j.aB, col === 0 ? "#06060a" : col, e); leg(j.B, col === 0 ? "#06060a" : col, e); },
-    (col, e) => core(col === 0 ? "#0b0a12" : col, e, col === 0),
-    (col, e) => { leg(j.A, col === 0 ? "#100f17" : col, e); arm(j.aA, col === 0 ? "#100f17" : col, e); },
-  ];
-  for (const g of groups) {
-    if (mono) { g(mono, 0); continue; }
-    ctx.save(); ctx.translate(lx, ly); g(look.rim, 0.4); ctx.restore(); // moonlight rim
-    g("#2a2450", 1.5);                                                   // thin indigo outline
-    g(0, 0);                                                             // black body
-  }
-  if (!mono) {
-    // a hint of fabric folds on the near shin
-    ctx.strokeStyle = "rgba(255,255,255,0.09)"; ctx.lineWidth = 1;
-    line(lerp(j.A.kx, j.A.ax, 0.5), lerp(j.A.ky, j.A.ay, 0.5), lerp(j.A.kx, j.A.ax, 0.88), lerp(j.A.ky, j.A.ay, 0.88));
-  }
-  ctx.restore();
+// ================= SKINS: how the runner looks =================
+// Every skin draws the same rig. Solid skins are sleek silhouettes made of tapered capsules
+// with a moonlight rim from the upper right; the neon skin is drawn with light; the hologram scanlines.
+const SLIM = { th0: 3.4, th1: 2.15, sh0: 2.25, sh1: 1.35, ft0: 1.4, ft1: 0.95, ua0: 2.0, ua1: 1.45, fa0: 1.5, fa1: 1.1, hand: 1.55, hip: 3.2, chest: 4.5, neck: 1.45, hrx: 3.9, hry: 4.4 };
+const SKINS = [
+  { id: "ninja", name: "Schatten", tag: "Ninja", style: "solid", dims: SLIM,
+    col: { armFar: "#07060b", legFar: "#07060b", core: "#0d0c14", legNear: "#121019", armNear: "#121019" },
+    rim: "#4ff3ff", eye: "#effeff", glow: "#4ff3ff", trail: "#29c9ff", tails: ["#ff2e63", "#b3123d"], sword: true, band: "#ff2e63" },
+  { id: "neon", name: "Neon", tag: "Stickman", style: "line", glow: "#4ff3ff", core: "#ffffff", rim: "#4ff3ff", eye: "#ffffff", trail: "#4ff3ff" },
+  { id: "cyborg", name: "Chrom", tag: "Cyborg", style: "solid",
+    dims: Object.assign({}, SLIM, { th0: 3.7, th1: 2.4, sh0: 2.5, sh1: 1.6, ft0: 1.6, ft1: 1.15, ua0: 2.3, ua1: 1.7, fa0: 1.8, fa1: 1.3, hand: 1.7, hip: 3.5, chest: 5.1, neck: 1.6, hrx: 4.0, hry: 4.3 }),
+    col: { armFar: "#1c2029", legFar: "#1c2029", core: "#2b313d", legNear: "#363d4b", armNear: "#363d4b" },
+    rim: "#d6e8f5", eye: "#ff8a3d", glow: "#ff8a3d", trail: "#ff8a3d", joints: "#ff8a3d", reactor: "#4ff3ff", visor: true },
+  { id: "holo", name: "Phantom", tag: "Hologramm", style: "holo", dims: SLIM, a: "#4ff3ff", b: "#ff2e63", rim: "#4ff3ff", eye: "#ffffff", glow: "#4ff3ff", trail: "#ff2e63" },
+  { id: "street", name: "Street", tag: "Runner", style: "solid",
+    dims: Object.assign({}, SLIM, { th0: 3.9, th1: 2.8, sh0: 2.8, sh1: 1.9, ft0: 2.1, ft1: 1.7, ua0: 2.5, ua1: 2.0, fa0: 2.0, fa1: 1.55, hand: 1.5, hip: 3.7, chest: 5.2, neck: 1.7, hrx: 3.9, hry: 4.3 }),
+    col: { armFar: "#3d1aa3", legFar: "#100d1f", core: "#6a2cf5", legNear: "#1a1630", armNear: "#5a24e0" },
+    rim: "#ffd23f", eye: "#4ff3ff", glow: "#a17bff", trail: "#a17bff", hood: true, shoes: "#f3f0ff", shoeAccent: "#4ff3ff", phones: "#4ff3ff" },
+];
+let currentSkin = SKINS.find((s) => s.id === store.get("skin", "ninja")) || SKINS[0];
+
+function capsule(g, ax, ay, ar, bx, by, br) {
+  const dx = bx - ax, dy = by - ay, d = Math.hypot(dx, dy);
+  if (d < Math.abs(ar - br) + 0.05) { const r = Math.max(ar, br); g.moveTo(ax + r, ay); g.arc(ax, ay, r, 0, TAU); return; }
+  const ang = Math.atan2(dy, dx), off = Math.acos(clamp((ar - br) / d, -1, 1));
+  g.moveTo(ax + Math.cos(ang + off) * ar, ay + Math.sin(ang + off) * ar);
+  g.arc(ax, ay, ar, ang + off, ang - off + TAU);
+  g.arc(bx, by, br, ang - off, ang + off);
+  g.closePath();
 }
-function headLocal(P, lx, ly) { const j = joints(P), c = Math.cos(j.ha), s = Math.sin(j.ha); return { x: j.cx + lx * c - ly * s, y: j.cy + lx * s + ly * c }; }
-function knotModel(P) { return headLocal(P, -RG.headR * 0.95, -2.8); }
-function eyeModel(P) { return headLocal(P, 3.4, -0.2); }
-function handModel(P) { const j = joints(P); return { x: j.aA.hx, y: j.aA.hy }; }
+function legPath(g, P, s, d, withFoot) {
+  const qx = P["q" + s + "x"], qy = P["q" + s + "y"], kx = P["k" + s + "x"], ky = P["k" + s + "y"], ax = P["a" + s + "x"], ay = P["a" + s + "y"];
+  capsule(g, qx, qy, d.th0, kx, ky, d.th1);
+  capsule(g, kx, ky, d.th1 * 0.98, ax, ay, d.sh1);
+  // calf: a soft bulge behind the upper shin
+  const nx = -(ay - ky), ny = ax - kx, nl = Math.hypot(nx, ny) || 1;
+  const cx = lerp(kx, ax, 0.32) + (nx / nl) * 0.5, cy = lerp(ky, ay, 0.32) + (ny / nl) * 0.5;
+  g.moveTo(cx + d.sh0, cy); g.arc(cx, cy, d.sh0, 0, TAU);
+  if (withFoot) capsule(g, ax, ay, d.ft0, P["t" + s + "x"], P["t" + s + "y"], d.ft1);
+}
+function footPath(g, P, s, d) { capsule(g, P["a" + s + "x"], P["a" + s + "y"], d.ft0, P["t" + s + "x"], P["t" + s + "y"], d.ft1); }
+function armPath(g, P, s, d) {
+  const ox = P["o" + s + "x"], oy = P["o" + s + "y"], ex = P["e" + s + "x"], ey = P["e" + s + "y"], wx = P["w" + s + "x"], wy = P["w" + s + "y"];
+  capsule(g, ox, oy, d.ua0, ex, ey, d.ua1);
+  capsule(g, ex, ey, d.ua1 * 0.95, wx, wy, d.fa1);
+  g.moveTo(wx + d.hand, wy); g.arc(wx, wy, d.hand, 0, TAU);
+}
+function headPath(g, P, d) { g.moveTo(P.Dx + Math.cos(P.ha) * d.hrx, P.Dy + Math.sin(P.ha) * d.hrx); g.ellipse(P.Dx, P.Dy, d.hrx, d.hry, P.ha, 0, TAU); }
+function corePath(g, P, d, sk) {
+  const ux = Math.sin(P.lean), uy = -Math.cos(P.lean);
+  capsule(g, P.Hx, P.Hy, d.hip, P.Cx - ux * 1.5, P.Cy - uy * 1.5, d.chest);
+  capsule(g, P.Cx - ux * 1.2, P.Cy - uy * 1.2, d.neck + 0.3, P.Dx, P.Dy, d.neck);
+  if (sk && sk.hood) { const hb = headLocal(P, -1.6, -0.6); g.moveTo(hb.x + d.hrx + 1.4, hb.y); g.arc(hb.x, hb.y, d.hrx + 1.4, 0, TAU); }
+  headPath(g, P, d);
+}
+function silhouette(g, P, d, sk) {
+  g.beginPath(); armPath(g, P, "B", d); legPath(g, P, "B", d, true); corePath(g, P, d, sk); legPath(g, P, "A", d, true); armPath(g, P, "A", d);
+}
+function glowDot(g, x, y, col, r) { g.globalCompositeOperation = "lighter"; g.drawImage(Art.glow(col), x - r, y - r, r * 2, r * 2); g.globalCompositeOperation = "source-over"; }
 
-// ================= PLAYER DRAWING: ninja, headband tails, rope, ghost =================
+function drawRunner(g, sk, x, y, P, o) {
+  const rot = (P.rot || 0) + (P.spin || 0);
+  g.save(); g.translate(x, y + (P.dropY || 0));
+  if ((P.sx || 1) !== 1 || (P.sy || 1) !== 1) { const pv = P.pivot || 0; g.translate(0, pv); g.scale(P.sx || 1, P.sy || 1); g.translate(0, -pv); }
+  g.rotate(rot); g.scale(RG.s, RG.s);
+  g.globalAlpha = o.alpha == null ? 1 : o.alpha;
+  g.lineCap = "round"; g.lineJoin = "round";
+  if (sk.style === "line") drawLineRunner(g, sk, P, o);
+  else if (o.mono) { silhouette(g, P, sk.dims || SLIM, sk); g.fillStyle = o.mono; g.fill(); }
+  else if (sk.style === "holo") drawHoloRunner(g, sk, P, o);
+  else drawSolidRunner(g, sk, P, o, rot);
+  g.restore();
+}
+
+function drawSolidRunner(g, sk, P, o, rot) {
+  const d = sk.dims, C = sk.col, rim = o.rim || sk.rim;
+  const c = Math.cos(-rot), s = Math.sin(-rot), lx = 0.72 * c + 0.85 * s, ly = 0.72 * s - 0.85 * c; // world light (0.72,-0.85) in model space
+  const parts = [
+    [C.armFar, () => armPath(g, P, "B", d)],
+    [C.legFar, () => legPath(g, P, "B", d, !sk.shoes)],
+    [C.core, () => corePath(g, P, d, sk)],
+    [C.legNear, () => legPath(g, P, "A", d, !sk.shoes)],
+    [C.armNear, () => armPath(g, P, "A", d)],
+  ];
+  parts.forEach(([col, path], i) => {
+    if (i === 2 && sk.sword) { // katana across the back, behind the torso
+      const ux = Math.sin(P.lean), uy = -Math.cos(P.lean), fx = Math.cos(P.lean), fy = Math.sin(P.lean);
+      const x1 = P.Hx - fx * 3.6 - ux * 2, y1 = P.Hy - fy * 3.6 - uy * 2, x2 = P.Cx - fx * 3.4 + ux * 5.5, y2 = P.Cy - fy * 3.4 + uy * 5.5;
+      const L = Math.hypot(x2 - x1, y2 - y1) || 1, dx = (x2 - x1) / L, dy = (y2 - y1) / L;
+      g.strokeStyle = rgba(rim, 0.7); g.lineWidth = 2.6; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2 + dx * 5.5, y2 + dy * 5.5); g.stroke();
+      g.strokeStyle = "#191723"; g.lineWidth = 1.7; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
+      g.strokeStyle = "#c4173f"; g.lineWidth = 1.6; g.beginPath(); g.moveTo(x2, y2); g.lineTo(x2 + dx * 5.5, y2 + dy * 5.5); g.stroke();
+      g.strokeStyle = "#ffd23f"; g.lineWidth = 1; g.beginPath(); g.moveTo(x2 - dy * 1.8, y2 + dx * 1.8); g.lineTo(x2 + dy * 1.8, y2 - dx * 1.8); g.stroke();
+    }
+    g.save(); g.translate(lx, ly); g.beginPath(); path(); g.fillStyle = rgba(rim, 0.78); g.fill(); g.restore();
+    g.beginPath(); path(); g.fillStyle = col; g.fill();
+    if (sk.shoes && (i === 1 || i === 3)) { // chunky sneakers
+      const sd = i === 1 ? "B" : "A";
+      g.beginPath(); footPath(g, P, sd, d); g.fillStyle = i === 1 ? "#bdb8d6" : sk.shoes; g.fill();
+      g.strokeStyle = sk.shoeAccent; g.lineWidth = 0.8;
+      g.beginPath(); g.moveTo(lerp(P["a" + sd + "x"], P["t" + sd + "x"], 0.15), lerp(P["a" + sd + "y"], P["t" + sd + "y"], 0.15) + 0.6); g.lineTo(lerp(P["a" + sd + "x"], P["t" + sd + "x"], 0.85), lerp(P["a" + sd + "y"], P["t" + sd + "y"], 0.85) + 0.6); g.stroke();
+    }
+    if (i === 2) drawHeadDetails(g, sk, P, o);
+  });
+  if (sk.joints) for (const s2 of ["A"]) { // glowing servo joints on the near side
+    glowDot(g, P["k" + s2 + "x"], P["k" + s2 + "y"], sk.joints, 4.2); glowDot(g, P["e" + s2 + "x"], P["e" + s2 + "y"], sk.joints, 3.6);
+    g.fillStyle = "#ffe0c4"; g.beginPath(); g.arc(P["k" + s2 + "x"], P["k" + s2 + "y"], 0.7, 0, TAU); g.arc(P["e" + s2 + "x"], P["e" + s2 + "y"], 0.6, 0, TAU); g.fill();
+  }
+}
+function drawHeadDetails(g, sk, P, o) {
+  const eye = o.eye || sk.eye;
+  g.save(); g.translate(P.Dx, P.Dy); g.rotate(P.ha);
+  const r = (sk.dims || SLIM).hrx;
+  if (sk.band) { // ninja: red headband and a sharp eye slit
+    g.fillStyle = sk.band; g.fillRect(-r - 0.2, -2.6, r * 2, 1.25);
+    g.fillStyle = eye; g.beginPath(); g.moveTo(0.4, -0.95); g.lineTo(r + 0.2, -0.75); g.lineTo(r - 0.2, 0.25); g.lineTo(0.9, 0.05); g.closePath(); g.fill();
+  }
+  if (sk.visor) { // cyborg: LED visor strip + antenna
+    g.fillStyle = "#0b0d12"; g.fillRect(-0.6, -1.7, r + 0.9, 2.6);
+    g.fillStyle = eye; g.fillRect(0.2, -1.05, r + 0.1, 1.15);
+    g.strokeStyle = "#8a96a8"; g.lineWidth = 0.6; g.beginPath(); g.moveTo(-r * 0.6, -r * 0.7); g.lineTo(-r * 1.3, -r * 1.55); g.stroke();
+    g.fillStyle = eye; g.beginPath(); g.arc(-r * 1.3, -r * 1.55, 0.6, 0, TAU); g.fill();
+  }
+  if (sk.hood) { // street: face in the hood shadow, glowing headphones
+    g.fillStyle = "#120d22"; g.beginPath(); g.ellipse(0.9, 0.4, r * 0.82, r * 0.86, 0, 0, TAU); g.fill();
+    g.fillStyle = eye; g.fillRect(1.6, -0.6, 2.2, 0.8);
+    g.strokeStyle = sk.phones; g.lineWidth = 0.9; g.beginPath(); g.arc(-0.6, 0, r + 1.1, -Math.PI * 0.95, -Math.PI * 0.2); g.stroke();
+    g.fillStyle = "#1b1630"; g.beginPath(); g.ellipse(-0.9, 0.5, 1.4, 1.8, 0, 0, TAU); g.fill();
+    g.strokeStyle = sk.phones; g.lineWidth = 0.6; g.stroke();
+  }
+  g.restore();
+  if (sk.reactor) { // cyborg chest core
+    const cx = lerp(P.Hx, P.Cx, 0.72) + Math.cos(P.lean) * 1.6, cy = lerp(P.Hy, P.Cy, 0.72) + Math.sin(P.lean) * 1.6;
+    glowDot(g, cx, cy, sk.reactor, 5); g.fillStyle = "#e9feff"; g.beginPath(); g.arc(cx, cy, 0.9, 0, TAU); g.fill();
+  }
+}
+function drawLineRunner(g, sk, P, o) {
+  const col = o.mono || o.rim || sk.glow;
+  const limbs = (side) => {
+    g.beginPath();
+    g.moveTo(P["q" + side + "x"], P["q" + side + "y"]); g.lineTo(P["k" + side + "x"], P["k" + side + "y"]); g.lineTo(P["a" + side + "x"], P["a" + side + "y"]); g.lineTo(P["t" + side + "x"], P["t" + side + "y"]);
+    g.moveTo(P["o" + side + "x"], P["o" + side + "y"]); g.lineTo(P["e" + side + "x"], P["e" + side + "y"]); g.lineTo(P["w" + side + "x"], P["w" + side + "y"]);
+  };
+  const body = () => {
+    g.beginPath(); g.moveTo(P.Hx, P.Hy); g.lineTo(P.Cx, P.Cy);
+    g.moveTo(P.Dx + RG.headR * 0.9, P.Dy); g.arc(P.Dx, P.Dy, RG.headR * 0.9, 0, TAU);
+  };
+  const a0 = g.globalAlpha;
+  for (const [draw, k] of [[() => limbs("B"), 0.55], [body, 1], [() => limbs("A"), 1]]) {
+    if (!o.mono) {
+      g.globalCompositeOperation = "lighter";
+      g.globalAlpha = a0 * k * 0.3; g.strokeStyle = col; g.lineWidth = 6.5; draw(); g.stroke();
+      g.globalAlpha = a0 * k * 0.6; g.lineWidth = 3.2; draw(); g.stroke();
+      g.globalCompositeOperation = "source-over";
+    }
+    g.globalAlpha = a0 * k; g.strokeStyle = o.mono ? col : sk.core; g.lineWidth = o.mono ? 3 : 1.7; draw(); g.stroke();
+  }
+  g.globalAlpha = a0;
+}
+let _holoPat = null;
+function holoPattern(g) {
+  if (!_holoPat) {
+    const c = mkCanvas(2, 3), h = c.getContext("2d");
+    h.fillStyle = "rgba(79,243,255,0.85)"; h.fillRect(0, 0, 2, 1.4);
+    h.fillStyle = "rgba(79,243,255,0.25)"; h.fillRect(0, 1.4, 2, 1.6);
+    _holoPat = c;
+  }
+  return g.createPattern(_holoPat, "repeat");
+}
+function drawHoloRunner(g, sk, P, o) {
+  const d = sk.dims, a0 = g.globalAlpha, flick = 0.72 + Math.random() * 0.28;
+  if (Math.random() < 0.07) g.translate(rand(-2.5, 2.5), 0);
+  g.globalCompositeOperation = "lighter";
+  g.save(); g.translate(-1.5, 0.5); g.globalAlpha = a0 * 0.5 * flick; silhouette(g, P, d, sk); g.fillStyle = rgba(sk.b, 0.7); g.fill(); g.restore();
+  g.globalAlpha = a0 * flick; silhouette(g, P, d, sk); g.fillStyle = holoPattern(g); g.fill();
+  g.globalCompositeOperation = "source-over"; g.globalAlpha = a0;
+  g.save(); g.translate(P.Dx, P.Dy); g.rotate(P.ha); g.fillStyle = "#ffffff"; g.fillRect(0.6, -0.9, d.hrx - 0.2, 1.1); g.restore();
+}
+
+// ================= PLAYER DRAWING: runner, headband tails, rope, ghost, skin previews =================
 const FLIP_T = 0.46;
 const rig = makeRig(), ghostRig = makeRig();
 let pose = rig.cur;
@@ -1850,16 +2008,17 @@ function followChain(ch, kx, ky, dt, time, seg, ph) {
   const n = ch.length;
   for (let i = 1; i < n; i++) { // follow-the-leader: trails the motion path, never stretches
     const s = ch[i], a = ch[i - 1], k = i / n;
-    s.x -= 34 * dt; s.y += 120 * dt + Math.sin(time * 19 + i * 0.9 + ph) * 1.2 * k;
+    s.x -= 34 * dt; s.y += 110 * dt + Math.sin(time * 17 + i * 0.85 + ph) * 1.1 * k;
     const dx = s.x - a.x, dy = s.y - a.y, d = Math.hypot(dx, dy) || 1;
     s.x = a.x + (dx / d) * seg; s.y = a.y + (dy / d) * seg;
   }
 }
-function drawTail(ch, w0, col) {
-  ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = col;
-  for (let i = ch.length - 1; i > 0; i--) {
-    ctx.lineWidth = lerp(w0, 1.2, i / ch.length);
-    ctx.beginPath(); ctx.moveTo(ch[i - 1].x, ch[i - 1].y); ctx.lineTo(ch[i].x, ch[i].y); ctx.stroke();
+function drawTail(g, ch, w0, col) { // one smooth ribbon instead of separate sticks
+  g.lineCap = "round"; g.lineJoin = "round"; g.strokeStyle = col;
+  for (let i = 1; i < ch.length; i++) {
+    g.lineWidth = lerp(w0, 0.9, i / ch.length);
+    const a = ch[i - 1], b = ch[i], c = ch[Math.min(ch.length - 1, i + 1)];
+    g.beginPath(); g.moveTo(a.x, a.y); g.quadraticCurveTo(b.x, b.y, (b.x + c.x) / 2, (b.y + c.y) / 2); g.stroke();
   }
 }
 
@@ -1870,29 +2029,31 @@ function playerQuery(p) {
     swingW = (p.vx * (dy / d) - p.vy * (dx / d)) / d; // angular speed, + = swinging forward
   }
   return { st: p.state, vx: p.vx, vy: p.vy, swingAng: p.swingAngle, swingW, diving: p.diving,
-    flipK: p.flipT > 0 ? 1 - p.flipT / FLIP_T : -1, stumble: p.stumbleT, deadT: run.deadT, od: run.od > 0,
+    flipK: p.flipT > 0 ? 1 - p.flipT / FLIP_T : -1, stumble: p.stumbleT, deadT: run.deadT, od: run.od > 0, runT: run.t,
     landK: p.landK, landT: p.landT, jumpT: p.jumpT, rollT: p.rollT, attachT: p.attachT, pumpT: p.pumpT, pumpDir: p.pumpDir };
 }
 // squash & stretch spring: landings squash, take-offs and rope snaps stretch, then it wobbles back
 const sq = { v: 0, vel: 0, land: 0, jump: 0, attach: 0, pump: 0 };
 function animatePlayer(dt, time) {
   const p = player, prev = rig.ph, wasRun = rig.mode === "run";
-  if (p.landN !== sq.land) { sq.land = p.landN; sq.vel -= 2 + 5.5 * p.landK; }
-  if (p.jumpN !== sq.jump) { sq.jump = p.jumpN; sq.vel += 3.4; }
-  if (p.attachN !== sq.attach) { sq.attach = p.attachN; sq.vel += 2.6; }
-  if (p.pumpN !== sq.pump) { sq.pump = p.pumpN; sq.vel -= 2.4; }
-  if (dt > 0) { sq.vel += (-190 * sq.v - 15 * sq.vel) * dt; sq.v = clamp(sq.v + sq.vel * dt, -0.36, 0.3); }
+  if (p.landN !== sq.land) { sq.land = p.landN; sq.vel -= 1.6 + 4.6 * p.landK; }
+  if (p.jumpN !== sq.jump) { sq.jump = p.jumpN; sq.vel += 2.8; }
+  if (p.attachN !== sq.attach) { sq.attach = p.attachN; sq.vel += 2.2; }
+  if (p.pumpN !== sq.pump) { sq.pump = p.pumpN; sq.vel -= 2; }
+  if (dt > 0) { sq.vel += (-200 * sq.v - 17 * sq.vel) * dt; sq.v = clamp(sq.v + sq.vel * dt, -0.28, 0.24); }
   pose = rigUpdate(rig, playerQuery(p), dt, time);
-  const airS = p.state === "air" && p.flipT <= 0 ? clamp(Math.abs(p.vy) / 3400, 0, 0.11) : 0;
+  const airS = p.state === "air" && p.flipT <= 0 ? clamp(Math.abs(p.vy) / 3800, 0, 0.09) : 0;
   const s = sq.v + airS;
-  pose.sy = 1 + s; pose.sx = 1 - s * 0.55;
+  pose.sy = 1 + s; pose.sx = 1 - s * 0.5;
   pose.pivot = p.state === "run" || p.state === "grind" ? HALF_H : 0;
   if (wasRun && rig.mode === "run" && dt > 0 && ((prev < 0.5 && rig.ph >= 0.5) || rig.ph < prev)) {
-    FX.dust(p.x + 6, p.y + HALF_H, p.vx > 700 ? 3 : 2); Sound.fx.step(); // foot strike
+    FX.dust(p.x + 4, p.y + HALF_H, p.vx > 700 ? 3 : 2); Sound.fx.step(); // foot strike
   }
-  const k = knotModel(pose), w = rigToWorld(pose, p.x, p.y, k.x, k.y);
-  followChain(tailA, w.x, w.y, dt, time, 6.2, 0);
-  followChain(tailB, w.x, w.y + 1.5, dt, time, 5.6, 2.1);
+  if (currentSkin.tails) {
+    const k = knotModel(pose), w = rigToWorld(pose, p.x, p.y, k.x, k.y);
+    followChain(tailA, w.x, w.y, dt, time, 6.2, 0);
+    followChain(tailB, w.x, w.y + 1.2, dt, time, 5.6, 2.1);
+  }
   return pose;
 }
 
@@ -1923,40 +2084,87 @@ function drawRope(time) {
 const after = [];
 let afterT = 0;
 function drawPlayerAll(time, dt) {
-  const p = player;
+  const p = player, sk = currentSkin;
   if (run.dead && run.deadT > 1.4) return;
   if (p.state === "run" || p.state === "grind") {
-    ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.beginPath(); ctx.ellipse(p.x + 2, p.y + HALF_H + 1, 17, 3.4, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.beginPath(); ctx.ellipse(p.x + 2, p.y + HALF_H + 1, 15, 3, 0, 0, TAU); ctx.fill();
   }
-  const fast = p.vx > 720 || run.od > 0 || p.diving;
+  const od = run.od > 0, fast = p.vx > 720 || od || p.diving || sk.style === "line" && p.vx > 560;
   afterT -= dt;
   if (fast && afterT <= 0 && dt > 0) { after.push({ x: p.x, y: p.y, P: Object.assign({}, pose), life: 0.24 }); afterT = 0.03; }
   for (let i = after.length - 1; i >= 0; i--) { after[i].life -= dt; if (after[i].life <= 0) after.splice(i, 1); }
   ctx.globalCompositeOperation = "lighter";
-  for (const g of after) drawNinja(g.x, g.y, g.P, { mono: run.od > 0 ? "#ff2e63" : "#29c9ff", alpha: (g.life / 0.24) * 0.32 });
-  const od = run.od > 0, hurt = p.stumbleT > 0 && Math.sin(time * 50) > 0;
-  const rimHex = hurt ? "#ff2e63" : od ? "#ffd23f" : "#4ff3ff";
-  ctx.globalAlpha = od ? 0.42 + Math.sin(time * 20) * 0.12 : 0.17;
-  ctx.drawImage(Art.glow(rimHex), p.x - 44, p.y - 54, 88, 100);
+  for (const g of after) drawRunner(ctx, sk, g.x, g.y, g.P, { mono: od ? "#ff2e63" : sk.trail, alpha: (g.life / 0.24) * 0.3 });
+  const hurt = p.stumbleT > 0 && Math.sin(time * 50) > 0;
+  const rimHex = hurt ? "#ff2e63" : od ? "#ffd23f" : sk.rim;
+  ctx.globalAlpha = od ? 0.42 + Math.sin(time * 20) * 0.12 : 0.15;
+  ctx.drawImage(Art.glow(od ? "#ffd23f" : sk.glow), p.x - 42, p.y - 52, 84, 96);
   ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
-  drawTail(tailB, 3, "#b3123d");
-  drawTail(tailA, 4, "#ff2e63");
-  drawNinja(p.x, p.y, pose, { rim: rgba(rimHex, hurt || od ? 0.95 : 0.8), eye: od ? "#ffd23f" : "#effeff" });
+  if (sk.tails) { drawTail(ctx, tailB, 2.6, sk.tails[1]); drawTail(ctx, tailA, 3.4, sk.tails[0]); }
+  drawRunner(ctx, sk, p.x, p.y, pose, { rim: rimHex, eye: od ? "#ffd23f" : sk.eye });
   const em = eyeModel(pose), ew = rigToWorld(pose, p.x, p.y, em.x, em.y);
-  ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 0.85;
-  ctx.drawImage(Art.glow(od ? "#ffd23f" : "#4ff3ff"), ew.x - 9, ew.y - 9, 18, 18);
+  ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 0.8;
+  ctx.drawImage(Art.glow(od ? "#ffd23f" : sk.eye === "#ffffff" || sk.eye === "#effeff" ? sk.glow : sk.eye), ew.x - 8, ew.y - 8, 16, 16);
   ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
 }
 
 function drawGhost(gp, dt, time) {
   if (!gp) return;
   const gpz = rigUpdate(ghostRig, { st: gp.st, vx: 620, vy: gp.st === "air" ? 200 : 0, swingAng: gp.ang || 0, swingW: 0, diving: false, flipK: -1,
-    stumble: 0, deadT: 0, od: false, landK: 0, landT: 9, jumpT: 9, rollT: 0, attachT: 9, pumpT: 9, pumpDir: 1 }, dt, time);
+    stumble: 0, deadT: 0, od: false, runT: 9, landK: 0, landT: 9, jumpT: 9, rollT: 0, attachT: 9, pumpT: 9, pumpDir: 1 }, dt, time);
   ctx.globalCompositeOperation = "lighter";
-  drawNinja(gp.x, gp.y, gpz, { mono: "#7df9ff", alpha: 0.26 });
+  drawRunner(ctx, currentSkin, gp.x, gp.y, gpz, { mono: "#7df9ff", alpha: 0.26 });
   ctx.globalCompositeOperation = "source-over";
   ctx.fillStyle = rgba("#7df9ff", 0.6); ctx.font = '700 12px "Chakra Petch", sans-serif'; ctx.textAlign = "center";
   ctx.fillText("GEIST", gp.x, gp.y - 40);
+}
+
+// ---------- skin picker on the start screen: each card runs its own little preview ----------
+const skinCards = [];
+function buildSkinPicker() {
+  const row = document.getElementById("skinRow");
+  if (!row) return;
+  row.textContent = "";
+  for (const sk of SKINS) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "skin"; b.setAttribute("role", "radio"); b.dataset.id = sk.id;
+    b.setAttribute("aria-checked", String(sk === currentSkin)); b.setAttribute("aria-label", sk.name + " (" + sk.tag + ")");
+    const cv = document.createElement("canvas"); const dpr = Math.min(2, window.devicePixelRatio || 1);
+    cv.width = Math.round(76 * dpr); cv.height = Math.round(84 * dpr);
+    const n = document.createElement("span"); n.className = "skin-name"; n.textContent = sk.name;
+    const t = document.createElement("span"); t.className = "skin-tag"; t.textContent = sk.tag;
+    b.append(cv, n, t); row.appendChild(b);
+    const card = { sk, cv, g: cv.getContext("2d"), dpr, rig: makeRig(), ph: Math.random() };
+    card.rig.ph = card.ph;
+    skinCards.push(card);
+    b.addEventListener("click", () => {
+      currentSkin = sk; store.set("skin", sk.id); Sound.fx.ui();
+      for (const el of row.querySelectorAll(".skin")) el.setAttribute("aria-checked", String(el.dataset.id === sk.id));
+    });
+  }
+}
+function updateSkinPreviews(dt, time) {
+  for (const c of skinCards) {
+    const g = c.g, W2 = c.cv.width, H2 = c.cv.height;
+    g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W2, H2);
+    const P = rigUpdate(c.rig, { st: "run", vx: 560, vy: 0, swingAng: 0, swingW: 0, diving: false, flipK: -1, stumble: 0, deadT: 0, od: false,
+      runT: 9, landK: 0, landT: 9, jumpT: 9, rollT: 0, attachT: 9, pumpT: 9, pumpDir: 1 }, dt, time);
+    P.sx = P.sy = 1; P.pivot = 0;
+    const sc = c.dpr * 1.42;
+    g.setTransform(sc, 0, 0, sc, W2 / 2 - 2 * c.dpr, H2 * 0.5);
+    g.fillStyle = "rgba(0,0,0,0.45)"; g.beginPath(); g.ellipse(2, HALF_H + 1, 13, 2.4, 0, 0, TAU); g.fill();
+    g.globalCompositeOperation = "lighter"; g.globalAlpha = 0.35; g.drawImage(Art.glow(c.sk.glow), -30, -36, 60, 66); g.globalAlpha = 1; g.globalCompositeOperation = "source-over";
+    if (c.sk.tails) { // simple waving tails for the preview
+      const k = knotModel(P), w = rigToWorld(P, 0, 0, k.x, k.y);
+      g.lineCap = "round";
+      for (const [col, wd, off] of [[c.sk.tails[1], 2.2, 2], [c.sk.tails[0], 3, 0]]) {
+        g.strokeStyle = col; g.lineWidth = wd; g.beginPath(); g.moveTo(w.x, w.y);
+        for (let i = 1; i <= 6; i++) g.lineTo(w.x - i * 4.2, w.y + i * 0.9 + Math.sin(time * 14 + i * 0.9 + off) * 1.6 + off * 0.4);
+        g.stroke();
+      }
+    }
+    drawRunner(g, c.sk, 0, 0, P, { rim: c.sk.rim, eye: c.sk.eye });
+  }
 }
 
 // ================= RENDER: fx, post =================
@@ -2360,6 +2568,7 @@ function frame(now) {
   const ia = clamp(acc / DT, 0, 1), rx = player.x, ry = player.y;
   if ((state === "play" || state === "menu") && !run.dead) { player.x = lerp(player.prevX, rx, ia); player.y = lerp(player.prevY, ry, ia); }
   cameraUpdate(rdt * (state === "pause" ? 0 : 1));
+  if (state === "menu" && !ui.start.hidden) updateSkinPreviews(rdt, now / 1000);
   const gp = ghostAt(run.t);
   render(state === "pause" ? 0 : rdt * ts, gp);
   hudUpdate(rdt, gp);
@@ -2398,6 +2607,7 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) pause
 
 function boot() {
   setSound(settings.sound); setFx(settings.fx);
+  buildSkinPicker();
   toMenu();
   try { window.claude?.hot?.snapshot?.(() => ({ best: bestToday })); } catch (e) {}
   const go = () => requestAnimationFrame((t) => { last = t; frame(t); });
