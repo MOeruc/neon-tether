@@ -13,6 +13,13 @@
   "categories": [
     "games"
   ],
+  "related_applications": [
+    {
+      "platform": "webapp",
+      "url": "https://moeruc.github.io/neon-tether/manifest.webmanifest"
+    }
+  ],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "icons/icon-192.png",

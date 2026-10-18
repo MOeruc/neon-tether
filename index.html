@@ -11,6 +11,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Neon Tether">
 <link rel="manifest" href="manifest.webmanifest">
+<script>window.__ntBip = null; addEventListener("beforeinstallprompt", function (e) { e.preventDefault(); window.__ntBip = e; document.dispatchEvent(new Event("nt-bip")); });</script>
 <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -4062,16 +4063,34 @@ if (window.claude?.hot?.ready) window.claude.hot.ready(() => boot()); else boot(
   btn.className = "chip"; btn.id = "btnInstall"; btn.textContent = "Als App installieren"; btn.hidden = true;
   const note = document.createElement("p"); note.id = "installNote"; note.hidden = true;
   if (actions) { actions.appendChild(btn); actions.parentNode.insertBefore(note, actions.nextSibling); }
-  let deferred = null;
-  addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); deferred = e; if (!standalone) btn.hidden = false; });
+  // the install prompt is caught at the top of the page (it can come before this script runs) and offered here
+  let deferred = window.__ntBip || null;
+  const ua = navigator.userAgent, ios = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const android = /android/i.test(ua), inApp = /FBAN|FBAV|Instagram|Line\/|; wv\)|GSA\//i.test(ua);
+  const say = (t) => { note.textContent = t; note.hidden = false; };
+  const offer = () => { if (deferred && !standalone) { btn.hidden = false; note.hidden = true; } };
+  document.addEventListener("nt-bip", () => { deferred = window.__ntBip; offer(); });
+  addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); deferred = e; offer(); });
+  offer();
   btn.addEventListener("click", async () => {
     if (!deferred) return;
     deferred.prompt();
-    try { const c = await deferred.userChoice; if (c && c.outcome === "accepted") { note.textContent = "Wird installiert. Gleich erscheint das Mond-Icon auf deinem Startbildschirm."; note.hidden = false; } } catch (e) {}
-    deferred = null; btn.hidden = true;
+    try { const c = await deferred.userChoice; if (c && c.outcome === "accepted") say("Wird installiert. Gleich erscheint das Mond-Icon auf deinem Startbildschirm."); } catch (e) {}
+    deferred = null; window.__ntBip = null; btn.hidden = true;
   });
-  addEventListener("appinstalled", () => { btn.hidden = true; note.textContent = "Installiert. Starte Neon Tether ab jetzt über das Mond-Icon."; note.hidden = false; });
-  if (/iphone|ipad|ipod/i.test(navigator.userAgent) && !standalone) { note.textContent = "Als App: unten auf das Teilen-Symbol tippen, dann „Zum Home-Bildschirm“."; note.hidden = false; }
+  addEventListener("appinstalled", () => { btn.hidden = true; say("Installiert. Starte Neon Tether ab jetzt über das Mond-Icon."); });
+  if (ios && !standalone) say("Als App: in Safari unten auf das Teilen-Symbol tippen, dann „Zum Home-Bildschirm“.");
+  // no install button after a moment: say why, and what works instead
+  else if (!standalone) setTimeout(async () => {
+    if (deferred) return;
+    let installed = false;
+    try { if (navigator.getInstalledRelatedApps) installed = (await navigator.getInstalledRelatedApps()).length > 0; } catch (e) {}
+    if (deferred) return;
+    if (installed) say("Neon Tether ist auf diesem Gerät schon installiert. Starte es über das Mond-Icon, Updates kommen von selbst.");
+    else if (inApp) say("Zum Installieren diese Seite direkt in Chrome öffnen, nicht in einer anderen App.");
+    else if (android) say("Installieren: Seite in Chrome öffnen und im Menü ⋮ auf „App installieren“ oder „Zum Startbildschirm hinzufügen“ tippen. Ist die App schon drauf, starte sie über das Mond-Icon.");
+    else say("Installieren: in Chrome oder Edge auf das Installieren-Symbol rechts in der Adressleiste klicken.");
+  }, 3000);
   // on phones: go fullscreen and turn to landscape when a run starts (needs the tap)
   function immersive() {
     if (typeof IS_TOUCH === "undefined" || !IS_TOUCH) return;
