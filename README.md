@@ -1,6 +1,6 @@
 # Neon Tether
 
-Ninja-Jump'n'Run über die Dächer einer Neon-Stadt: Seil an Leuchtanker schießen, hin und her schwingen, Schwung holen, Loopings drehen und dem Blackout davonrennen.
+Ninja-Jump'n'Run über die Dächer einer Neon-Stadt: Seil an Baukräne, Funkmasten, Neon-Schilder und Lastdrohnen schießen, hin und her schwingen, Schwung holen, Loopings drehen und dem Blackout davonrennen.
 
 Läuft als installierbare Web-App (PWA): Vollbild, eigenes Icon, funktioniert offline.
 
@@ -14,7 +14,7 @@ Läuft als installierbare Web-App (PWA): Vollbild, eigenes Icon, funktioniert of
 | Aktion | Tastatur | Handy |
 | --- | --- | --- |
 | Springen / Doppelsprung | Leertaste, W | links tippen |
-| Seil an den Anker, schwingen | J oder Maustaste halten | rechts halten |
+| Seil an den Haken, schwingen | J oder Maustaste halten | rechts halten |
 | Schwung holen am Seil | Leertaste | links tippen |
 | Abspringen | Seiltaste loslassen (im goldenen Bogen = PERFEKT) | rechts loslassen |
 | Dash (zerlegt Gegner) | D, →, Shift | nach rechts wischen |

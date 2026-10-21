@@ -237,7 +237,7 @@ html:not(.touch) .keys .kt, html.touch .keys .kd { display: none; } /* phones se
   <div class="panel">
     <div>
       <h1 class="logo">NEON<span>TETHER</span></h1>
-      <p class="tag">Sprinte über die Dächer, schwing dich an Leuchtankern über die Schluchten und dash dich durch Drohnen und Wächter, schneller als der Blackout, der die Stadt hinter dir frisst.</p>
+      <p class="tag">Sprinte über die Dächer, schwing dich an Kränen, Masten, Schildern und Lastdrohnen über die Schluchten und dash dich durch Drohnen und Wächter, schneller als der Blackout, der die Stadt hinter dir frisst.</p>
       <div class="meta-row"><span>Tagesstrecke <b id="seedLabel">–</b></span><span>Bestweite heute <b id="bestLabel">–</b></span></div>
       <div class="actions">
         <button class="btn" id="btnStart"><span>LOS GEHT'S</span></button>
@@ -689,7 +689,18 @@ function addBuilding(x, w, top) {
   world.buildings.push(b);
   return b;
 }
-const addAnchor = (x, y) => world.anchors.push({ x, y, ph: RR(0, TAU), cool: 0, hits: 0 });
+// Greifpunkte sind keine Punkte in der Luft mehr, sondern echte Objekte (kind):
+//  crane = Baukran auf dem Dach davor (base = Fuß des Krans), mast = Funkmast von der Straße,
+//  sign = Neon-Schild am Mast, drone = schwebende Lastdrohne mit Greifhaken.
+// x/y ist weiter der Haken-Ring, an dem das Seil greift.
+const ANCHOR_GROUND = TOP_MAX + 500;
+const addAnchor = (x, y, kind = "drone", base = null) => world.anchors.push({ x, y, kind, base, ph: RR(0, TAU), cool: 0, hits: 0 });
+let lastAerialKind = "";
+function aerialKind() { // frei hängende Haken: Mast, Schild oder Drohne, nie zweimal dasselbe hintereinander
+  let k;
+  do { const r = R(); k = r < 0.34 ? "mast" : r < 0.67 ? "drone" : "sign"; } while (k === lastAerialKind && R() < 0.8);
+  return (lastAerialKind = k);
+}
 const addCoin = (x, y) => world.coins.push({ x, y, taken: false, ph: RR(0, TAU) });
 const addDrone = (x, y, amp = 14, spike = false) => world.drones.push({ x, y0: y, y, amp, ph: RR(0, TAU), alive: true, dead: 0, vx: 0, vy: 0, rot: 0, spike });
 const addGuard = (x, roof) => world.guards.push({ x, top: roof, y: roof - GUARD_H / 2, alive: true, dead: 0, vx: 0, vy: 0, rot: 0,
@@ -749,7 +760,8 @@ const PATTERNS = [
     const gap = RR(1.35, 1.85) * v * 0.72;
     const nt = clamp(top + RR(-50, 90), TOP_MIN, TOP_MAX);
     const ax = x + gap * RR(0.36, 0.5), ay = Math.min(top, nt) - RR(230, 290);
-    addAnchor(ax, ay);
+    const crane = R() < 0.7; // meist ein Baukran, dessen Fuß auf dem Dach vor der Lücke steht
+    addAnchor(ax, ay, crane ? "crane" : aerialKind(), crane ? { x: x - 70, y: top } : null);
     coinSwing(ax, ay, 210, -0.2, 0.9, 6);
     const b = addBuilding(x + gap, RR(420, 760), nt);
     if (R() < 0.55) decorateRoof(b, b.x + 120, b.x + b.w, d);
@@ -763,7 +775,7 @@ const PATTERNS = [
     const baseY = top - RR(250, 300);
     for (let i = 0; i < n; i++) {
       const ay = baseY + (i % 2 ? RR(-50, -10) : RR(10, 50));
-      addAnchor(ax, ay);
+      addAnchor(ax, ay, aerialKind());
       if (R() < 0.8) coinSwing(ax, ay, 220, -0.1, 0.9, 5);
       if (d > 0.35 && i > 0 && R() < 0.35) addDrone(ax - sp * 0.5, ay + 120, 26);
       ax += sp;
@@ -801,7 +813,7 @@ const PATTERNS = [
     const sp = v * 0.62;
     let dx = x + sp * 0.75;
     for (let i = 0; i < n; i++) { addDrone(dx, top - RR(10, 60), 10); dx += sp; }
-    addAnchor(x + sp * (n * 0.5 + 0.4), top - 340);
+    addAnchor(x + sp * (n * 0.5 + 0.4), top - 340, aerialKind());
     const b = addBuilding(dx + sp * 0.1, RR(450, 750), clamp(top + RR(-20, 90), TOP_MIN, TOP_MAX));
     return [b.x + b.w, b.top];
   } },
@@ -811,7 +823,7 @@ const PATTERNS = [
     addPad(x - 150, top);
     const gap = RR(560, 760) + v * 0.25;
     coinArc(x - 110, top - 60, x + gap + 40, top - 40, 330, 10);
-    addAnchor(x + gap * 0.45, top - RR(290, 330)); // second chance if you miss the pad
+    addAnchor(x + gap * 0.45, top - RR(290, 330), aerialKind()); // second chance if you miss the pad
     const b = addBuilding(x + gap, RR(420, 760), clamp(top + RR(-80, 60), TOP_MIN, TOP_MAX));
     if (R() < 0.5) decorateRoof(b, b.x + 200, b.x + b.w, d);
     return [b.x + b.w, b.top];
@@ -827,7 +839,7 @@ const PATTERNS = [
       dx += sp;
     }
     const gap = 120 + (n - 1) * sp + RR(250, 285);
-    addAnchor(x + gap * 0.5, top - RR(320, 350));
+    addAnchor(x + gap * 0.5, top - RR(320, 350), aerialKind());
     const b = addBuilding(x + gap, RR(450, 760), clamp(top + RR(0, 70), TOP_MIN, TOP_MAX));
     if (R() < 0.4) decorateRoof(b, b.x + 260, b.x + b.w, d);
     return [b.x + b.w, b.top];
@@ -1923,7 +1935,109 @@ function drawSky(time, pulse) {
   }
 }
 
+// ---- Haken-Objekte: Kran, Funkmast, Neon-Schild (hinter den Gebäuden) und Lastdrohne (davor) ----
+const SIGN_COLS = ["#ff2e63", "#4ff3ff", "#ffd23f", "#b86bff"];
+const STRUCT = "#150f2e", STRUCT_HI = "#2c2457";
+function latticeV(x, y0, y1, w, T, B) { // senkrechter Gittermast von y0 (oben) bis y1 (unten), nur der sichtbare Teil
+  const ya = Math.max(y0, T - 60), yb = Math.min(y1, B + 60);
+  if (yb <= ya) return;
+  const step = w * 2.4;
+  ctx.beginPath();
+  ctx.moveTo(x - w / 2, ya); ctx.lineTo(x - w / 2, yb); ctx.moveTo(x + w / 2, ya); ctx.lineTo(x + w / 2, yb);
+  for (let y = y0 + Math.floor((ya - y0) / step) * step; y < yb; y += step) {
+    const k = Math.round((y - y0) / step) & 1;
+    ctx.moveTo(x + (k ? w / 2 : -w / 2), y); ctx.lineTo(x + (k ? -w / 2 : w / 2), y + step);
+  }
+  ctx.stroke();
+}
+function latticeH(x0, x1, y, h, step) { // waagerechter Gitterausleger (x0 -> x1) mit Höhe h über y
+  ctx.beginPath();
+  ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.moveTo(x0, y - h); ctx.lineTo(x1, y);
+  const dir = Math.sign(x1 - x0) || 1, len = Math.abs(x1 - x0) || 1;
+  const topAt = (x) => y - h * (1 - Math.abs(x - x0) / len); // Obergurt läuft zur Spitze hin auf die Unterkante zu
+  for (let x = x0, k = 0; (x1 - x) * dir > step; x += step * dir, k++) {
+    const nx = x + step * dir;
+    ctx.moveTo(x, k & 1 ? topAt(x) : y); ctx.lineTo(nx, k & 1 ? y : topAt(nx));
+  }
+  ctx.stroke();
+}
+function blinkLight(x, y, time, ph, col = "#ff2e63") {
+  if (Math.sin(time * 3.2 + ph) < 0.15) return;
+  ctx.globalCompositeOperation = "lighter"; ctx.drawImage(Art.glow(col), x - 11, y - 11, 22, 22); ctx.globalCompositeOperation = "source-over";
+}
+function drawAnchorSupport(a, time, T, B) {
+  ctx.lineCap = "round"; ctx.strokeStyle = STRUCT; ctx.fillStyle = STRUCT;
+  if (a.kind === "crane" && a.base) {
+    const bx = a.base.x, by = a.base.y, jy = a.y - 52, apex = jy - 46, tip = a.x + 34, back = bx - 96;
+    ctx.lineWidth = 2.5; latticeV(bx, apex, by + 4, 16, T, B);
+    ctx.lineWidth = 2; latticeH(bx, tip, jy, 13, 34); latticeH(bx, back, jy, 11, 30);
+    ctx.lineWidth = 1.5; ctx.beginPath(); // Abspannseile vom Turmkopf
+    ctx.moveTo(bx, apex); ctx.lineTo(tip - 6, jy - 11); ctx.moveTo(bx, apex); ctx.lineTo(back + 8, jy - 9); ctx.stroke();
+    ctx.fillRect(back - 8, jy - 18, 26, 22);       // Gegengewicht
+    ctx.fillRect(bx - 13, jy + 3, 26, 16);         // Kabine
+    ctx.fillStyle = STRUCT_HI; ctx.fillRect(bx - 9, jy + 6, 12, 7);
+    ctx.fillStyle = STRUCT; ctx.fillRect(a.x - 8, jy + 1, 16, 8); // Laufkatze
+    ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(a.x, jy + 9); ctx.lineTo(a.x, a.y - 11); ctx.stroke();
+    blinkLight(bx, apex - 3, time, a.ph);
+    return;
+  }
+  if (a.kind === "mast" || a.kind === "sign") {
+    const mx = a.x - 78, sign = a.kind === "sign", armY = sign ? a.y - 100 : a.y - 46;
+    ctx.lineWidth = 2.5; latticeV(mx, armY - 26, ANCHOR_GROUND, 18, T, B);
+    ctx.fillStyle = STRUCT; ctx.fillRect(mx - 12, armY - 30, 24, 6); // Mastkopf
+    ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(mx, armY); ctx.lineTo(a.x + 8, armY); ctx.stroke(); // Ausleger
+    ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(mx, armY + 44); ctx.lineTo(a.x - 22, armY + 1); ctx.stroke(); // Strebe
+    blinkLight(mx, armY - 31, time, a.ph);
+    if (!sign) {
+      ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(a.x, armY); ctx.lineTo(a.x, a.y - 11); ctx.stroke(); // Haken hängt am Seil
+      ctx.fillRect(a.x - 7, armY + 2, 14, 7);
+      return;
+    }
+    // Neon-Schild: an zwei Ketten, mit Haken-Stange darunter
+    const col = SIGN_COLS[Math.floor(a.ph / TAU * 4) & 3], by = a.y - 58, bh = 28, bw = 82;
+    ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(a.x - 30, armY); ctx.lineTo(a.x - 30, by); ctx.moveTo(a.x + 30, armY); ctx.lineTo(a.x + 30, by); ctx.stroke();
+    ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(a.x, by + bh); ctx.lineTo(a.x, a.y - 11); ctx.stroke();
+    ctx.fillStyle = "#0b0818"; ctx.fillRect(a.x - bw / 2, by, bw, bh);
+    const fl = 0.8 + Math.sin(time * 9 + a.ph * 3) * 0.12 + (Math.sin(time * 1.7 + a.ph) > 0.97 ? -0.5 : 0);
+    ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 0.5 * fl; ctx.drawImage(Art.glow(col), a.x - bw * 0.8, by - 20, bw * 1.6, bh + 40);
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+    ctx.strokeStyle = rgba(col, fl); ctx.lineWidth = 2; ctx.strokeRect(a.x - bw / 2 + 3, by + 3, bw - 6, bh - 6);
+    ctx.fillStyle = rgba(col, fl); // "Schriftzeichen" aus Balken, pro Schild anders
+    let gx = a.x - bw / 2 + 10, k = 0;
+    while (gx < a.x + bw / 2 - 14) { const gw = 4 + ((Math.floor(a.ph * 97) >> k) & 3) * 3; ctx.fillRect(gx, by + 8, gw, 3); ctx.fillRect(gx + (k & 1 ? 0 : gw - 3), by + 8, 3, 12); gx += gw + 7; k++; }
+  }
+}
+function drawAnchorFront(a, time, pulse, isT, act) {
+  if (a.kind === "drone" || !a.kind) {
+    const dx = a.x, dy = a.y - 40;
+    ctx.fillStyle = STRUCT; ctx.strokeStyle = STRUCT; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(dx - 34, dy - 7); ctx.lineTo(dx + 34, dy - 7); ctx.stroke(); // Rotorarme
+    ctx.beginPath(); ctx.roundRect(dx - 24, dy - 8, 48, 17, 6); ctx.fill();                 // Rumpf
+    ctx.fillStyle = STRUCT_HI; ctx.fillRect(dx - 20, dy - 4, 40, 3);
+    for (const sx of [-34, 34]) { // Rotoren drehen sich als flirrende Scheibe
+      ctx.fillStyle = "#1d1540"; ctx.fillRect(sx + dx - 2, dy - 12, 4, 6);
+      const w = 17 + Math.sin(time * 70 + sx) * 3;
+      ctx.fillStyle = rgba("#4ff3ff", 0.28); ctx.beginPath(); ctx.ellipse(dx + sx, dy - 13, w, 2.6, 0, 0, TAU); ctx.fill();
+    }
+    ctx.lineWidth = 3; ctx.strokeStyle = STRUCT; ctx.beginPath(); ctx.moveTo(dx, dy + 9); ctx.lineTo(dx, a.y - 11); ctx.stroke(); // Greifstange
+    ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 0.6; ctx.drawImage(Art.glow("#4ff3ff"), dx - 16, dy + 2, 32, 22); ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+    if (Math.sin(time * 5 + a.ph) > 0.3) { ctx.globalCompositeOperation = "lighter"; ctx.drawImage(Art.glow("#ff2e63"), dx - 38, dy - 20, 16, 16); ctx.globalCompositeOperation = "source-over"; }
+  }
+  // Haken-Ring: das ist der Punkt, an dem das Seil greift
+  ctx.globalCompositeOperation = "lighter";
+  ctx.globalAlpha = (isT || act ? 0.85 : 0.4) + pulse * 0.2;
+  const gs = 52 + pulse * 14; ctx.drawImage(Art.glow("#4ff3ff"), a.x - gs / 2, a.y - gs / 2, gs, gs);
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+  ctx.strokeStyle = "#4ff3ff"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(a.x, a.y, 10 + pulse * 1.5, 0, TAU); ctx.stroke();
+  ctx.fillStyle = "#e9feff"; ctx.beginPath(); ctx.arc(a.x, a.y, 3.5, 0, TAU); ctx.fill();
+}
+
 function drawWorld(time, pulse, L, R, T, B) {
+  // ---- Haken-Gerüste (Kräne, Masten, Schilder) hinter den Gebäuden ----
+  for (const a of world.anchors) {
+    if (a.kind === "drone" || a.x < L - 200 || a.x > R + 800) continue;
+    drawAnchorSupport(a, time, T, B);
+  }
   // ---- buildings ----
   for (const b of world.buildings) {
     if (b.x > R || b.x + b.w < L || b.top > B) continue;
@@ -2003,13 +2117,7 @@ function drawWorld(time, pulse, L, R, T, B) {
   for (const a of world.anchors) {
     if (a.x < L - 100 || a.x > R + 100) continue;
     const isT = player.target === a, act = player.anchor === a;
-    ctx.globalCompositeOperation = "lighter";
-    ctx.globalAlpha = (isT || act ? 0.9 : 0.45) + pulse * 0.2;
-    const gs = 70 + pulse * 18; ctx.drawImage(Art.glow("#4ff3ff"), a.x - gs / 2, a.y - gs / 2, gs, gs);
-    ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
-    ctx.strokeStyle = "#4ff3ff"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(a.x, a.y, 13 + pulse * 2, 0, TAU); ctx.stroke();
-    ctx.fillStyle = "#e9feff"; ctx.beginPath(); ctx.arc(a.x, a.y, 5, 0, TAU); ctx.fill();
-    ctx.strokeStyle = "#0a0716"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(a.x, a.y - 16); ctx.lineTo(a.x, a.y - 40); ctx.stroke();
+    drawAnchorFront(a, time, pulse, isT, act);
     if (isT) {
       ctx.save(); ctx.translate(a.x, a.y); ctx.rotate(time * 3); ctx.strokeStyle = "#ffd23f"; ctx.lineWidth = 3;
       for (let i = 0; i < 4; i++) { ctx.rotate(TAU / 4); ctx.beginPath(); ctx.arc(0, 0, 27, -0.35, 0.35); ctx.stroke(); }
@@ -3764,7 +3872,7 @@ async function crewRender() {
 // ---------- hints ----------
 const HINTS = IS_TOUCH ? {
   jump: "Links <kbd>tippen</kbd> = springen, nochmal in der Luft = Doppelsprung",
-  swing: "Rechts <kbd>halten</kbd> = Seil an den Leuchtanker",
+  swing: "Rechts <kbd>halten</kbd> = Seil an den Haken",
   release: "Im <kbd>goldenen Bogen</kbd> loslassen = PERFEKT + Zeitlupe",
   dive: "Nach unten <kbd>wischen</kbd> = SLAM durch Drohnen",
   pump: "Am Seil links <kbd>tippen</kbd> = Schwung holen · unten am stärksten",
@@ -3772,7 +3880,7 @@ const HINTS = IS_TOUCH ? {
   spike: "Stachel-Drohne: nicht draufspringen · <kbd>DASH</kbd> durch!",
 } : {
   jump: "<kbd>LEER</kbd> springen · nochmal in der Luft = Doppelsprung",
-  swing: "<kbd>J</kbd> oder <kbd>MAUS</kbd> halten = Seil an den Leuchtanker",
+  swing: "<kbd>J</kbd> oder <kbd>MAUS</kbd> halten = Seil an den Haken",
   release: "Im <kbd>goldenen Bogen</kbd> loslassen = PERFEKT + Zeitlupe",
   dive: "<kbd>S</kbd> in der Luft = SLAM · von oben auf Drohnen springen",
   pump: "Am Seil <kbd>LEER</kbd> = Schwung holen · unten am stärksten",
@@ -3821,7 +3929,7 @@ function gameOver() {
   ui.hud.hidden = true; ui.hint.classList.add("fade"); hintT = 0; ui.touch.hidden = true; ui.zone.classList.add("fade");
   const wall = run.reason === "wall";
   $("overTitle").textContent = wall ? "VOM BLACKOUT GEFRESSEN" : "SIGNAL VERLOREN";
-  $("overReason").textContent = wall ? "Zu langsam. Perfekte Swings, Boosts und Dashes halten dich vor der Dunkelheit." : "Ab in die Straßenschlucht. Doppelsprung, Dash oder ein Anker hätten gereicht.";
+  $("overReason").textContent = wall ? "Zu langsam. Perfekte Swings, Boosts und Dashes halten dich vor der Dunkelheit." : "Ab in die Straßenschlucht. Doppelsprung, Dash oder ein Haken hätten gereicht.";
   const d = Math.floor(run.dist), rec_ = d > bestToday.dist;
   $("newRecord").hidden = !rec_;
   $("stDist").textContent = fmt(d) + " m"; $("stScore").textContent = fmt(run.score);
