@@ -782,6 +782,10 @@ const Sound = (() => {
       if (!ok()) return; const t = now();
       osc("sine", 1900, t, 0.05, 0.05, sfxBus, 2800); noise(t, 0.24, "bandpass", 800, 0.24, sfxBus, 1.2, 2800);
     },
+    grab() { // hands slap onto a ledge
+      if (!ok()) return; const t = now();
+      osc("triangle", 190, t, 0.09, 0.14, sfxBus, 85); noise(t, 0.09, "lowpass", 1400, 0.22, sfxBus); noise(t + 0.06, 0.16, "bandpass", 900, 0.12, sfxBus, 1.2, 1800);
+    },
     emp() { // a blast of static: crackle, a falling saw, a thump
       if (!ok()) return; const t = now();
       noise(t, 0.6, "bandpass", 5000, 0.5, sfxBus, 1.2, 300); osc("sawtooth", 1600, t, 0.5, 0.12, sfxBus, 60); osc("square", 90, t, 0.3, 0.12, sfxBus, 40); kick(t, 1.2, sfxBus);
@@ -1158,6 +1162,9 @@ function blockAbove(x, y, within = 170) {
 const PW = 26, PH = 42, HALF_H = PH / 2;
 let AIRJ = 1;                       // air jumps per take-off (the triple jump skill makes it 2)
 const KICK_RANGE = 270;             // a wall jump needs a facing wall within this distance behind you
+const GRAB_REACH = 60;              // a ledge this far above your feet is within reach of your hands: grab it and pull up
+const MANTLE_T = 0.36, VAULT_T = 0.2;
+const smoothT = (t) => t * t * (3 - 2 * t);
 const SWING_RANGE = 470;
 const OD_TIME = 7;
 const player = {};
@@ -1173,7 +1180,7 @@ function resetRun() {
     landK: 0, landT: 9, landN: 0, slamT: 9, jumpT: 9, jumpN: 0, attachT: 9, attachN: 0, rollT: 0, ropeTarget: 0, swingSide: 0,
     pumpCD: 0, pumpT: 9, pumpN: 0, pumpDir: 1, swingTurn: 0, swingE: null,
     dashT: 0, dashCD: 0, dashBuf: 0, airDash: 1, dashN: 0, dashKills: 0, dashCombo: 0, dashV: 0, preDashVx: 0, dashEndT: 9, dashStreak: null,
-    wallDir: 1, wallBot: Infinity, wallRun: true, kickT: 0, kickChain: 0, face: 1,
+    wallDir: 1, wallBot: Infinity, wallRun: true, kickT: 0, kickChain: 0, face: 1, vaultT: 0, vaultH: 0, mt: null,
   });
   Object.assign(run, {
     t: 0, dist: 0, score: 0, flow: 0, chain: 0, chainT: 0, maxChain: 0, od: 0,
@@ -1407,19 +1414,35 @@ function solidSide(o, bot, prevFeet) {
   if (!ovX(p.x, PW, o.x, o.w)) return 0;
   const feet = p.y + HALF_H;
   if (feet <= o.top + 0.5 || p.y - HALF_H >= bot - 0.5) return 0;   // above it, or passing under a floating block
-  if (prevFeet <= o.top + 2 || feet - o.top <= 36) {                 // vault onto the top
+  const lift = feet - o.top;                                         // how far the top is above your feet
+  if (prevFeet <= o.top + 2 || lift <= 36) {                         // vault onto the top
     if (p.state === "swing") { p.anchor.cool = 0.4; p.anchor = null; }
-    if (feet - o.top > 6) FX.popup(p.x, o.top - 40, "VAULT", "#4ff3ff", 0.6, false);
-    p.vy = Math.max(p.vy, 0); land(o.top, o); return 1;
+    const step = prevFeet > o.top + 2 && lift > 6;
+    if (step) FX.popup(p.x, o.top - 40, "VAULT", "#4ff3ff", 0.6, false);
+    p.vy = Math.max(p.vy, 0); land(o.top, o);
+    if (step) { p.vaultT = VAULT_T; p.vaultH = lift; }                  // hands on the edge, knees up: the body steps up into the run
+    return 1;
   }
   // a wall: from which side did we come?
   const ox = p.prevX, fromLeft = ox + PW / 2 <= o.x + 2 ? true : ox - PW / 2 >= o.x + o.w - 2 ? false : p.x < o.x + o.w / 2;
   const dir = fromLeft ? 1 : -1;
+  if (lift <= GRAB_REACH && p.vy > -500) { startMantle(o, dir); return 2; } // landed just under the edge: grab it, pull yourself up
   if (p.state === "swing") { p.anchor.cool = 0.4; p.anchor = null; }
   if (p.dashT > 0) { endDash(false); FX.shake(6); }
   p.x = fromLeft ? o.x - PW / 2 - 0.5 : o.x + o.w + PW / 2 + 0.5;
   hitWall(o, dir, bot);
   return 2;
+}
+// grab a ledge and climb over it: hands on the edge, pull up, knee over, stand up (state "mantle", MANTLE_T long)
+function startMantle(o, dir) {
+  const p = player, fx = dir > 0 ? o.x : o.x + o.w, wasRun = p.state === "wall" && p.wallRun;
+  if (p.state === "swing" && p.anchor) { p.anchor.cool = 0.4; p.anchor = null; }
+  if (p.state === "grind") { p.rail = null; Sound.fx.grind(false); }
+  endDash(false);
+  p.state = "mantle"; p.face = dir; p.vx = 0; p.vy = 0; p.diving = false; p.flipT = 0; p.kickChain = 0;
+  p.x = fx - dir * (PW / 2 + 0.5);
+  p.mt = { o, dir, t: 0, x0: p.x, y0: p.y, x1: fx + dir * 15, y1: o.top - HALF_H, hx: fx, hy: o.top, run: wasRun };
+  FX.sparks(fx, o.top, -dir * 0.3, -0.6, 3); Sound.fx.grab(); haptic(10);
 }
 // dir: +1 = the wall is to the right of the runner, -1 = to the left
 function hitWall(o, dir, bot) {
@@ -1494,6 +1517,7 @@ function playerUpdate(dt) {
   if (p.flipT > 0) { const m = SKIN_MOVES[currentSkin.id]; if (m && m.djTick) m.djTick(p, 1 - p.flipT / FLIP_T); }
   p.landT += dt; p.jumpT += dt; p.attachT += dt; p.slamT += dt;
   p.rollT = p.state === "run" ? Math.max(0, p.rollT - dt) : 0;
+  p.vaultT = p.state === "run" ? Math.max(0, p.vaultT - dt) : 0;
   p.coyote -= dt; p.jumpBuf -= dt; p.stumbleT -= dt; p.squash = Math.max(0, p.squash - dt * 3);
   if (input.jumpPressed) { input.jumpPressed = false; p.jumpBuf = 0.13; }
   const dive = input.divePressed; input.divePressed = false;
@@ -1633,6 +1657,15 @@ function playerUpdate(dt) {
       if (p.jumpBuf > 0) { p.jumpBuf = 0; p.state = "air"; p.rail = null; p.vy = -900; p.jumpCut = false; Sound.fx.grind(false); Sound.fx.jump(); }
       else if (input.swingHeld && p.target) { Sound.fx.grind(false); attach(p.target); }
     }
+  } else if (p.state === "mantle") {
+    const m = p.mt; m.t += dt;
+    // a short hang, the pull up past the hands, then hips and legs over the edge
+    const k = clamp(m.t / MANTLE_T, 0, 1), up = smoothT(clamp((k - 0.08) / 0.56, 0, 1)), over = smoothT(clamp((k - 0.5) / 0.5, 0, 1));
+    p.x = lerp(m.x0, m.x1, over); p.y = lerp(m.y0, m.y1, up); p.vx = 0; p.vy = 0;
+    if (k >= 1) {
+      p.mt = null; land(m.o.top, m.o); p.vx = base * (m.dir > 0 ? 0.7 : 0.4);
+      FX.popup(p.x, m.o.top - 60, m.run ? "WALLRUN!" : "HOCHGEZOGEN!", "#4ff3ff", 0.85); addChain(); addFlow(8); award(50);
+    }
   } else if (p.state === "grapple") {
     const g = p.gp; g.t += dt;
     if (g.phase === 0) {                                                // the hook flies (0.07 s), then the reel speeds up
@@ -1658,7 +1691,9 @@ function playerUpdate(dt) {
     p.x = dir > 0 ? b.x - PW / 2 - 0.5 : b.x + b.w + PW / 2 + 0.5;
     ceilCheck(ph);
     if (Math.random() < 0.6) FX.sparks(p.x + dir * PW / 2, p.y + HALF_H, -0.5 * dir, 1, 1);
-    if (p.y + HALF_H <= b.top + 4) {                                  // over the top: up onto the roof
+    const lift = p.y + HALF_H - b.top;
+    if (lift > 4 && lift <= GRAB_REACH && p.vy < 260) startMantle(b, dir); // the edge is in reach: grab it and climb over
+    else if (p.y + HALF_H <= b.top + 4) {                             // over the top: up onto the roof
       p.x = dir > 0 ? b.x + 4 : b.x + b.w - 4; p.vx = base * (dir > 0 ? 0.85 : 0.5); land(b.top, b);
       FX.popup(p.x, b.top - 60, p.wallRun ? "WALLRUN!" : "HOCH!", "#4ff3ff", 0.9); addChain(); addFlow(8); award(50);
     } else if (p.y - HALF_H > p.wallBot) { p.state = "air"; p.vx = -dir * 60; p.jumpCut = true; } // slid off the bottom of a block
@@ -1676,7 +1711,7 @@ function playerUpdate(dt) {
 
   // ---- obstacles & pickups (all live states) ----
   const top = p.y - HALF_H, bot = p.y + HALF_H;
-  if (p.state !== "grapple") { // the hook pulls you clear of everything
+  if (p.state !== "grapple" && p.state !== "mantle") { // the hook pulls you clear of everything, and so does climbing over an edge
     for (const L of world.lasers) {
       if (L.hit || Math.abs(L.x - p.x) > PW / 2 + 3 || bot < L.top || top > L.bottom) continue;
       L.hit = true;
@@ -1712,6 +1747,7 @@ function playerUpdate(dt) {
   p.lean = lerp(p.lean, clamp(p.vx / 1400, 0, 0.5), Math.min(1, dt * 6));
   if (p.state === "wall") p.face = p.wallDir;
   else if (p.state === "grapple") p.face = 1;
+  else if (p.state === "mantle") p.face = p.mt ? p.mt.dir : 1;
   else if (p.state === "air") { if (p.vx < -40) p.face = -1; else if (p.vx > 40) p.face = 1; }
   else if (p.state !== "dead") p.face = 1;
   if (p.y > TOP_MAX + 520) die("fall");
@@ -1728,7 +1764,7 @@ const DASH_T = 0.17, DASH_CD = 0.55, DASH_CD_OD = 0.3;
 const KILL_WORDS = ["ZERLEGT!", "DOPPELT!", "DREIFACH!", "KAHLSCHLAG!"];
 
 function dashReady(p) {
-  if (run.dead || p.state === "wall" || p.state === "dead" || p.state === "grapple") return false;
+  if (run.dead || p.state === "wall" || p.state === "dead" || p.state === "grapple" || p.state === "mantle") return false;
   return p.dashCD <= 0 && (p.state !== "air" || p.airDash > 0);
 }
 function startDash() {
@@ -1764,7 +1800,7 @@ function endDash(carry) {
 // ---------- jokers ----------
 function useJoker() {
   const p = player;
-  if (run.dead || p.state === "dead" || p.state === "grapple") return;
+  if (run.dead || p.state === "dead" || p.state === "grapple" || p.state === "mantle") return;
   if (!prog.joker || !hasSkill(prog.joker)) return;
   if (run.jokerLeft <= 0) { FX.popup(p.x, p.y - 60, "JOKER LEER", "#ff2e63", 0.7, false); Sound.fx.stumble(); return; }
   if (prog.joker === "grapple" ? startGrapple() : (empBlast(), true)) {
@@ -3789,7 +3825,7 @@ function fxUpdate3(inst, dt, time, mode, q) {
   inst.fxMode = mode; inst.fxT = (inst.fxT || 0) + dt; inst.flipK = q.flipK; inst.dashK = q.dashT > 0 ? clamp(1 - q.dashT / 0.17, 0, 1) : 1;
   const fast = Math.max(0, q.vx || 0) > 420 || mode === "dash";
   // jets throw embers in the direction they fire while boosting
-  if (fx.thrusters && (mode === "dash" || (mode === "flip" && q.flipK < 0.7))) {
+  if (fx.thrusters && (mode === "dash" || mode === "wallrun" || (mode === "flip" && q.flipK < 0.7))) {
     const F = J.F[BN.chest], jd = jetDir(F, J.F[BN.pelvis], mode);
     for (const th of fx.thrusters) {
       const b = worldOf(inst, boneToModel(F, th.p[0], th.p[1], th.p[2]));
@@ -3831,7 +3867,7 @@ function fxUpdate3(inst, dt, time, mode, q) {
 }
 function jetDir(F, Fp, mode) {
   if (mode === "dash") return vnorm(vadd(vscl(F.X, -1), vscl(F.Y, -0.1)));        // straight back: the boost pushes forward
-  if (mode === "flip") return vnorm(vadd(vscl(Fp.Y, -1), vscl(Fp.X, -0.12)));    // straight down: the rocket lifts
+  if (mode === "flip" || mode === "wallrun") return vnorm(vadd(vscl(Fp.Y, -1), vscl(Fp.X, -0.12)));    // straight down: the rocket lifts
   return vnorm(vadd(vscl(F.Y, -1), vscl(F.X, -0.35)));
 }
 function fxDraw3(g, inst, V, o) {
@@ -3842,7 +3878,7 @@ function fxDraw3(g, inst, V, o) {
   // jets: the pack fires down-back while running, straight down for the rocket jump, straight back for the dash
   if (fx.thrusters) {
     const air = mode === "air" || mode === "flip" || mode === "dive", fk = inst.flipK == null || inst.flipK < 0 ? 1 : inst.flipK;
-    const big = mode === "dash" ? 4.4 - (inst.dashK || 0) * 0.9 : mode === "flip" ? lerp(4.8, 1.3, smooth(fk)) : air ? 1.1 : mode === "slamland" ? 0.7 : 0.35;
+    const big = mode === "dash" ? 4.4 - (inst.dashK || 0) * 0.9 : mode === "flip" ? lerp(4.8, 1.3, smooth(fk)) : mode === "wallrun" ? 2.4 : air ? 1.1 : mode === "slamland" ? 0.7 : 0.35;
     const F = J.F[BN.chest], dir = jetDir(F, J.F[BN.pelvis], mode);
     const flame = (base, d, L, w) => {
       const tip = vmad(base, d, L);
@@ -3862,7 +3898,7 @@ function fxDraw3(g, inst, V, o) {
       const r = (3 + big * 3) * S; g.globalAlpha = 0.7 * a0; g.drawImage(glowSprite("#ff9a4d"), bx - r, by - r, r * 2, r * 2); g.globalAlpha = a0;
     }
     // rocket boots join in for the boost moves
-    if (mode === "dash" || (mode === "flip" && fk < 0.85)) {
+    if (mode === "dash" || mode === "wallrun" || (mode === "flip" && fk < 0.85)) {
       const bd = mode === "dash" ? dir : vnorm(vadd(vscl(J.F[BN.pelvis].Y, -1), vscl(J.F[BN.pelvis].X, -0.08)));
       for (const [a, t] of [["ankR", "toeR"], ["ankL", "toeL"]]) {
         const sole = vmad(vlerp(J[a], J[t], 0.35), bd, 0.8);
@@ -3919,6 +3955,7 @@ const STYLES3 = {
     air: "jet", flip: "jet", dash: "thrust", land: "crouch", swing: "one", slam: "hero", blend: 0.16, twos: 0 },
 };
 const STYLE_ORDER = ["parkour", "shinobi", "anime", "power"];
+const PIN_CH = { hRx: 1, hRy: 1, hRz: 1, hLx: 1, hLy: 1, hLz: 1 };
 const SPRING_CH = { cyaw: "chest", cpitch: "chest", croll: "chest", hyaw: "head", hpitch: "head", hroll: "head",
   hRx: "arm", hRy: "arm", hRz: "arm", hLx: "arm", hLy: "arm", hLz: "arm", py: "py" };
 
@@ -3929,6 +3966,10 @@ function makeRig3(styleId) {
 function setRigStyle(rig, id) { rig.style = STYLES3[id] || rig.style; rig.from = poseCopy(rig.cur, poseNew()); rig.bt = 0; }
 function rigMode3(q) {
   if (q.st === "dead") return "dead";
+  if (q.st === "mantle") return "mantle";                                   // climbing over an edge
+  if (q.st === "wall") return q.wallRun === false ? "wallslide" : "wallrun"; // hanging/sliding vs scrambling up
+  if (q.st === "run" && q.vaultT > 0 && !(q.dashT > 0)) return "vault";
+  if (q.st === "air" && q.kickT > 0.1 && !(q.dashT > 0)) return "kick";      // pushing off a wall
   if (q.dashT > 0 && (q.st === "run" || q.st === "air")) return "dash";
   if (q.st === "run" && q.rollT > 0) return "roll";
   if (q.st === "run" && q.slamT != null && q.slamT < 0.42) return "slamland";
@@ -4042,10 +4083,57 @@ function airCycle(ph, D, S, P) {
 // ---------- every other move ----------
 function genPose(rig, q, D, time, dt = 0) {
   const S = rig.style, P = rig.tgt, m = rig.mode;
+  rig.pin = false;                                       // true = the hands hold on to something: skip their follow-through springs
   if (m === "run" || m === "wall") return genRun(rig, q, D, S, P, time, m === "wall");
   if (m === "idle") {
     const b = Math.sin(time * 2.2), py = GROUND + D.ankle + D.thigh + D.shin - 0.7 + D.hipDrop + b * 0.15, fy = GROUND + D.ankle - py;
     return specPose(P, D, { py, cp: 3, hp: -2, fR: [1, fy, 0, 1.2], fL: [-1, fy, 0, 1.2], hR: [0.5, -14.6 + b * 0.2, 2.3], hL: [0.3, -14.6 + b * 0.2, 2.3] });
+  }
+  // ---- on walls: model space has x pointing at the wall (about 13.5 in front of the hitbox centre), y up ----
+  if (m === "wallslide") { // hanging on the wall, facing it: one foot planted high, the other hanging, hands flat on the wall
+    const sl = clamp((q.vy || 0) / 280, 0, 1), j = Math.sin(time * 30) * 0.6 * sl;      // sliding: the hands judder down the wall
+    specPose(P, D, { px: 0.4, py: 4.3, pp: 7, cp: -4, hp: -12 + sl * 20,
+      fR: [8.7, -11.5, -1.25, 0.8], fL: [6.3, -21, -0.35, 1.05],
+      hR: [11.8, 3.5 + j, 1.3], hL: [11.3, -5 - j, 2.1], kR: 0.2, kL: 0.1 });
+    rig.pin = true; // hands flat on the wall: no sway
+    return P;
+  }
+  if (m === "wallrun") { // scrambling up the wall: upright, steps planted against it, hands reaching for the edge
+    const ph = rig.ph, sn = Math.sin(TAU * ph), cs = Math.cos(TAU * ph), sR = Math.max(0, sn), sL = Math.max(0, -sn);
+    return specPose(P, D, { px: 0.6, py: 5 + Math.abs(sn) * 0.8, pp: 10, cp: -6, hp: -30,
+      fR: [8.6 + 1.2 * sR, -16.5 + 7.5 * sn, -0.95 - 0.35 * sn, 0.85], fL: [8.6 + 1.2 * sL, -16.5 - 7.5 * sn, -0.95 + 0.35 * sn, 0.85],
+      hR: [7.5 + 2.5 * cs, 12.5 + 3 * sL, 1.6], hL: [7.5 - 2.5 * cs, 12.5 + 3 * sR, 1.6] });
+  }
+  if (m === "mantle") { // over the edge: hang and pull, press up with the knee over the ledge, stand up
+    const k = clamp(q.mantleK ?? 1, 0, 1);
+    // key poses: hanging at full stretch (feet scrabbling on the wall), pulling (knees up), pressing over (knee on the ledge), standing
+    const hang = { py: 3.5, px: 0.2, pp: 4, cp: -2, hp: -26, fR: [8.6, -16, -1.15], fL: [6.4, -21.5, -0.5] };
+    const pull = { py: 4.5, px: 0.8, pp: 14, cp: 10, hp: -12, fR: [8.2, -10, -0.9], fL: [5.5, -15, -0.3] };
+    const press = { py: 5, px: 2, pp: 40, cp: 32, hp: 6, fR: [7.5, -7.5, 0.3], fL: [1.5, -14, 0.65] };
+    const stand = { py: 6.2, px: 0, pp: 10, cp: 8, hp: -4, fR: [3, -22.5, 0.1], fL: [-2.5, -22.5, 0.15] };
+    const mix = (A, B, t) => { const o = {}; for (const key of ["py", "px", "pp", "cp", "hp"]) o[key] = lerp(A[key], B[key], t); for (const key of ["fR", "fL"]) o[key] = A[key].map((v, i) => lerp(v, B[key][i], t)); return o; };
+    const sp = k < 0.3 ? mix(hang, pull, smooth(k / 0.3)) : k < 0.62 ? mix(pull, press, smooth((k - 0.3) / 0.32)) : mix(press, stand, smooth((k - 0.62) / 0.38));
+    sp.hR = [6, -7, 2]; sp.hL = [5, -7, 2];
+    specPose(P, D, sp);
+    if (k < 0.84) { // both hands hold the ledge while the body comes up past them (pinned: no spring lag)
+      const lx = (q.ledgeX ?? 13) - 0.4, ly = (q.ledgeY ?? 20) + 0.8;
+      P.hRx = lx; P.hRy = ly; P.hRz = 2.3; P.hLx = lx - 0.6; P.hLy = ly; P.hLz = -2.3; rig.pin = true;
+    }
+    return P;
+  }
+  if (m === "vault") { // stepped onto a ledge: hands on the edge, knees tucked, the body rises into the run
+    const e = easeOut(clamp(1 - q.vaultT / 0.2, 0, 1));
+    specPose(P, D, { py: lerp(3.4, 5.5, e), pp: lerp(32, 12, e), cp: lerp(28, 12, e), hp: lerp(8, -4, e),
+      fR: [lerp(5, 2, e), lerp(-9.5, -21, e), 0.3], fL: [lerp(1, -3, e), lerp(-13, -21, e), 0.5],
+      hR: [lerp(9.5, 4, e), lerp(-12, -8, e), 2], hL: [lerp(8.5, -3, e), lerp(-12, -8, e), 2] });
+    P.dropY = -(q.vaultH || 0) * (1 - e); rig.pin = e < 0.6;
+    return P;
+  }
+  if (m === "kick") { // pushing off a wall: the back leg drives into it, the front knee comes through, arms swing opposite
+    const k = smooth(clamp(1 - (q.kickT - 0.1) / 0.14, 0, 1));
+    return specPose(P, D, { py: 5, pp: lerp(26, 14, k), cp: lerp(14, 8, k), hp: -10,
+      fR: [lerp(-7, -12.5, k), lerp(-15, -19.5, k), lerp(0.7, 1.0, k)], fL: [lerp(2, 6, k), lerp(-13, -11, k), lerp(0.2, 0.35, k)],
+      hR: [lerp(-4, -7, k), lerp(-7, -4, k), 2.6], hL: [lerp(6, 9.5, k), lerp(0, 3, k), 1.6], kL: 0.3 });
   }
   if (m === "roll") {
     const k = 1 - q.rollT / ROLL_T3;
@@ -4148,13 +4236,14 @@ function rig3Update(rig, q, dt, time, D) {
   const S = rig.style, m = rigMode3(q);
   if (!rig.init) { rig.mode = m; rig.init = true; genPose(rig, q, D, time); poseCopy(rig.tgt, rig.cur); poseCopy(rig.tgt, rig.out); for (const k in SPRING_CH) rig.spr[k] = { x: rig.tgt[k], v: 0 }; }
   if (m !== rig.mode) {
-    rig.from = poseCopy(rig.cur, poseNew()); rig.bt = 0; rig.blendT = m === "dash" ? 0.045 : m === "flip" ? 0.06 : m === "swing" ? 0.09 : m === "slamland" ? 0.05 : S.blend;
-    if (m === "run" && rig.mode !== "wall" && rig.mode !== "roll" && rig.mode !== "slamland") rig.ph = 0.02;
+    rig.from = poseCopy(rig.cur, poseNew()); rig.bt = 0;
+    rig.blendT = m === "dash" ? 0.045 : m === "flip" ? 0.06 : m === "swing" ? 0.09 : m === "slamland" || m === "mantle" || m === "vault" || m === "kick" ? 0.05 : m === "wallrun" || m === "wallslide" ? 0.07 : S.blend;
+    if (m === "run" && rig.mode !== "roll" && rig.mode !== "slamland" && rig.mode !== "vault") rig.ph = 0.02;
     if (m === "air") rig.airPh = 0;
     rig.mode = m;
   }
   if (m === "run") { const v = Math.max(0, q.vx), sf = clamp((v - 380) / 460, 0, 1); rig.cad = lerp(S.cad[0], S.cad[1], sf) * (1 + 0.22 * clamp(1 - (q.runT ?? 9) / 0.65, 0, 1)); rig.ph = (rig.ph + rig.cad * dt) % 1; }
-  else if (m === "wall") { rig.cad = 2.6; rig.ph = (rig.ph + 2.6 * dt) % 1; }
+  else if (m === "wallrun") { rig.cad = 3.4; rig.ph = (rig.ph + 3.4 * dt) % 1; }
   const T = genPose(rig, q, D, time, dt);
   rig.bt = Math.min(1, rig.bt + dt / (rig.blendT || S.blend));
   const cur = rig.cur;
@@ -4170,6 +4259,7 @@ function rig3Update(rig, q, dt, time, D) {
   const dts = Math.min(dt, 1 / 30);
   for (const k in SPRING_CH) {
     const sp = rig.spr[k] || (rig.spr[k] = { x: cur[k], v: 0 }), par = S.spr[SPRING_CH[k]];
+    if (rig.pin && PIN_CH[k]) { sp.x = cur[k]; sp.v = 0; out[k] = cur[k]; continue; } // hands holding a ledge stay exactly on it
     if (dts > 0) out[k] = springTo(sp, cur[k], par[0], par[1], dts); else out[k] = sp.x;
   }
   // anime: hold each drawing for two frames (12 per second)
@@ -4261,6 +4351,8 @@ const viewFor = (x, y, extra) => Object.assign({ x, y, s: 1, yaw: VIEW_YAW, pitc
 function playerQuery(p) {
   let swingW = 0, st = p.state, ang = p.swingAngle, attachT = p.attachT;
   if (p.state === "grapple" && p.gp) { st = "swing"; ang = Math.atan2(p.x - p.gp.cx, p.y - p.gp.cy); attachT = p.gp.t; }
+  // climbing over an edge: where the ledge is in model space (x towards the wall, y up from the hitbox centre)
+  const mt = p.state === "mantle" ? p.mt : null;
   if (p.state === "swing" && p.anchor) {
     const dx = p.x - p.anchor.x, dy = p.y - p.anchor.y, d = Math.hypot(dx, dy) || 1;
     swingW = (p.vx * (dy / d) - p.vy * (dx / d)) / d; // angular speed, + = swinging forward
@@ -4268,7 +4360,9 @@ function playerQuery(p) {
   return { st, vx: p.vx, vy: p.vy, swingAng: ang, swingW, diving: p.diving,
     flipK: p.flipT > 0 ? 1 - p.flipT / FLIP_T : -1, stumble: p.stumbleT, deadT: run.deadT, od: run.od > 0, runT: run.t,
     landK: p.landK, landT: p.landT, jumpT: p.jumpT, rollT: p.rollT, attachT, pumpT: p.pumpT, pumpDir: p.pumpDir,
-    dashT: p.dashT, dashEnd: p.dashEndT, slamT: p.slamT };
+    dashT: p.dashT, dashEnd: p.dashEndT, slamT: p.slamT,
+    wallRun: p.wallRun, kickT: p.kickT, vaultT: p.vaultT, vaultH: p.vaultH,
+    mantleK: mt ? clamp(mt.t / MANTLE_T, 0, 1) : 1, ledgeX: mt ? (mt.hx - p.x) * mt.dir : 0, ledgeY: mt ? p.y - mt.hy : 0 };
 }
 // squash & stretch spring: landings squash, take-offs and rope snaps stretch, then it wobbles back
 const sq = { v: 0, vel: 0, land: 0, jump: 0, attach: 0, pump: 0, dash: 0 };
@@ -4282,7 +4376,7 @@ function animatePlayer(dt, time) {
   if (p.dashN !== sq.dash) { sq.dash = p.dashN; sq.vel -= 3.2; } // dash: flatten and stretch along the motion
   if (dt > 0) { sq.vel += (-200 * sq.v - 17 * sq.vel) * dt; sq.v = clamp(sq.v + sq.vel * dt, -0.28, 0.24); }
   const q = playerQuery(p), P = C3.poseCopy(C3.rig3Update(pRig, q, dt, time, pInst.mesh.D), DRAW_P);
-  if (dt > 0) pTurn = lerp(pTurn, p.face < 0 && p.state !== "dead" ? Math.PI : 0, Math.min(1, dt * 18));
+  if (dt > 0) pTurn = lerp(pTurn, p.face < 0 && p.state !== "dead" ? Math.PI : 0, Math.min(1, dt * (p.kickT > 0 ? 30 : 18)));
   P.spinY += pTurn;
   const airS = p.state === "air" && p.flipT <= 0 ? clamp(Math.abs(p.vy) / 3800, 0, 0.09) : 0;
   const s = sq.v + airS;
@@ -4653,7 +4747,7 @@ const fmt = (n) => Math.round(n).toLocaleString("de-DE");
 const bestKey = "best_" + SEED, ghostKey = "ghost3_" + SEED; // ghost3: the level layout changed with light wells, arcades and stepped towers
 let bestToday = store.get(bestKey, { dist: 0, score: 0 });
 let ghost = store.get(ghostKey, null);   // { d: [x,y,st,ang, ...], step }
-const ST_CODE = { run: 0, air: 1, swing: 2, grind: 3, wall: 4, dead: 1, grapple: 2 }, ST_NAME = ["run", "air", "swing", "grind", "wall", "dash"];
+const ST_CODE = { run: 0, air: 1, swing: 2, grind: 3, wall: 4, dead: 1, grapple: 2, mantle: 4 }, ST_NAME = ["run", "air", "swing", "grind", "wall", "dash"];
 const GH_STEP = 0.05;
 let rec = [], recT = 0;
 function ghostAt(t) {
@@ -4970,7 +5064,7 @@ function step(dt) {
   }
   // the blackout
   // while you hang on the rope or climb a light well the darkness slows down, so a long swing or a climb stays possible
-  const climbing = player.state === "wall" || player.kickChain > 0;    // a light well costs time too: the darkness slows down
+  const climbing = player.state === "wall" || player.state === "mantle" || player.kickChain > 0;    // a light well costs time too: the darkness slows down
   const ws = baseSpeedAt(player.x) * (0.9 + 0.13 * Math.min(1, run.t / 150)) * (player.state === "swing" || climbing ? 0.55 : 1);
   run.wallX = Math.max(run.wallX + ws * dt, player.x - 1500);
   if (state === "play" && player.x - run.wallX < 0) die("wall");
