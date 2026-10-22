@@ -19,7 +19,12 @@ Läuft als installierbare Web-App (PWA): Vollbild, eigenes Icon, funktioniert of
 | Abspringen | Seiltaste loslassen (im goldenen Bogen = PERFEKT) | rechts loslassen |
 | Dash (zerlegt Gegner) | D, →, Shift | nach rechts wischen |
 | Slam | S, ↓ | nach unten wischen |
+| Walljump zur Gegenwand | an der Wand Leertaste | an der Wand links tippen |
 
 ## Figuren
 
 Vier Figuren in Echtzeit-3D, jede mit eigenem Bewegungsstil und eigenem Doppelsprung und Dash: **Kage-X** (Cyber-Ninja: Rauchbomben-Korkenzieher mit Schattendoppelgänger, Katana-Blitzschnitt), **Vektor** (Daten-Avatar: Absprung von einer Hologramm-Plattform, Dash als Pixel-Datenstrom), **Titan** (Exo-Anzug: Raketenschub aus Rucksack und Stiefeln, aufrechter Düsen-Dash) und **Aero** (City-Runner: Butterfly-Twist mit Lichtsohlen, Superman-Hechtsprung durch den Windkanal). Auswahl im Startmenü unter „Charakter“.
+
+## Strecke
+
+Neben Dächern, Seilen und Grind-Stellen gibt es eigene Abschnitte: **Lichtschächte** (durch einen Durchgang unter einem Turm rennen, dann per Walljump zwischen den zwei Türmen hoch), **Arkaden** (ein Turm auf Säulen: unten durch, oder per Wandlauf obendrüber) und **Stufen-Hochhäuser** (Absätze hochspringen oder hochlaufen). Auf den Dächern stehen Wassertanks, Satellitenschüsseln, Klimaanlagen, Treppenhäuser, Neon-Schriftzüge und Solarzellen.

@@ -262,6 +262,8 @@ html:not(.touch) .keys .kt, html.touch .keys .kd { display: none; } /* phones se
           <kbd>LOSLASSEN</kbd><span class="t">im <em>goldenen Bogen</em> = PERFEKT</span>
           <kbd class="kd">D / → / SHIFT</kbd><span class="t kd"><em>Dash</em>: zerlegt Drohnen und Wächter, jeder Treffer lädt ihn neu</span>
           <kbd class="kt">WISCHEN →</kbd><span class="t kt"><em>Dash</em>: zerlegt Drohnen und Wächter, jeder Treffer lädt ihn neu</span>
+          <kbd class="kd">LEER AN DER WAND</kbd><span class="t kd"><em>Walljump</em> zur Gegenwand: so kommst du Lichtschächte hoch</span>
+          <kbd class="kt">TIPPEN AN DER WAND</kbd><span class="t kt"><em>Walljump</em> zur Gegenwand: so kommst du Lichtschächte hoch</span>
           <kbd class="kd">S / ↓</kbd><span class="t kd">Slam: Drohnen zerlegen</span>
           <kbd class="kt">WISCHEN ↓</kbd><span class="t kt">Slam: Drohnen zerlegen</span>
         </div>
@@ -660,6 +662,10 @@ const Sound = (() => {
       if (!ok()) return; const t = now();
       osc("sine", 1900, t, 0.05, 0.05, sfxBus, 2800); noise(t, 0.24, "bandpass", 800, 0.24, sfxBus, 1.2, 2800);
     },
+    kick() { // wall jump: a slap on concrete and a short rising whoosh
+      if (!ok()) return; const t = now();
+      noise(t, 0.06, "bandpass", 1400, 0.4, sfxBus, 1.5); osc("square", 380, t, 0.09, 0.07, sfxBus, 760); noise(t + 0.02, 0.18, "bandpass", 700, 0.2, sfxBus, 1.2, 2600);
+    },
     gust() { // Aero: wind tunnel
       if (!ok()) return; const t = now(); noise(t, 0.42, "bandpass", 450, 0.38, sfxBus, 0.9, 2600);
     },
@@ -707,9 +713,9 @@ const Sound = (() => {
 // ================= WORLD + LEVEL GENERATOR =================
 const world = {
   rng: Math.random, genX: 0, lastTop: 420, introDone: false,
-  buildings: [], anchors: [], drones: [], boxes: [], lasers: [], rails: [], pads: [], coins: [], guards: [], bolts: [],
+  buildings: [], anchors: [], drones: [], boxes: [], lasers: [], rails: [], pads: [], coins: [], guards: [], bolts: [], blocks: [],
 };
-const WORLD_KEYS = ["buildings", "anchors", "drones", "boxes", "lasers", "rails", "pads", "coins", "guards", "bolts"];
+const WORLD_KEYS = ["buildings", "anchors", "drones", "boxes", "lasers", "rails", "pads", "coins", "guards", "bolts", "blocks"];
 const GUARD_H = 44;          // Wächter robot: feet on the roof, 44 px tall
 const ENEMY_FREE_X = 5200;   // no guards / spike drones in the first ~200 m (except the intro guard)
 const TOP_MIN = 250, TOP_MAX = 640;
@@ -718,10 +724,18 @@ const R = () => world.rng();
 const RR = (a, b) => a + (b - a) * world.rng();
 const RI = (a, b) => Math.floor(RR(a, b + 1));
 
-function addBuilding(x, w, top) {
-  const b = { x, w, top: clamp(top, TOP_MIN, TOP_MAX), style: RI(0, 3), n: RI(0, 1e6), face: null, ant: R() < 0.35 ? RR(0.15, 0.85) : -1 };
+// free = a set piece tower that may rise above the usual roof band
+function addBuilding(x, w, top, free = false) {
+  const b = { x, w, top: free ? top : clamp(top, TOP_MIN, TOP_MAX), style: RI(0, 3), n: RI(0, 1e6), face: null, ant: R() < 0.35 ? RR(0.15, 0.85) : -1,
+    prop: R() < 0.55 ? RI(1, 6) : 0, propX: RR(0.12, 0.78) }; // a rooftop prop for the skyline: tank, dish, AC units, stair hut, neon letters, solar panels
   world.buildings.push(b);
   return b;
+}
+// a floating solid: the tower above an arcade (you run under it, climb its faces, land on its top)
+function addBlock(x, w, top, bot, kind, floor) {
+  const k = { x, w, top, bot, kind, floor, style: RI(0, 3), n: RI(0, 1e6), face: null };
+  world.blocks.push(k);
+  return k;
 }
 // Greifpunkte sind keine Punkte in der Luft mehr, sondern echte Objekte (kind):
 //  crane = Baukran auf dem Dach davor (base = Fuß des Krans), mast = Funkmast von der Straße,
@@ -730,9 +744,11 @@ function addBuilding(x, w, top) {
 const ANCHOR_GROUND = TOP_MAX + 500;
 const addAnchor = (x, y, kind = "drone", base = null) => world.anchors.push({ x, y, x0: x, y0: y, kind, base, ph: RR(0, TAU), cool: 0, hits: 0, hang: 0, spent: false, warned: false, vx: 0, vy: 0, rot: 0, vr: 0 });
 let lastAerialKind = "";
-function aerialKind() { // frei hängende Haken: Mast, Schild oder Drohne, nie zweimal dasselbe hintereinander
+// frei hängende Haken: Mast, Schild oder Drohne, nie zweimal dasselbe hintereinander.
+// stable = ein Rettungs-Haken (zweite Chance): nie eine Lastdrohne, die gibt ja nach
+function aerialKind(stable = false) {
   let k;
-  do { const r = R(); k = r < 0.34 ? "mast" : r < 0.67 ? "drone" : "sign"; } while (k === lastAerialKind && R() < 0.8);
+  do { const r = R(); k = stable ? (r < 0.5 ? "mast" : "sign") : r < 0.34 ? "mast" : r < 0.67 ? "drone" : "sign"; } while (k === lastAerialKind && R() < 0.8);
   return (lastAerialKind = k);
 }
 const addCoin = (x, y) => world.coins.push({ x, y, taken: false, ph: RR(0, TAU) });
@@ -857,7 +873,7 @@ const PATTERNS = [
     const sp = v * 0.62;
     let dx = x + sp * 0.75;
     for (let i = 0; i < n; i++) { addDrone(dx, top - RR(10, 60), 10); dx += sp; }
-    addAnchor(x + sp * (n * 0.5 + 0.4), top - 340, aerialKind());
+    addAnchor(x + sp * (n * 0.5 + 0.4), top - 340, aerialKind(true));
     const b = addBuilding(dx + sp * 0.1, RR(450, 750), clamp(top + RR(-20, 90), TOP_MIN, TOP_MAX));
     return [b.x + b.w, b.top];
   } },
@@ -867,7 +883,7 @@ const PATTERNS = [
     addPad(x - 150, top);
     const gap = RR(560, 760) + v * 0.25;
     coinArc(x - 110, top - 60, x + gap + 40, top - 40, 330, 10);
-    addAnchor(x + gap * 0.45, top - RR(290, 330), aerialKind()); // second chance if you miss the pad
+    addAnchor(x + gap * 0.45, top - RR(290, 330), aerialKind(true)); // second chance if you miss the pad
     const b = addBuilding(x + gap, RR(420, 760), clamp(top + RR(-80, 60), TOP_MIN, TOP_MAX));
     if (R() < 0.5) decorateRoof(b, b.x + 200, b.x + b.w, d);
     return [b.x + b.w, b.top];
@@ -883,7 +899,7 @@ const PATTERNS = [
       dx += sp;
     }
     const gap = 120 + (n - 1) * sp + RR(250, 285);
-    addAnchor(x + gap * 0.5, top - RR(320, 350), aerialKind());
+    addAnchor(x + gap * 0.5, top - RR(320, 350), aerialKind(true));
     const b = addBuilding(x + gap, RR(450, 760), clamp(top + RR(0, 70), TOP_MIN, TOP_MAX));
     if (R() < 0.4) decorateRoof(b, b.x + 260, b.x + b.w, d);
     return [b.x + b.w, b.top];
@@ -900,6 +916,55 @@ const PATTERNS = [
       gx += RR(470, 610);
     }
     return [b.x + b.w, b.top];
+  } },
+  // Lichtschacht: through the arcade under a tower, then wall-jump up the light well between the two towers
+  { w: (d) => (world.genX < 3200 ? 0 : 0.6 + d * 0.5), fn(x, top, v, d) {
+    const gap = RR(0.28, 0.42) * v * 0.72;
+    const h = clamp(top + RR(-30, 50), TOP_MIN + 150, TOP_MAX);
+    const climb = RR(400, 470), runIn = RR(240, 320), arcW = RR(300, 380), shaftW = RR(128, 146);
+    const F = addBuilding(x + gap, runIn + arcW + shaftW, h);                       // the floor, ends at the right tower
+    F.prop = 0;
+    const ux = F.x + runIn;
+    addBlock(ux, arcW, h - climb, h - 112, "tower", h);                                // left tower, standing over the arcade
+    const B = addBuilding(ux + arcW + shaftW, RR(560, 820), h - climb + RR(-15, 20), true); // right tower: its roof is the way on
+    B.well = ux + arcW; B.wellFloor = h;                                               // where the light well is (for the paint on its walls)
+    coinLine(F.x + 60, ux - 40, h - 28, 44);
+    coinLine(ux + 40, ux + arcW - 30, h - 30, 46);
+    for (let i = 0; i < 5; i++) addCoin(i % 2 ? ux + arcW + 24 : B.x - 24, h - 140 - i * 72); // the kicks, zig-zag up the well
+    if (d > 0.2 && world.genX > ENEMY_FREE_X && R() < 0.6) addDrone(ux + arcW * 0.6, h - 52, 4); // hovers in the arcade: dash it
+    coinLine(B.x + 80, B.x + 300, B.top - 28, 44);
+    if (R() < 0.6) decorateRoof(B, B.x + 340, B.x + B.w, d);
+    return [B.x + B.w, B.top];
+  } },
+  // Arkade: a tower stands over the roof on pillars. Run through underneath (no room to jump) or wall-run up and over the top
+  { w: (d) => (world.genX < 1800 ? 0 : 0.55), fn(x, top, v, d) {
+    const gap = RR(0.28, 0.45) * v * 0.72;
+    const h = clamp(top + RR(-40, 60), TOP_MIN + 60, TOP_MAX);
+    const runIn = RR(260, 380), arcW = RR(420, 600), runOut = RR(240, 380);
+    const F = addBuilding(x + gap, runIn + arcW + runOut, h);
+    F.prop = 0;
+    const U = addBlock(F.x + runIn, arcW, h - RR(250, 290), h - 112, "tower", h);
+    coinLine(U.x + 30, U.x + arcW - 30, h - 30, 44);
+    coinLine(U.x + 40, U.x + arcW - 40, U.top - 28, 52);
+    if (world.genX > ENEMY_FREE_X && R() < 0.45) addDrone(U.x + arcW * RR(0.45, 0.7), h - 52, 4);
+    else if (d > 0.15 && R() < 0.55) addLaser(U.x + arcW * RR(0.45, 0.7), 108, h);     // floor to ceiling: dash through it (PHASE)
+    return [F.x + F.w, F.top];
+  } },
+  // Stufen-Hochhaus: a tower with setbacks; jump or wall-run up the steps, then drop off the top
+  { w: (d) => (world.genX < 2400 ? 0 : 0.6), fn(x, top, v, d) {
+    const gap = RR(0.28, 0.42) * v * 0.72;
+    let t = clamp(top + RR(0, 60), TOP_MIN + 160, TOP_MAX), bx = x + gap;
+    const style = RI(0, 3), seed = RI(0, 1e6), steps = RI(3, 4);
+    const first = addBuilding(bx, RR(260, 360), t); first.style = style; first.n = seed; bx += first.w;
+    for (let i = 0; i < steps; i++) {
+      t = Math.max(t - RR(140, 205), -120);
+      const last = i === steps - 1;
+      const b = addBuilding(bx, last ? RR(440, 640) : RR(170, 250), t, true);
+      b.style = style; b.n = seed; b.prop = last ? b.prop : 0; bx += b.w;
+      if (!last) addCoin(b.x + b.w * 0.5, t - 40);
+      else coinLine(b.x + 60, b.x + 260, t - 28, 44);
+    }
+    return [bx, t];
   } },
 ];
 // first guard of every run: a long, quiet roof so you can learn the dash on it
@@ -943,6 +1008,7 @@ function worldCull(minX) {
   world.buildings.sort((a, b) => a.x - b.x);
   keep(world.buildings, (o) => o.x + o.w);
   world.anchors = world.anchors.filter((o) => o.x > minX - 300);
+  world.blocks = world.blocks.filter((o) => o.x + o.w > minX);
   world.drones = world.drones.filter((o) => o.x > minX && (o.alive || o.dead < 2));
   world.guards = world.guards.filter((o) => o.x > minX && (o.alive || o.dead < 2));
   world.bolts = world.bolts.filter((o) => o.life > 0);
@@ -958,9 +1024,16 @@ function roofAt(x) {
   for (const b of world.buildings) if (x >= b.x && x <= b.x + b.w && (!best || b.top < best.top)) best = b;
   return best;
 }
+// the floating block right above (x, y), if any
+function blockAbove(x, y, within = 170) {
+  for (const k of world.blocks) if (x + PW / 2 > k.x && x - PW / 2 < k.x + k.w && k.bot <= y && y - k.bot < within) return k;
+  return null;
+}
 
 // ================= PLAYER + RUN STATE =================
 const PW = 26, PH = 42, HALF_H = PH / 2;
+let AIRJ = 1;                       // air jumps per take-off (the triple jump skill makes it 2)
+const KICK_RANGE = 270;             // a wall jump needs a facing wall within this distance behind you
 const SWING_RANGE = 470;
 const OD_TIME = 7;
 const player = {};
@@ -969,18 +1042,20 @@ const run = {};
 function resetRun() {
   Object.assign(player, {
     x: 0, y: 420 - HALF_H, vx: 300, vy: 0, state: "run", coyote: 0, jumpBuf: 0, jumpCut: false,
-    airJumps: 1, wallRuns: 1, diving: false, anchor: null, ropeLen: 0, swingAngle: 0, swingT: 0,
+    airJumps: AIRJ, wallRuns: 1, diving: false, anchor: null, ropeLen: 0, swingAngle: 0, swingT: 0,
     rail: null, railSp: 0, wallB: null, wallT: 0, stumbleT: 0, groundT: 0, airT: 0, runPhase: 0,
     squash: 0, target: null, lean: 0, flipT: 0, prevX: 0, prevY: 420 - HALF_H,
     landK: 0, landT: 9, landN: 0, slamT: 9, jumpT: 9, jumpN: 0, attachT: 9, attachN: 0, rollT: 0, ropeTarget: 0, swingSide: 0,
     pumpCD: 0, pumpT: 9, pumpN: 0, pumpDir: 1, swingTurn: 0, swingE: null,
     dashT: 0, dashCD: 0, dashBuf: 0, airDash: 1, dashN: 0, dashKills: 0, dashCombo: 0, dashV: 0, preDashVx: 0, dashEndT: 9, dashStreak: null,
+    wallDir: 1, wallBot: Infinity, wallRun: true, kickT: 0, kickChain: 0, face: 1,
   });
   Object.assign(run, {
     t: 0, dist: 0, score: 0, flow: 0, chain: 0, chainT: 0, maxChain: 0, od: 0,
     perfect: 0, drones: 0, coins: 0, swings: 0, topSpeed: 0, wallX: -1100, dead: false, deadT: 0, reason: "",
     coinStreak: 0, coinT: 0, firstSwing: false, loops: 0, pumps: 0,
     kills: 0, dashes: 0, dashKills: 0, reflects: 0, maxDashKills: 0,
+    kicks: 0, maxKicks: 0, grinds: 0, odN: 0,
   });
 }
 
@@ -1084,7 +1159,7 @@ function attach(a) {
   p.state = "swing"; p.anchor = a; p.ropeLen = d; p.ropeTarget = safeRopeLen(a, clamp(d * 0.93, 140, 430)); p.swingT = 0;
   p.attachT = 0; p.attachN++; p.swingSide = Math.sign(p.x - a.x); FX.shake(3);
   p.swingAngle = Math.atan2(p.x - a.x, p.y - a.y); p.swingTurn = 0; p.swingE = null; p.pumpCD = 0.12;
-  p.diving = false; p.airJumps = 1; p.wallRuns = 1; p.airDash = 1; p.rail = null;
+  p.diving = false; p.airJumps = AIRJ; p.wallRuns = 1; p.airDash = 1; p.rail = null;
   a.hits++; run.swings++; run.firstSwing = true;
   addChain(); addFlow(8); award(20);
   FX.zip(p.x, p.y, a.x, a.y); FX.burst(a.x, a.y, 12, "#4ff3ff", 260);
@@ -1103,7 +1178,8 @@ function droneUpdate(a, dt) {
     if (!a.warned && a.hang > DRONE_HOLD * 0.6) { a.warned = true; FX.popup(a.x, a.y - 78, "ZU SCHWER!", "#ff2e63", 0.9); haptic(15); }
     if (a.hang >= DRONE_HOLD) {
       release(false);
-      a.spent = true; a.cool = 1e9; a.vx = 70 + R() * 40; a.vy = -140; a.vr = (R() < 0.5 ? -1 : 1) * (2.5 + R() * 2);
+      // visual tumble only: Math.random, never the level rng (that would change the rest of the daily track)
+      a.spent = true; a.cool = 1e9; a.vx = rand(70, 110); a.vy = -140; a.vr = (Math.random() < 0.5 ? -1 : 1) * rand(2.5, 4.5);
       FX.burst(a.x, a.y - 30, 16, "#ff8a3d", 320); FX.shake(4);
       FX.popup(p.x, p.y - 64, "DROHNE ÜBERLASTET", "#ff2e63", 1); Sound.fx.pump(false);
     } else p.swingE = null; // die Drohne gibt Energie ab, nicht künstlich nachpumpen
@@ -1165,7 +1241,8 @@ function land(top, b) {
     addFlow(6 + k * 8); addChain();
   } else if (hard) { FX.dust(p.x, top, 12); FX.shake(4); }
   else FX.dust(p.x, top, 5);
-  p.vy = 0; p.airJumps = 1; p.wallRuns = 1; p.airDash = 1; p.airT = 0;
+  p.vy = 0; p.airJumps = AIRJ; p.wallRuns = 1; p.airDash = 1; p.airT = 0; p.kickChain = 0; p.kickT = 0;
+  if (p.vx < 0) p.vx = baseSpeedAt(p.x) * 0.45; // came in with a backwards wall kick: turn round and run on
   if (p.dashT <= 0) p.dashCombo = 0;
   p.landK = clamp(impact / 1400, 0.2, 1); p.landT = 0; p.landN++;
   if (!wasDiving && impact > 1250 && run.od <= 0 && !run.dead) {
@@ -1177,28 +1254,12 @@ function land(top, b) {
 }
 function killDrone(d, bounce) { destroyEnemy(d, "drone", bounce ? "stomp" : "slam"); }
 
-// horizontal collisions shared by run / air / swing
+// horizontal collisions shared by run / air / swing: roofs you can vault onto, walls from either side
+// (buildings reach down forever, blocks float: towers over an arcade, with a bottom you can run under)
 function collideX(prevFeet) {
   const p = player;
-  for (const b of world.buildings) {
-    if (!ovX(p.x, PW, b.x, b.w)) continue;
-    const feet = p.y + HALF_H;
-    if (feet <= b.top + 0.5) continue;
-    if (prevFeet <= b.top + 2 || feet - b.top <= 36) { // vault onto the roof
-      if (p.state === "swing") { p.anchor.cool = 0.4; p.anchor = null; }
-      if (feet - b.top > 6) FX.popup(p.x, b.top - 40, "VAULT", "#4ff3ff", 0.6, false);
-      p.vy = Math.max(p.vy, 0); land(b.top, b); continue;
-    }
-    // wall
-    if (p.state === "swing") { p.anchor.cool = 0.4; p.anchor = null; }
-    if (p.dashT > 0) { endDash(false); FX.shake(6); }
-    p.x = b.x - PW / 2 - 0.5;
-    if (p.wallRuns > 0 && b.top > p.y - 260) {
-      p.wallRuns--; p.state = "wall"; p.wallB = b; p.wallT = 0.42; p.vy = Math.min(p.vy * 0.3, -860); p.vx = 0;
-      FX.sparks(p.x + PW / 2, p.y, -1, 0, 8); Sound.fx.dj();
-    } else { p.state = "air"; p.vx = -90; p.vy = Math.max(p.vy, 60); FX.shake(8); Sound.fx.stumble(); }
-    return;
-  }
+  for (const b of world.buildings) if (solidSide(b, Infinity, prevFeet) === 2) return;
+  for (const k of world.blocks) if (solidSide(k, k.bot, prevFeet) === 2) return;
   for (const bx of world.boxes) {
     if (bx.hit || !ovX(p.x, PW, bx.x, bx.w)) continue;
     const feet = p.y + HALF_H;
@@ -1207,9 +1268,86 @@ function collideX(prevFeet) {
     bx.hit = true; crash(bx.x + bx.w / 2, bx.top + bx.h / 2, "CRASH!", "SMASH!");
   }
 }
+// 0 = no contact, 1 = vaulted onto the top, 2 = hit the wall
+function solidSide(o, bot, prevFeet) {
+  const p = player;
+  if (!ovX(p.x, PW, o.x, o.w)) return 0;
+  const feet = p.y + HALF_H;
+  if (feet <= o.top + 0.5 || p.y - HALF_H >= bot - 0.5) return 0;   // above it, or passing under a floating block
+  if (prevFeet <= o.top + 2 || feet - o.top <= 36) {                 // vault onto the top
+    if (p.state === "swing") { p.anchor.cool = 0.4; p.anchor = null; }
+    if (feet - o.top > 6) FX.popup(p.x, o.top - 40, "VAULT", "#4ff3ff", 0.6, false);
+    p.vy = Math.max(p.vy, 0); land(o.top, o); return 1;
+  }
+  // a wall: from which side did we come?
+  const ox = p.prevX, fromLeft = ox + PW / 2 <= o.x + 2 ? true : ox - PW / 2 >= o.x + o.w - 2 ? false : p.x < o.x + o.w / 2;
+  const dir = fromLeft ? 1 : -1;
+  if (p.state === "swing") { p.anchor.cool = 0.4; p.anchor = null; }
+  if (p.dashT > 0) { endDash(false); FX.shake(6); }
+  p.x = fromLeft ? o.x - PW / 2 - 0.5 : o.x + o.w + PW / 2 + 0.5;
+  hitWall(o, dir, bot);
+  return 2;
+}
+// dir: +1 = the wall is to the right of the runner, -1 = to the left
+function hitWall(o, dir, bot) {
+  const p = player, well = !!oppositeWall(p, dir); // in a light well every wall is worth climbing: the kicks take you on
+  if (p.wallRuns > 0 && (o.top > p.y - 260 || well)) { // run up the face
+    p.wallRuns--; p.state = "wall"; p.wallB = o; p.wallDir = dir; p.wallBot = bot; p.wallRun = true; p.wallT = 0.42;
+    p.vy = Math.min(p.vy * 0.3, -860); p.vx = 0;
+    FX.sparks(p.x + dir * PW / 2, p.y, -dir, 0, 8); Sound.fx.dj();
+  } else if ((p.state !== "run" || well) && o.top < p.y + HALF_H - 10) { // grab the wall and slide: a wall jump takes you on from here
+    p.state = "wall"; p.wallB = o; p.wallDir = dir; p.wallBot = bot; p.wallRun = false; p.wallT = 0.9;
+    p.vy = p.vy < 0 ? p.vy * 0.6 : Math.min(p.vy, 140); p.vx = 0;
+    FX.sparks(p.x + dir * PW / 2, p.y, -dir, 0, 5); Sound.fx.land(0.2);
+  } else { p.state = "air"; p.vx = -dir * 90; p.vy = Math.max(p.vy, 60); FX.shake(8); Sound.fx.stumble(); }
+}
+// a facing wall behind the runner (dir = side of the wall it hangs on) that a wall jump can reach
+function oppositeWall(p, dir) {
+  let best = null, bd = 1e9;
+  const yHi = p.y - 220, yLo = p.y + 120;
+  const test = (o, bot) => {
+    const fx = dir > 0 ? o.x + o.w : o.x, d = (p.x - fx) * dir;
+    if (d < PW / 2 - 2 || d > KICK_RANGE || o.top > yLo || bot < yHi) return;
+    if (d < bd) { bd = d; best = o; }
+  };
+  for (const b of world.buildings) test(b, Infinity);
+  for (const k of world.blocks) test(k, k.bot);
+  return best;
+}
+function wallKick() {
+  const p = player, dir = p.wallDir;
+  p.state = "air"; p.vx = -dir * 560; p.vy = -900; p.kickT = 0.24; p.jumpCut = true; p.diving = false;
+  p.airJumps = AIRJ; p.airDash = 1; p.wallRuns = 0; p.face = -dir; p.jumpT = 0; p.jumpN++;
+  p.kickChain++; run.kicks++; run.maxKicks = Math.max(run.maxKicks, p.kickChain);
+  if (!wallTutDone) { wallTutDone = true; store.set("wallTut", true); }
+  FX.sparks(p.x + dir * PW / 2, p.y + 6, -dir, -0.5, 10); FX.ring(p.x + dir * PW / 2, p.y, currentSkin.trail, 54, 0.45);
+  FX.dust(p.x + dir * PW / 2, p.y + 10, 4);
+  if (p.kickChain >= 2) FX.popup(p.x, p.y - 56, "WALLJUMP ×" + p.kickChain, "#4ff3ff", 0.8);
+  addChain(); addFlow(5); award(40 + 15 * p.kickChain); Sound.fx.kick(); haptic(10);
+}
+// head against the underside of a floating block
+function ceilCheck(prevHead) {
+  const p = player;
+  if (p.vy >= 0) return false;
+  const head = p.y - HALF_H;
+  for (const k of world.blocks) if (ovX(p.x, PW - 6, k.x, k.w) && prevHead >= k.bot - 1 && head < k.bot) {
+    p.y = k.bot + HALF_H; p.vy = 40; p.jumpCut = true;
+    FX.sparks(p.x, k.bot, 0, 1, 4); Sound.fx.land(0.15); return true;
+  }
+  return false;
+}
+// land on whatever top the feet just crossed (roofs, block tops, crates)
+function landOnTops(pf, nf) {
+  const p = player;
+  for (const b of world.buildings) if (ovX(p.x, PW - 6, b.x, b.w) && pf <= b.top + 1 && nf >= b.top) { land(b.top, b); return true; }
+  for (const k of world.blocks) if (ovX(p.x, PW - 6, k.x, k.w) && pf <= k.top + 1 && nf >= k.top) { land(k.top, k); return true; }
+  for (const bx of world.boxes) if (!bx.hit && ovX(p.x, PW - 6, bx.x, bx.w) && pf <= bx.top + 1 && nf >= bx.top) { land(bx.top, null); return true; }
+  return false;
+}
 function supportTop() {
   const p = player, feet = p.y + HALF_H;
   for (const b of world.buildings) if (ovX(p.x, PW - 8, b.x, b.w) && Math.abs(feet - b.top) < 3) return b.top;
+  for (const k of world.blocks) if (ovX(p.x, PW - 8, k.x, k.w) && Math.abs(feet - k.top) < 3) return k.top;
   for (const bx of world.boxes) if (!bx.hit && ovX(p.x, PW - 8, bx.x, bx.w) && Math.abs(feet - bx.top) < 3) return bx.top;
   return null;
 }
@@ -1280,25 +1418,25 @@ function playerUpdate(dt) {
     else {
       p.vy += G * (p.diving ? 1.8 : 1) * dt;
       p.vy = Math.min(p.vy, p.diving ? 2300 : 1700);
-      p.vx += (base - p.vx) * 0.12 * dt;
+      if (p.kickT > 0) p.kickT -= dt;              // a wall kick keeps its line for a moment
+      else p.vx += (base - p.vx) * (p.vx < 0 ? 1.6 : 0.12) * dt;
     }
     if (input.swingHeld && p.target) attach(p.target);
     else {
       p.x += p.vx * dt;
       collideX(prevFeet);
       if (p.state === "air") {
-        const pf = p.y + HALF_H, oldX = p.x - p.vx * dt;
+        const pf = p.y + HALF_H, oldX = p.x - p.vx * dt, ph = p.y - HALF_H;
         p.y += p.vy * dt;
+        ceilCheck(ph);
         const nf = p.y + HALF_H;
         if (p.vy >= 0) {
-          let landed = false;
-          for (const b of world.buildings) if (ovX(p.x, PW - 6, b.x, b.w) && pf <= b.top + 1 && nf >= b.top) { land(b.top, b); landed = true; break; }
-          if (!landed) for (const bx of world.boxes) if (!bx.hit && ovX(p.x, PW - 6, bx.x, bx.w) && pf <= bx.top + 1 && nf >= bx.top) { land(bx.top, null); landed = true; break; }
+          let landed = landOnTops(pf, nf);
           if (!landed) for (const r of world.rails) {
             if (p.x < r.x1 || p.x > r.x2) continue;
             const ryO = railY(r, clamp(oldX, r.x1, r.x2)), ryN = railY(r, p.x);
             if (pf <= ryO + 6 && nf >= ryN) {
-              p.state = "grind"; p.rail = r; p.y = ryN - HALF_H; p.diving = false; p.airJumps = 1; p.wallRuns = 1;
+              p.state = "grind"; p.rail = r; p.y = ryN - HALF_H; p.diving = false; p.airJumps = AIRJ; p.wallRuns = 1; p.kickChain = 0; run.grinds++;
               p.railSp = Math.max(Math.hypot(p.vx, p.vy) * 0.8, base);
               addChain(); addFlow(6); FX.sparks(p.x, ryN, 1, -0.5, 14); FX.popup(p.x, ryN - 60, "GRIND", "#4ff3ff", 0.8);
               Sound.fx.grind(true); break;
@@ -1343,7 +1481,7 @@ function playerUpdate(dt) {
       collideX(prevFeet);
       if (p.state === "swing") {
         const nf = p.y + HALF_H;
-        for (const b of world.buildings) if (ovX(p.x, PW - 6, b.x, b.w) && prevFeet <= b.top + 1 && nf >= b.top) {
+        for (const b of [...world.buildings, ...world.blocks]) if (ovX(p.x, PW - 6, b.x, b.w) && prevFeet <= b.top + 1 && nf >= b.top) {
           a.cool = 0.4; p.anchor = null; land(b.top, b); break;
         }
       }
@@ -1362,14 +1500,28 @@ function playerUpdate(dt) {
       else if (input.swingHeld && p.target) { Sound.fx.grind(false); attach(p.target); }
     }
   } else if (p.state === "wall") {
-    const b = p.wallB;
-    p.wallT -= dt; p.vy += G * 0.9 * dt; p.y += p.vy * dt; p.x = b.x - PW / 2 - 0.5;
-    if (Math.random() < 0.6) FX.sparks(p.x + PW / 2, p.y + HALF_H, -0.5, 1, 1);
-    if (p.y + HALF_H <= b.top + 4) {
-      p.x = b.x + 4; p.vx = base * 0.85; land(b.top, b);
-      FX.popup(p.x, b.top - 60, "WALLRUN!", "#4ff3ff", 0.9); addChain(); addFlow(8); award(50);
-    } else if (p.wallT <= 0 || p.vy > 120) { p.state = "air"; p.vx = -70; p.jumpCut = true; }
-    else if (p.jumpBuf > 0) { p.jumpBuf = 0; p.vy = Math.min(p.vy, -700); }
+    const b = p.wallB, dir = p.wallDir, ph = p.y - HALF_H, pf = p.y + HALF_H;
+    p.wallT -= dt;
+    p.vy += G * (p.wallRun || p.vy < 0 ? 0.9 : 0.5) * dt;
+    if (!p.wallRun) p.vy = Math.min(p.vy, 280);                     // sliding down the wall
+    p.y += p.vy * dt;
+    p.x = dir > 0 ? b.x - PW / 2 - 0.5 : b.x + b.w + PW / 2 + 0.5;
+    ceilCheck(ph);
+    if (Math.random() < 0.6) FX.sparks(p.x + dir * PW / 2, p.y + HALF_H, -0.5 * dir, 1, 1);
+    if (p.y + HALF_H <= b.top + 4) {                                  // over the top: up onto the roof
+      p.x = dir > 0 ? b.x + 4 : b.x + b.w - 4; p.vx = base * (dir > 0 ? 0.85 : 0.5); land(b.top, b);
+      FX.popup(p.x, b.top - 60, p.wallRun ? "WALLRUN!" : "HOCH!", "#4ff3ff", 0.9); addChain(); addFlow(8); award(50);
+    } else if (p.y - HALF_H > p.wallBot) { p.state = "air"; p.vx = -dir * 60; p.jumpCut = true; } // slid off the bottom of a block
+    else if (p.vy > 0 && landOnTops(pf, p.y + HALF_H)) { /* slid down onto a roof */ }
+    else if (p.jumpBuf > 0) {
+      p.jumpBuf = 0;
+      if (oppositeWall(p, dir)) wallKick();                           // across to the facing wall
+      else if (p.wallRun) p.vy = Math.min(p.vy, -700);                // a single wall: one more push upwards
+      else { p.state = "air"; p.vx = -dir * 320; p.vy = -720; p.jumpCut = true; p.face = -dir; p.kickT = 0.15; } // hop off
+    } else if (p.wallRun && (p.wallT <= 0 || p.vy > 120)) {            // the run up the wall is spent
+      if (oppositeWall(p, dir)) { p.wallRun = false; p.wallT = 0.8; } // in a light well: hang on and slide
+      else { p.state = "air"; p.vx = -dir * 70; p.jumpCut = true; }
+    } else if (!p.wallRun && p.wallT <= 0) { p.state = "air"; p.vx = -dir * 80; p.jumpCut = true; } // let go
   }
 
   // ---- obstacles & pickups (all live states) ----
@@ -1404,6 +1556,9 @@ function playerUpdate(dt) {
   const sp = Math.hypot(p.vx, p.vy);
   if (p.dashT <= 0) run.topSpeed = Math.max(run.topSpeed, Math.max(0, p.vx));
   p.lean = lerp(p.lean, clamp(p.vx / 1400, 0, 0.5), Math.min(1, dt * 6));
+  if (p.state === "wall") p.face = p.wallDir;
+  else if (p.state === "air") { if (p.vx < -40) p.face = -1; else if (p.vx > 40) p.face = 1; }
+  else if (p.state !== "dead") p.face = 1;
   if (p.y > TOP_MAX + 520) die("fall");
   return sp;
 }
@@ -1518,7 +1673,7 @@ function enemyContacts(p, dt) {
     }
     if ((p.vy > 0 && bot < d.y + 8) || p.diving || run.od > 0) {
       killDrone(d, true);
-      if (!p.diving && p.state !== "swing" && p.state !== "grind") { p.state = "air"; p.vy = -860; p.airJumps = 1; p.airDash = 1; p.jumpCut = true; }
+      if (!p.diving && p.state !== "swing" && p.state !== "grind") { p.state = "air"; p.vy = -860; p.airJumps = AIRJ; p.airDash = 1; p.jumpCut = true; }
       FX.popup(d.x, d.y - 30, "STOMP!", "#ffd23f", 0.9, false);
     } else { destroyEnemy(d, "drone", "crash"); crash(d.x, d.y, "CRASH!"); }
   }
@@ -1530,7 +1685,7 @@ function enemyContacts(p, dt) {
     if (run.od > 0 || p.diving) { destroyEnemy(g, "guard", "slam"); FX.popup(g.x, head - 20, "SMASH!", "#ffd23f", 0.9, false); continue; }
     if (p.vy > 0 && bot - p.vy * dt <= head + 10) { // came down on its head
       destroyEnemy(g, "guard", "stomp");
-      if (p.state !== "swing" && p.state !== "grind") { p.state = "air"; p.vy = -860; p.airJumps = 1; p.airDash = 1; p.jumpCut = true; }
+      if (p.state !== "swing" && p.state !== "grind") { p.state = "air"; p.vy = -860; p.airJumps = AIRJ; p.airDash = 1; p.jumpCut = true; }
       FX.popup(g.x, head - 24, "STOMP!", "#ffd23f", 0.9, false);
     } else { destroyEnemy(g, "guard", "crash"); crash(g.x, g.top - GUARD_H / 2, "CRASH!"); }
   }
@@ -1575,6 +1730,7 @@ function enemiesUpdate(dt) {
     b.life -= dt; b.x += b.vx * dt;
     for (const bd of world.buildings) if (b.x > bd.x && b.x < bd.x + bd.w && b.y > bd.top) { b.life = 0; break; }
     if (b.life > 0) for (const bx of world.boxes) if (!bx.hit && b.x > bx.x && b.x < bx.x + bx.w && b.y > bx.top) { b.life = 0; break; }
+    if (b.life > 0) for (const k of world.blocks) if (b.x > k.x && b.x < k.x + k.w && b.y > k.top && b.y < k.bot) { b.life = 0; break; }
     if (b.life <= 0) { FX.sparks(b.x, b.y, b.vx > 0 ? -1 : 1, -0.4, 6); continue; }
     if (!b.refl) continue;
     // a countered bolt takes out whatever it meets
@@ -2264,6 +2420,109 @@ function drawBoomRail(r, time, pulse) {
   grindEdge(r, pulse, 1.4);
 }
 
+// ---- rooftop props: background silhouettes that make every roof a little different (not solid) ----
+const PROP_WORDS = ["BAR", "24H", "HOTEL", "RAMEN", "NEO", "OPEN", "VOLT", "KARAOKE"];
+function drawRoofProp(b, time, pulse) {
+  const z = ZONES[b.zi ?? zoneIndexAt(b.x) % ZONES.length], x = Math.round(b.x + b.w * b.propX), y = b.top;
+  const dark = mixHex(z.layers[0], z.rim, 0.14), hi = mixHex(z.layers[0], "#ffffff", 0.28), edge = rgba(z.rim, 0.45);
+  ctx.fillStyle = dark; ctx.strokeStyle = dark; ctx.lineCap = "butt";
+  switch (b.prop) {
+    case 1: { // water tank on stilts
+      ctx.lineWidth = 3; ctx.beginPath(); for (const o of [-18, -7, 7, 18]) { ctx.moveTo(x + o, y); ctx.lineTo(x + o * 0.8, y - 26); } ctx.stroke();
+      ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x - 18, y - 6); ctx.lineTo(x + 18, y - 20); ctx.moveTo(x + 18, y - 6); ctx.lineTo(x - 18, y - 20); ctx.stroke();
+      ctx.fillRect(x - 24, y - 70, 48, 44); ctx.beginPath(); ctx.ellipse(x, y - 70, 24, 9, 0, Math.PI, TAU); ctx.fill();
+      ctx.fillStyle = hi; ctx.fillRect(x - 24, y - 58, 48, 2); ctx.fillRect(x - 24, y - 40, 48, 2); ctx.fillRect(x + 16, y - 70, 3, 44);
+      ctx.strokeStyle = edge; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(x, y - 70, 24, 9, 0, Math.PI, TAU); ctx.lineTo(x + 24, y - 26); ctx.lineTo(x - 24, y - 26); ctx.lineTo(x - 24, y - 70); ctx.stroke();
+      blinkLight(x, y - 82, time, b.n * 0.37, "#ff2e63");
+      break;
+    }
+    case 2: { // satellite dish
+      ctx.lineWidth = 3; line(x, y, x, y - 22);
+      ctx.save(); ctx.translate(x + 4, y - 30); ctx.rotate(-0.55);
+      ctx.beginPath(); ctx.ellipse(0, 0, 17, 7, 0, 0, Math.PI); ctx.fill();
+      ctx.strokeStyle = edge; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(0, 0, 17, 7, 0, 0, Math.PI); ctx.closePath(); ctx.stroke();
+      ctx.strokeStyle = dark; ctx.beginPath(); ctx.moveTo(-12, 3); ctx.lineTo(0, -16); ctx.lineTo(12, 3); ctx.stroke();
+      ctx.restore();
+      break;
+    }
+    case 3: { // AC units with turning fans
+      for (const [ox, w, h] of [[-32, 28, 18], [2, 32, 22]]) {
+        ctx.fillStyle = dark; ctx.fillRect(x + ox, y - h, w, h);
+        ctx.fillStyle = hi; ctx.fillRect(x + ox, y - h, w, 2);
+        const cx = x + ox + w / 2, cy = y - h / 2, r = h * 0.32, a = time * 9 + ox;
+        ctx.strokeStyle = hi; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); ctx.lineTo(cx - Math.cos(a) * r, cy - Math.sin(a) * r); ctx.stroke();
+      }
+      break;
+    }
+    case 4: { // stairwell hut with a lit door
+      ctx.fillRect(x - 24, y - 38, 48, 38); ctx.fillRect(x - 27, y - 41, 54, 4);
+      ctx.fillStyle = "#ffcf7a"; ctx.globalAlpha = 0.85; ctx.fillRect(x - 6, y - 26, 12, 26); ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 0.5; ctx.drawImage(Art.glow("#ffb347"), x - 20, y - 34, 40, 40); ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+      break;
+    }
+    case 5: { // neon letters on a frame
+      const word = PROP_WORDS[b.n % PROP_WORDS.length], col = z.win[b.n % 3];
+      ctx.font = '22px "Dela Gothic One", Impact, sans-serif'; ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+      const w = ctx.measureText(word).width;
+      ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x - w / 2 + 4, y); ctx.lineTo(x - w / 2 + 4, y - 22); ctx.moveTo(x + w / 2 - 4, y); ctx.lineTo(x + w / 2 - 4, y - 22);
+      ctx.moveTo(x - w / 2, y - 22); ctx.lineTo(x + w / 2, y - 22); ctx.moveTo(x - w / 2 + 4, y - 4); ctx.lineTo(x + w / 2 - 4, y - 18); ctx.stroke();
+      const fl = Math.sin(time * 1.3 + b.n) > 0.96 ? 0.25 : 0.9 + pulse * 0.1;
+      ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 0.45 * fl; ctx.drawImage(Art.glow(col), x - w * 0.75, y - 58, w * 1.5, 50);
+      ctx.globalAlpha = fl; ctx.fillStyle = col; ctx.fillText(word, x, y - 25); ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+      break;
+    }
+    case 6: { // solar panels
+      for (let i = -1; i <= 1; i++) {
+        const px = x + i * 30;
+        ctx.fillStyle = dark; ctx.fillRect(px - 1, y - 10, 3, 10);
+        ctx.beginPath(); ctx.moveTo(px - 13, y - 8); ctx.lineTo(px + 13, y - 20); ctx.lineTo(px + 15, y - 15); ctx.lineTo(px - 11, y - 3); ctx.closePath();
+        ctx.fillStyle = mixHex("#1d2a6b", z.layers[0], 0.4); ctx.fill(); ctx.strokeStyle = hi; ctx.lineWidth = 1; ctx.stroke();
+      }
+      break;
+    }
+  }
+}
+// ---- floating towers: the hall underneath (pillars, light strip), the tower itself and its concrete slab ----
+function drawBlock(k, time, pulse, T, B) {
+  const z = ZONES[zoneIndexAt(k.x) % ZONES.length];
+  if (k.floor != null && k.floor > k.bot) {
+    const hh = k.floor - k.bot;
+    const g = ctx.createLinearGradient(0, k.bot, 0, k.floor);
+    g.addColorStop(0, "#05030f"); g.addColorStop(1, mixHex(z.bld, z.layers[0], 0.5));
+    ctx.fillStyle = g; ctx.fillRect(k.x, k.bot, k.w, hh);
+    for (let x = k.x + 30; x < k.x + k.w - 40; x += 74) { ctx.fillStyle = rgba(z.win[(x / 74 | 0) % 3], 0.22); ctx.fillRect(x, k.bot + 34, 30, 18); } // shop windows at the back
+    ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = rgba(z.rim, 0.55 + pulse * 0.3); ctx.fillRect(k.x + 8, k.bot + 2, k.w - 16, 3);
+    ctx.globalAlpha = 0.25; ctx.drawImage(Art.glow(z.rim), k.x, k.bot - 10, k.w, 40); ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+    ctx.fillStyle = "#0b0818"; // pillars at the ends and every so often
+    const n = Math.max(1, Math.round(k.w / 170));
+    for (let i = 0; i <= n; i++) { const px = lerp(k.x + 2, k.x + k.w - 16, i / n); ctx.fillRect(px, k.bot, 14, hh); }
+  }
+  const face = Art.facade(k), h = Math.min(Art.FACE_H, k.bot - k.top);
+  if (h > 1) ctx.drawImage(face, 0, 0, k.w, h, k.x, k.top, k.w, h);
+  if (k.bot - k.top > Art.FACE_H) { ctx.fillStyle = "#000"; ctx.fillRect(k.x, k.top + Art.FACE_H - 1, k.w, k.bot - k.top - Art.FACE_H + 1); }
+  ctx.fillStyle = "#1b1536"; ctx.fillRect(k.x - 4, k.bot - 9, k.w + 8, 10); ctx.fillStyle = "#2c2457"; ctx.fillRect(k.x - 4, k.bot - 9, k.w + 8, 2);
+  ctx.fillStyle = z.rim; ctx.globalAlpha = 0.7 + pulse * 0.3; ctx.fillRect(k.x, k.top - 2, k.w, 4);
+  ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 0.18 + pulse * 0.22;
+  ctx.drawImage(Art.glow(z.rim), k.x - 16, k.top - 18, k.w + 32, 36);
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+}
+// neon chevrons on both walls of a light well: a light runs up them, this is the way
+function drawWellPaint(b, time) {
+  const xs = [b.x + 13, b.well - 13], y0 = b.wellFloor - 150, y1 = b.top + 40;
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  let i = 0;
+  for (let y = y0; y > y1; y -= 82, i++) {
+    const k = 0.25 + 0.75 * Math.max(0, Math.sin(time * 5 - i * 0.9));
+    for (const x of xs) {
+      ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 0.35 * k; ctx.drawImage(Art.glow("#4ff3ff"), x - 16, y - 16, 32, 32);
+      ctx.globalAlpha = 0.5 + 0.5 * k; ctx.strokeStyle = "#4ff3ff"; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(x - 8, y + 5); ctx.lineTo(x, y - 4); ctx.lineTo(x + 8, y + 5); ctx.stroke();
+    }
+  }
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over"; ctx.lineCap = "butt";
+}
+
 function drawWorld(time, pulse, L, R, T, B) {
   // ---- Haken-Gerüste (Kräne, Masten, Schilder) hinter den Gebäuden ----
   for (const a of world.anchors) {
@@ -2286,7 +2545,11 @@ function drawWorld(time, pulse, L, R, T, B) {
     ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 0.18 + pulse * 0.22;
     ctx.drawImage(Art.glow(z.rim), b.x - 16, b.top - 18, b.w + 32, 36);
     ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+    if (b.prop && b.w >= 300) drawRoofProp(b, time, pulse);
   }
+  // ---- towers over arcades, then the paint on the walls of the light wells ----
+  for (const k of world.blocks) { if (k.x > R || k.x + k.w < L || k.top > B || k.floor < T) continue; drawBlock(k, time, pulse, T, B); }
+  for (const b of world.buildings) if (b.well != null && b.x + 40 > L && b.well - 40 < R) drawWellPaint(b, time);
   // ---- rails ----
   for (const r of world.rails) {
     if (r.x2 + 160 < L || r.x1 - 60 > R) continue;
@@ -3796,6 +4059,7 @@ function playerQuery(p) {
 }
 // squash & stretch spring: landings squash, take-offs and rope snaps stretch, then it wobbles back
 const sq = { v: 0, vel: 0, land: 0, jump: 0, attach: 0, pump: 0, dash: 0 };
+let pTurn = 0; const DRAW_P = C3.poseNew(); // the drawn pose = rig pose + turning round to face left
 function animatePlayer(dt, time) {
   const p = player, prev = pRig.ph, wasRun = pRig.mode === "run";
   if (p.landN !== sq.land) { sq.land = p.landN; sq.vel -= 1.6 + 4.6 * p.landK; }
@@ -3804,7 +4068,9 @@ function animatePlayer(dt, time) {
   if (p.pumpN !== sq.pump) { sq.pump = p.pumpN; sq.vel -= 2; }
   if (p.dashN !== sq.dash) { sq.dash = p.dashN; sq.vel -= 3.2; } // dash: flatten and stretch along the motion
   if (dt > 0) { sq.vel += (-200 * sq.v - 17 * sq.vel) * dt; sq.v = clamp(sq.v + sq.vel * dt, -0.28, 0.24); }
-  const q = playerQuery(p), P = C3.rig3Update(pRig, q, dt, time, pInst.mesh.D);
+  const q = playerQuery(p), P = C3.poseCopy(C3.rig3Update(pRig, q, dt, time, pInst.mesh.D), DRAW_P);
+  if (dt > 0) pTurn = lerp(pTurn, p.face < 0 && p.state !== "dead" ? Math.PI : 0, Math.min(1, dt * 18));
+  P.spinY += pTurn;
   const airS = p.state === "air" && p.flipT <= 0 ? clamp(Math.abs(p.vy) / 3800, 0, 0.09) : 0;
   const s = sq.v + airS;
   P.sy = 1 + s; P.sx = 1 - s * 0.5;
@@ -4151,7 +4417,7 @@ document.querySelector(".hud-left").appendChild(ghostLine);
 const fmt = (n) => Math.round(n).toLocaleString("de-DE");
 
 // ---------- best + ghost (this browser only) ----------
-const bestKey = "best_" + SEED, ghostKey = "ghost2_" + SEED; // ghost2: the level layout changed with the enemies update
+const bestKey = "best_" + SEED, ghostKey = "ghost3_" + SEED; // ghost3: the level layout changed with light wells, arcades and stepped towers
 let bestToday = store.get(bestKey, { dist: 0, score: 0 });
 let ghost = store.get(ghostKey, null);   // { d: [x,y,st,ang, ...], step }
 const ST_CODE = { run: 0, air: 1, swing: 2, grind: 3, wall: 4, dead: 1 }, ST_NAME = ["run", "air", "swing", "grind", "wall", "dash"];
@@ -4221,6 +4487,7 @@ const HINTS = IS_TOUCH ? {
   pump: "Am Seil links <kbd>tippen</kbd> = Schwung holen · unten am stärksten",
   dash: "Nach rechts <kbd>wischen</kbd> = DASH · zerlegt Drohnen und Wächter",
   spike: "Stachel-Drohne: nicht draufspringen · <kbd>DASH</kbd> durch!",
+  wall: "An der Wand links <kbd>tippen</kbd> = Walljump zur Gegenwand",
 } : {
   jump: "<kbd>LEER</kbd> springen · nochmal in der Luft = Doppelsprung",
   swing: "<kbd>J</kbd> oder <kbd>MAUS</kbd> halten = Seil an den Haken",
@@ -4229,11 +4496,12 @@ const HINTS = IS_TOUCH ? {
   pump: "Am Seil <kbd>LEER</kbd> = Schwung holen · unten am stärksten",
   dash: "<kbd>D</kbd> <kbd>→</kbd> oder <kbd>SHIFT</kbd> = DASH · zerlegt Drohnen und Wächter",
   spike: "Stachel-Drohne: nicht draufspringen · <kbd>DASH</kbd> durch!",
+  wall: "An der Wand <kbd>LEER</kbd> = Walljump zur Gegenwand",
 };
 let hintShown = {}, hintT = 0, zoneShownIdx = 0, zoneT = 0;
 const tutDone = () => store.get("tut", false);
 let pumpTutDone = store.get("pumpTut", false);
-let dashTutDone = store.get("dashTut", false), spikeTutDone = store.get("spikeTut", false);
+let dashTutDone = store.get("dashTut", false), spikeTutDone = store.get("spikeTut", false), wallTutDone = store.get("wallTut", false);
 function showHint(key, dur = 3.2, force = false) {
   if (hintShown[key] || (tutDone() && !force)) return;
   hintShown[key] = true; ui.hint.innerHTML = HINTS[key]; ui.hint.classList.remove("fade"); hintT = dur;
@@ -4318,8 +4586,10 @@ function botThink() {
   let swing = false;
   input.jumpSrc.delete("bot");
   if (p.state === "run") {
-    const edge = !ahead || (here && ahead !== here && ahead.top < here.top - 8);
-    if (ready && botFoe(p, 24, 175, 36)) input.dashPressed = true;
+    const ceil = blockAbove(p.x + 30, p.y - HALF_H, 170);                  // in an arcade: no room to jump
+    const edge = !ahead || (!ceil && here && ahead !== here && ahead.top < here.top - 8);
+    const laserIn = ceil && world.lasers.some((l) => !l.hit && l.x > p.x && l.x - p.x < 150);
+    if (ready && (botFoe(p, 24, 175, 36) || laserIn)) input.dashPressed = true;
     else if (p.dashT <= 0) {
       const obst = world.boxes.some((b) => !b.hit && b.x > p.x && b.x - p.x < p.vx * 0.2) ||
         world.lasers.some((l) => !l.hit && l.x > p.x && l.x - p.x < p.vx * 0.2) ||
@@ -4331,15 +4601,22 @@ function botThink() {
   } else if (p.state === "air") {
     if (p.vy < 0) input.jumpSrc.add("bot");
     const below = roofAt(p.x + p.vx * 0.3);
-    if (ready && botFoe(p, 12, 205, 36)) input.dashPressed = true;
+    if (p.kickT > 0 || p.kickChain > 0) { /* mid wall-jump: let the kick carry */ }
+    else if (ready && botFoe(p, 12, 205, 36)) input.dashPressed = true;
     else if (p.dashT > 0) { /* let the dash play out */ }
     else if (p.target && (!below || p.y > below.top - 150) && !botLandsSafely(p)) swing = true;
     else if (ready && p.vy > -120 && !botLandsSafely(p) && botDashLands(p)) input.dashPressed = true; // rescue dash near the apex, not right off the edge
     else if (p.vy > 150 && p.airJumps > 0 && !botLandsSafely(p)) input.jumpPressed = true;
   } else if (p.state === "swing") {
-    const deg = (p.swingAngle * 180) / Math.PI;
+    const deg = (p.swingAngle * 180) / Math.PI, a = p.anchor;
     swing = !(deg > 42 && deg < 72 && p.vy < 0 && p.vx > 0) && p.swingT < 2.5;
-  } else if (p.state === "wall") input.jumpSrc.add("bot");
+    if (Math.abs(deg) < 14 && Math.hypot(p.vx, p.vy) < 700 && p.pumpCD <= 0) input.jumpPressed = true;  // weak swing: kick for momentum
+    if (a && a.kind === "drone" && a.hang > 1.2 && p.vx > 120 && (p.vy < 0 || a.hang > 1.5)) swing = false; // the drone is giving way: let go in time
+  } else if (p.state === "wall") {
+    const opp = oppositeWall(p, p.wallDir);
+    if (opp && (!p.wallRun || p.vy > -420)) input.jumpPressed = true;        // kick across the well
+    else if (!opp && p.wallRun && p.vy > -300) input.jumpPressed = true;    // single wall: push on up
+  }
   if (swing) input.swingSrc.add("bot"); else input.swingSrc.delete("bot");
 }
 
@@ -4363,8 +4640,9 @@ function step(dt) {
     if (run.od <= 0) { run.od = 0; run.flow = 0; FX.popup(player.x, player.y - 60, "ABGEKÜHLT", "#4ff3ff", 0.7); }
   }
   // the blackout
-  // while you hang on the rope the darkness slows down, so a long back-and-forth swing stays possible
-  const ws = baseSpeedAt(player.x) * (0.9 + 0.13 * Math.min(1, run.t / 150)) * (player.state === "swing" ? 0.55 : 1);
+  // while you hang on the rope or climb a light well the darkness slows down, so a long swing or a climb stays possible
+  const climbing = player.state === "wall" || player.kickChain > 0;    // a light well costs time too: the darkness slows down
+  const ws = baseSpeedAt(player.x) * (0.9 + 0.13 * Math.min(1, run.t / 150)) * (player.state === "swing" || climbing ? 0.55 : 1);
   run.wallX = Math.max(run.wallX + ws * dt, player.x - 1500);
   if (state === "play" && player.x - run.wallX < 0) die("wall");
   // ghost recording
@@ -4415,6 +4693,8 @@ function hudUpdate(rdt, gp) {
     if (!spikeTutDone && !hintShown.spike && world.drones.some((d) => d.alive && d.spike && d.x > player.x && d.x - player.x < 720)) {
       ui.hint.classList.add("fade"); hintT = 0; showHint("spike", 3.4, true); spikeTutDone = true; store.set("spikeTut", true);
     }
+    if (!wallTutDone && !hintShown.wall && (player.state === "wall" || world.blocks.some((k) => k.x - player.x < 320 && k.x + k.w > player.x)) &&
+        world.buildings.some((b) => b.well != null && b.x - player.x < 700 && b.x > player.x - 40)) { ui.hint.classList.add("fade"); hintT = 0; showHint("wall", 4, true); }
     if (!hintShown.dive && hintT <= 0 && run.dist > 120 && world.drones.some((d) => d.alive && !d.spike && d.x > player.x && d.x - player.x < 700)) showHint("dive", 3.4);
     if (hintShown.swing && run.firstSwing && hintT > 50) { hintT = 0.01; }
   }
