@@ -708,7 +708,17 @@ const addGuard = (x, roof) => world.guards.push({ x, top: roof, y: roof - GUARD_
 const addBox = (x, w, h, roof) => world.boxes.push({ x, w, h, top: roof - h, hit: false });
 const addLaser = (x, h, roof) => world.lasers.push({ x, h, top: roof - h, bottom: roof, hit: false, ph: RR(0, TAU) });
 const addPad = (x, roof) => world.pads.push({ x, w: 64, top: roof, used: 0 });
-const addRail = (x1, y1, x2, y2) => world.rails.push({ x1, y1, x2, y2 });
+// Grind-Stellen sind echte Objekte (kind): cable = Stromleitung zwischen zwei Dach-Masten,
+// pipe = Rohrbrücke aus dem Dach mit Stütze von der Straße, boom = Gitterausleger eines Raupenkrans auf dem nächsten Dach.
+// Die Oberkante (x1,y1) -> (x2,y2) bleibt die Grind-Fläche, die Physik ist dieselbe.
+const addRail = (x1, y1, x2, y2, o = {}) => world.rails.push({ x1, y1, x2, y2, kind: o.kind || "cable",
+  roof1: o.roof1 ?? y1 + 74, roof2: o.roof2 ?? y2 + 46, gapL: o.gapL ?? x1, gapR: o.gapR ?? x2, ph: RR(0, 1) });
+let lastRailKind = "";
+function railKind() { // nie zweimal hintereinander dasselbe (meistens)
+  let k;
+  do { const r = R(); k = r < 0.4 ? "cable" : r < 0.72 ? "pipe" : "boom"; } while (k === lastRailKind && R() < 0.7);
+  return (lastRailKind = k);
+}
 
 function coinLine(x1, x2, y, gap = 46) { for (let x = x1; x <= x2; x += gap) addCoin(x, y); }
 function coinArc(x1, y1, x2, y2, h, n) {
@@ -784,11 +794,11 @@ const PATTERNS = [
     const b = addBuilding(ax - sp * 0.35, RR(500, 820), nt);
     return [b.x + b.w, b.top];
   } },
-  // grind cable down to the next roof (gap still double-jumpable)
+  // grind line down to the next roof: power line, pipe bridge or crane boom (gap still double-jumpable)
   { w: (d) => 1.3, fn(x, top, v, d) {
     const gap = RR(0.9, 1.25) * v * 0.72;
     const nt = clamp(top + RR(40, 130), TOP_MIN, TOP_MAX);
-    addRail(x - RR(170, 230), top - 74, x + gap + RR(100, 160), nt - 46);
+    addRail(x - RR(170, 230), top - 74, x + gap + RR(100, 160), nt - 46, { kind: railKind(), roof1: top, roof2: nt, gapL: x, gapR: x + gap });
     const steps = 9;
     for (let i = 0; i <= steps; i++) {
       const t = i / steps, rx = lerp(x - 150, x + gap + 80, t);
@@ -886,7 +896,7 @@ function genPattern() {
 }
 
 function worldReset(seed) {
-  world.rng = mulberry32(seed); world.introDone = false;
+  world.rng = mulberry32(seed); world.introDone = false; lastAerialKind = ""; lastRailKind = "";
   for (const k of WORLD_KEYS) world[k] = [];
   const b = addBuilding(-900, 2200, 420);
   b.ant = -1;
@@ -1961,6 +1971,7 @@ function drawSky(time, pulse) {
 
 // ---- Haken-Objekte: Kran, Funkmast, Neon-Schild (hinter den Gebäuden) und Lastdrohne (davor) ----
 const SIGN_COLS = ["#ff2e63", "#4ff3ff", "#ffd23f", "#b86bff"];
+const roundBox = (x, y, w, h, r) => { ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x, y, w, h, r); else ctx.rect(x, y, w, h); };
 const STRUCT = "#2d2360", STRUCT_HI = "#5b4fa8"; // heller als die Dächer, damit Kran, Mast und Schild vor dem Himmel lesbar bleiben
 function latticeV(x, y0, y1, w, T, B) { // senkrechter Gittermast von y0 (oben) bis y1 (unten), nur der sichtbare Teil
   const ya = Math.max(y0, T - 60), yb = Math.min(y1, B + 60);
@@ -2043,7 +2054,7 @@ function drawAnchorFront(a, time, pulse, isT, act) {
     const rotCol = a.spent || warn ? "#ff2e63" : "#4ff3ff";
     ctx.fillStyle = STRUCT; ctx.strokeStyle = STRUCT; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.moveTo(dx - 34, dy - 7); ctx.lineTo(dx + 34, dy - 7); ctx.stroke(); // Rotorarme
-    ctx.beginPath(); ctx.roundRect(dx - 24, dy - 8, 48, 17, 6); ctx.fill();                 // Rumpf
+    roundBox(dx - 24, dy - 8, 48, 17, 6); ctx.fill();                                         // Rumpf
     ctx.fillStyle = STRUCT_HI; ctx.fillRect(dx - 20, dy - 4, 40, 3);
     for (const sx of [-34, 34]) { // Rotoren drehen sich als flirrende Scheibe
       ctx.fillStyle = "#1d1540"; ctx.fillRect(sx + dx - 2, dy - 12, 4, 6);
@@ -2068,6 +2079,139 @@ function drawAnchorFront(a, time, pulse, isT, act) {
     ctx.strokeStyle = load > 0.55 ? "#ff2e63" : "#ffd23f"; ctx.lineWidth = 4;
     ctx.beginPath(); ctx.arc(a.x, a.y, 20, -Math.PI / 2, -Math.PI / 2 + TAU * (1 - load)); ctx.stroke();
   }
+}
+
+// ---- Grind-Stellen ----
+function railFrame(r) {
+  const dx = r.x2 - r.x1, dy = r.y2 - r.y1, len = Math.hypot(dx, dy) || 1;
+  return { len, ux: dx / len, uy: dy / len, nx: -dy / len, ny: dx / len }; // n zeigt unter die Linie
+}
+function grindEdge(r, pulse, w = 1.6) { // die Lauffläche bekommt immer einen Neon-Schimmer: hier kann man grinden
+  ctx.lineCap = "round";
+  ctx.globalCompositeOperation = "lighter";
+  ctx.strokeStyle = rgba("#4ff3ff", 0.16 + pulse * 0.14); ctx.lineWidth = 9;
+  ctx.beginPath(); ctx.moveTo(r.x1, r.y1); ctx.lineTo(r.x2, r.y2); ctx.stroke();
+  ctx.globalCompositeOperation = "source-over";
+  ctx.strokeStyle = "#bffbff"; ctx.lineWidth = w;
+  ctx.beginPath(); ctx.moveTo(r.x1, r.y1); ctx.lineTo(r.x2, r.y2); ctx.stroke();
+}
+function drawCableRail(r, time, pulse) {
+  const ends = [[r.x1 + 3, r.y1, r.roof1], [r.x2 - 3, r.y2, r.roof2]];
+  ctx.lineCap = "butt";
+  // zwei weitere Leiter an den Traversen-Enden, die durchhängen (nur Deko, liegen unter dem Grind-Kabel)
+  const sag = 22 + Math.abs(r.x2 - r.x1) * 0.03;
+  ctx.strokeStyle = STRUCT_HI; ctx.lineWidth = 1.5;
+  for (const o of [-24, 24]) {
+    const ax = ends[0][0] + o, ay = ends[0][1] - 9, bx = ends[1][0] + o, by = ends[1][1] - 9;
+    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.quadraticCurveTo((ax + bx) / 2, (ay + by) / 2 + sag * 2, bx, by); ctx.stroke();
+  }
+  for (const [px, py, roof] of ends) {
+    ctx.strokeStyle = STRUCT; ctx.fillStyle = STRUCT;
+    ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(px, roof); ctx.lineTo(px, py - 40); ctx.stroke();   // Mast
+    ctx.fillRect(px - 10, roof - 5, 20, 5);                                                           // Fußplatte
+    ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(px - 29, py - 26); ctx.lineTo(px + 29, py - 26); ctx.stroke(); // Traverse
+    ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(px - 18, py - 26); ctx.lineTo(px, py - 38); ctx.lineTo(px + 18, py - 26); ctx.stroke();
+    ctx.fillStyle = STRUCT_HI; // Isolatoren: kleine Porzellanteller
+    for (const ix of [-24, 0, 24]) for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.ellipse(px + ix, py - 21 + k * 5, 5, 1.8, 0, 0, TAU); ctx.fill(); }
+    ctx.strokeStyle = STRUCT; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(px, py - 9); ctx.lineTo(px, py); ctx.stroke();
+    blinkLight(px, py - 42, time, r.ph * TAU + px);
+  }
+  // Warnschild am ersten Mast, Trafokasten am zweiten
+  const sx = ends[0][0], sy = (r.roof1 + r.y1) / 2 + 6;
+  ctx.fillStyle = "#ffd23f"; ctx.beginPath(); ctx.moveTo(sx, sy - 9); ctx.lineTo(sx + 9, sy + 7); ctx.lineTo(sx - 9, sy + 7); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = "#0b0818"; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.moveTo(sx + 1.5, sy - 4); ctx.lineTo(sx - 2, sy + 1.5); ctx.lineTo(sx + 2, sy + 1.5); ctx.lineTo(sx - 1.5, sy + 6); ctx.stroke();
+  const tx = ends[1][0], ty = (r.roof2 + r.y2) / 2 - 4;
+  ctx.fillStyle = STRUCT; ctx.fillRect(tx + 3, ty - 11, 15, 22);
+  ctx.fillStyle = STRUCT_HI; for (let k = 0; k < 3; k++) ctx.fillRect(tx + 5, ty - 7 + k * 6, 11, 2);
+  // das Grind-Kabel selbst, mit Stromimpulsen, die darüber laufen
+  ctx.strokeStyle = "#1d1540"; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(r.x1, r.y1); ctx.lineTo(r.x2, r.y2); ctx.stroke();
+  grindEdge(r, pulse, 1.8);
+  ctx.globalCompositeOperation = "lighter";
+  const gl = Art.glow("#4ff3ff");
+  for (let i = 0; i < 3; i++) {
+    const k = (time * 0.45 + i / 3 + r.ph) % 1;
+    ctx.globalAlpha = Math.sin(k * Math.PI) * 0.9; ctx.drawImage(gl, lerp(r.x1, r.x2, k) - 12, lerp(r.y1, r.y2, k) - 12, 24, 24);
+  }
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+}
+function drawPipeRail(r, time, pulse, T, B) {
+  const f = railFrame(r), rad = 7;
+  const c1x = r.x1 + f.nx * rad, c1y = r.y1 + f.ny * rad, c2x = r.x2 + f.nx * rad, c2y = r.y2 + f.ny * rad;
+  // Stütze von der Straße in der Mitte der Lücke, mit Rohrsattel
+  const gx = (r.gapL + r.gapR) / 2, gy = railY(r, gx) + rad * 2 + 2;
+  ctx.lineCap = "butt"; ctx.strokeStyle = STRUCT; ctx.lineWidth = 2.5; latticeV(gx, gy, ANCHOR_GROUND, 16, T, B);
+  ctx.fillStyle = STRUCT; ctx.fillRect(gx - 17, gy - 4, 34, 6);
+  // Rohr: steigt aus dem Dach, quert die Lücke, taucht ins nächste Dach ab
+  const path = () => { ctx.beginPath(); ctx.moveTo(c1x, r.roof1 + 2); ctx.lineTo(c1x, c1y); ctx.lineTo(c2x, c2y); ctx.lineTo(c2x, r.roof2 + 2); };
+  ctx.lineJoin = "round";
+  ctx.strokeStyle = "#0b0818"; ctx.lineWidth = rad * 2 + 3; path(); ctx.stroke();
+  ctx.strokeStyle = STRUCT; ctx.lineWidth = rad * 2; path(); ctx.stroke();
+  ctx.lineJoin = "miter";
+  ctx.strokeStyle = STRUCT_HI; ctx.lineWidth = 3; // Glanzlicht auf der Oberseite
+  ctx.beginPath(); ctx.moveTo(c1x - f.nx * 3.5, c1y - f.ny * 3.5); ctx.lineTo(c2x - f.nx * 3.5, c2y - f.ny * 3.5); ctx.stroke();
+  // Flansche
+  ctx.lineWidth = 5; const nF = Math.max(1, Math.floor(f.len / 120));
+  for (let i = 1; i <= nF; i++) {
+    const t = i / (nF + 1), fx = lerp(c1x, c2x, t), fy = lerp(c1y, c2y, t);
+    ctx.beginPath(); ctx.moveTo(fx - f.nx * (rad + 2), fy - f.ny * (rad + 2)); ctx.lineTo(fx + f.nx * (rad + 2), fy + f.ny * (rad + 2)); ctx.stroke();
+  }
+  ctx.fillStyle = STRUCT; ctx.fillRect(c1x - 12, r.roof1 - 6, 24, 6); ctx.fillRect(c2x - 12, r.roof2 - 6, 24, 6); // Dachdurchführungen
+  // rotes Absperrventil am Steigrohr
+  const vx = c1x, vy = (r.roof1 + c1y) / 2 + 4;
+  ctx.strokeStyle = "#ff2e63"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(vx, vy, 8, 0, TAU); ctx.stroke();
+  ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(vx - 8, vy); ctx.lineTo(vx + 8, vy); ctx.moveTo(vx, vy - 8); ctx.lineTo(vx, vy + 8); ctx.stroke();
+  grindEdge(r, pulse, 1.4);
+  // Dampf aus einer undichten Stelle in der Mitte
+  const sx = lerp(c1x, c2x, 0.5) - f.nx * rad, sy = lerp(c1y, c2y, 0.5) - f.ny * rad;
+  for (let i = 0; i < 4; i++) {
+    const k = (time * 0.55 + i / 4 + r.ph) % 1;
+    ctx.fillStyle = rgba("#cfc6ff", (1 - k) * 0.38);
+    ctx.beginPath(); ctx.arc(sx + k * 14, sy - k * 46, 4 + k * 12, 0, TAU); ctx.fill();
+  }
+}
+function drawBoomRail(r, time, pulse) {
+  const f = railFrame(r), segs = Math.max(6, Math.round(f.len / 28));
+  const depth = (t) => 17 * clamp(Math.min(t / 0.18, (1 - t) / 0.12), 0.35, 1); // Gitterausleger, zu den Enden hin schmaler
+  const tp = [], bt = [];
+  for (let i = 0; i <= segs; i++) {
+    const t = i / segs, x = lerp(r.x1, r.x2, t), y = lerp(r.y1, r.y2, t), d = depth(t);
+    tp.push([x, y + 1.5]); bt.push([x + f.nx * d, y + 1.5 + f.ny * d]);
+  }
+  // Raupenkran auf dem nächsten Dach: der Ausleger sitzt mit dem Fuß auf dem Oberwagen
+  const px = r.x2, gr = r.roof2, bx = px + 38, gx = bx + 14, gy = gr - 92;
+  ctx.lineCap = "butt"; ctx.fillStyle = STRUCT; ctx.strokeStyle = STRUCT;
+  ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(bx + 2, gr - 38); ctx.lineTo(gx, gy); ctx.lineTo(bx + 30, gr - 38); ctx.stroke(); // A-Bock
+  roundBox(bx - 48, gr - 15, 96, 15, 7); ctx.fill();                                     // Raupen
+  ctx.fillStyle = STRUCT_HI; for (let k = -36; k <= 36; k += 18) { ctx.beginPath(); ctx.arc(bx + k, gr - 7.5, 4, 0, TAU); ctx.fill(); }
+  ctx.fillStyle = STRUCT; ctx.fillRect(bx - 40, gr - 38, 82, 23);                          // Oberwagen
+  ctx.fillRect(bx - 38, gr - 58, 24, 21);                                                // Kabine
+  ctx.fillStyle = rgba("#4ff3ff", 0.55); ctx.fillRect(bx - 34, gr - 54, 14, 9);
+  ctx.fillStyle = "#1b1536"; ctx.fillRect(bx + 22, gr - 46, 26, 26);                      // Gegengewicht mit Warnstreifen
+  ctx.save(); ctx.beginPath(); ctx.rect(bx + 22, gr - 46, 26, 26); ctx.clip();
+  ctx.strokeStyle = "#ffd23f"; ctx.lineWidth = 3;
+  for (let k = -26; k < 30; k += 9) { ctx.beginPath(); ctx.moveTo(bx + 22 + k, gr - 20); ctx.lineTo(bx + 48 + k, gr - 46); ctx.stroke(); }
+  ctx.restore();
+  ctx.fillStyle = STRUCT; ctx.beginPath(); ctx.moveTo(px - 4, r.y2 + 4); ctx.lineTo(px + 12, gr - 37); ctx.lineTo(px - 8, gr - 37); ctx.fill(); // Fußgelenk
+  // Abspannung vom A-Bock zur Auslegerspitze
+  ctx.strokeStyle = STRUCT_HI; ctx.lineWidth = 1.3;
+  ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(r.x1 + f.ux * 26, r.y1 + f.uy * 26 - 3); ctx.stroke();
+  blinkLight(gx, gy - 4, time, r.ph * TAU, "#ff8a3d");
+  // Ausleger: Untergurt, Diagonalen, Obergurt
+  ctx.strokeStyle = STRUCT; ctx.lineWidth = 1.6; ctx.beginPath();
+  for (let i = 0; i < segs; i++) { const a = i & 1 ? tp[i] : bt[i], b = i & 1 ? bt[i + 1] : tp[i + 1]; ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); }
+  ctx.moveTo(tp[0][0], tp[0][1]); ctx.lineTo(bt[0][0], bt[0][1]); ctx.moveTo(tp[segs][0], tp[segs][1]); ctx.lineTo(bt[segs][0], bt[segs][1]);
+  ctx.stroke();
+  ctx.lineWidth = 3.5;
+  for (const ch of [bt, tp]) { ctx.beginPath(); ctx.moveTo(ch[0][0], ch[0][1]); for (let i = 1; i <= segs; i++) ctx.lineTo(ch[i][0], ch[i][1]); ctx.stroke(); }
+  // Rolle an der Spitze mit kurzem Hakengeschirr
+  const tx = r.x1, ty = r.y1 + 6, hy = ty + 8 + Math.sin(time * 1.3 + r.ph * TAU) * 1.5;
+  ctx.fillStyle = STRUCT; ctx.beginPath(); ctx.arc(tx, ty, 7, 0, TAU); ctx.fill();
+  ctx.fillStyle = STRUCT_HI; ctx.beginPath(); ctx.arc(tx, ty, 2.5, 0, TAU); ctx.fill();
+  ctx.strokeStyle = STRUCT; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(tx - 4, ty + 4); ctx.lineTo(tx - 4, hy); ctx.stroke();
+  ctx.fillStyle = STRUCT; ctx.fillRect(tx - 10, hy, 12, 8);
+  ctx.strokeStyle = STRUCT_HI; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(tx - 4, hy + 13, 4.5, -0.3, Math.PI + 0.9); ctx.stroke();
+  grindEdge(r, pulse, 1.4);
 }
 
 function drawWorld(time, pulse, L, R, T, B) {
@@ -2095,15 +2239,12 @@ function drawWorld(time, pulse, L, R, T, B) {
   }
   // ---- rails ----
   for (const r of world.rails) {
-    if (r.x2 < L || r.x1 > R) continue;
-    ctx.strokeStyle = "#0a0716"; ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.moveTo(r.x1 + 10, r.y1); ctx.lineTo(r.x1 + 10, r.y1 + 80); ctx.moveTo(r.x2 - 10, r.y2); ctx.lineTo(r.x2 - 10, r.y2 + 50); ctx.stroke();
-    ctx.globalCompositeOperation = "lighter";
-    ctx.strokeStyle = rgba("#4ff3ff", 0.25 + pulse * 0.2); ctx.lineWidth = 12;
-    ctx.beginPath(); ctx.moveTo(r.x1, r.y1); ctx.lineTo(r.x2, r.y2); ctx.stroke();
-    ctx.globalCompositeOperation = "source-over";
-    ctx.strokeStyle = "#bffbff"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(r.x1, r.y1); ctx.lineTo(r.x2, r.y2); ctx.stroke();
+    if (r.x2 + 160 < L || r.x1 - 60 > R) continue;
+    if (r.kind === "pipe") drawPipeRail(r, time, pulse, T, B);
+    else if (r.kind === "boom") drawBoomRail(r, time, pulse);
+    else drawCableRail(r, time, pulse);
   }
+  ctx.lineCap = "butt";
   // ---- boost pads ----
   for (const pd of world.pads) {
     if (pd.x > R || pd.x + pd.w < L) continue;
