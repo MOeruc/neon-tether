@@ -22,4 +22,4 @@ Läuft als installierbare Web-App (PWA): Vollbild, eigenes Icon, funktioniert of
 
 ## Figuren
 
-Vier Figuren in Echtzeit-3D, jede mit eigenem Bewegungsstil: **Kage-X** (Cyber-Ninja, Shinobi-Lauf und Katana-Dash), **Vektor** (Daten-Avatar, Anime-Stil), **Titan** (Exo-Anzug mit Düsenschub) und **Aero** (City-Runner, Parkour). Auswahl im Startmenü unter „Charakter“.
+Vier Figuren in Echtzeit-3D, jede mit eigenem Bewegungsstil und eigenem Doppelsprung und Dash: **Kage-X** (Cyber-Ninja: Rauchbomben-Korkenzieher mit Schattendoppelgänger, Katana-Blitzschnitt), **Vektor** (Daten-Avatar: Absprung von einer Hologramm-Plattform, Dash als Pixel-Datenstrom), **Titan** (Exo-Anzug: Raketenschub aus Rucksack und Stiefeln, aufrechter Düsen-Dash) und **Aero** (City-Runner: Butterfly-Twist mit Lichtsohlen, Superman-Hechtsprung durch den Windkanal). Auswahl im Startmenü unter „Charakter“.

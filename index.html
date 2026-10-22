@@ -629,6 +629,40 @@ const Sound = (() => {
       if (k >= 2) [72, 76, 79].forEach((n, i) => osc("square", mtof(n + up * 2), t + 0.04 + i * 0.035, 0.18, 0.045, sfxBus));
     },
     reflect() { if (!ok()) return; const t = now(); osc("square", 1300, t, 0.08, 0.06, sfxBus, 2600); osc("triangle", 1900, t + 0.02, 0.3, 0.05, sfxBus); noise(t, 0.08, "highpass", 6000, 0.2, sfxBus); },
+    // ---- the four runners sound different on the double jump and the dash ----
+    rocket() { // Titan: jet ignition, a hiss opening up over a low thump
+      if (!ok()) return; const t = now();
+      noise(t, 0.55, "lowpass", 420, 0.55, sfxBus, 0.8, 3400); osc("sawtooth", 62, t, 0.4, 0.2, sfxBus, 170); kick(t, 0.75, sfxBus);
+    },
+    jet() { // Titan: the pack roars backwards
+      if (!ok()) return; const t = now();
+      noise(t, 0.4, "bandpass", 1600, 0.5, sfxBus, 0.9, 340); osc("sawtooth", 150, t, 0.3, 0.13, sfxBus, 55); kick(t, 0.5, sfxBus);
+    },
+    poof() { // Kage-X: smoke bomb
+      if (!ok()) return; const t = now();
+      noise(t, 0.3, "lowpass", 1900, 0.42, sfxBus, 0.7, 240); osc("triangle", 1100, t, 0.07, 0.04, sfxBus, 1700);
+    },
+    draw() { // Kage-X: blade leaving the sheath
+      if (!ok()) return; const t = now();
+      noise(t, 0.12, "highpass", 5200, 0.24, sfxBus); osc("sawtooth", 2300, t, 0.16, 0.045, sfxBus, 4300); osc("triangle", 3700, t + 0.03, 0.28, 0.035, sfxBus);
+    },
+    glitch() { // Vektor: digital air step
+      if (!ok()) return; const t = now();
+      for (let i = 0; i < 5; i++) osc("square", 300 + ((i * 397) % 1500), t + i * 0.022, 0.03, 0.05, sfxBus);
+      noise(t, 0.07, "highpass", 6500, 0.14, sfxBus); osc("sine", 520, t, 0.14, 0.08, sfxBus, 1250);
+    },
+    blink() { // Vektor: dissolving into a data stream
+      if (!ok()) return; const t = now();
+      osc("square", 1900, t, 0.17, 0.05, sfxBus, 110); for (let i = 0; i < 5; i++) osc("square", 700 + i * 260, t + i * 0.018, 0.022, 0.04, sfxBus);
+      noise(t, 0.16, "bandpass", 3000, 0.22, sfxBus, 2, 600);
+    },
+    squeak() { // Aero: sneaker kick-off
+      if (!ok()) return; const t = now();
+      osc("sine", 1900, t, 0.05, 0.05, sfxBus, 2800); noise(t, 0.24, "bandpass", 800, 0.24, sfxBus, 1.2, 2800);
+    },
+    gust() { // Aero: wind tunnel
+      if (!ok()) return; const t = now(); noise(t, 0.42, "bandpass", 450, 0.38, sfxBus, 0.9, 2600);
+    },
     charge() { if (ok()) osc("sine", 320, now(), 0.46, 0.05, sfxBus, 1150, 0.3); },
     shot() { if (!ok()) return; osc("square", 980, now(), 0.16, 0.06, sfxBus, 180); noise(now(), 0.1, "bandpass", 2400, 0.14, sfxBus, 2); },
     grind(on) {
@@ -1186,6 +1220,7 @@ function playerUpdate(dt) {
   if (p.state === "dead") { if (run.reason === "wall") return; p.vy += G * dt; p.vx *= 0.99; p.x += p.vx * dt; p.y += p.vy * dt; return; }
   const base = baseSpeedAt(p.x) * (run.od > 0 ? 1.3 : 1);
   p.flipT = p.state === "air" ? Math.max(0, p.flipT - dt) : 0;
+  if (p.flipT > 0) { const m = SKIN_MOVES[currentSkin.id]; if (m && m.djTick) m.djTick(p, 1 - p.flipT / FLIP_T); }
   p.landT += dt; p.jumpT += dt; p.attachT += dt; p.slamT += dt;
   p.rollT = p.state === "run" ? Math.max(0, p.rollT - dt) : 0;
   p.coyote -= dt; p.jumpBuf -= dt; p.stumbleT -= dt; p.squash = Math.max(0, p.squash - dt * 3);
@@ -1237,7 +1272,7 @@ function playerUpdate(dt) {
       else if (p.airJumps > 0) {
         if (p.dashT > 0) dashJump(base);
         p.jumpBuf = 0; p.airJumps--; p.vy = Math.min(p.vy, -800); p.jumpCut = false; p.diving = false; p.flipT = FLIP_T; p.jumpN++;
-        FX.ring(p.x, p.y + HALF_H, "#4ff3ff", 70); FX.burst(p.x, p.y + HALF_H, 8, "#4ff3ff", 180); Sound.fx.dj();
+        skinMove("dj");
       }
     }
     if (dive && !p.diving) { if (p.dashT > 0) endDash(false); p.diving = true; p.vy = Math.max(p.vy, 1350); FX.burst(p.x, p.y, 8, "#4ff3ff", 200); Sound.fx.zap(); }
@@ -1359,6 +1394,7 @@ function playerUpdate(dt) {
   }
   // ---- dash timer (after the contacts so the last frame of a dash still cuts) ----
   if (p.dashT > 0) {
+    skinMove("tick");
     if (p.state !== "run" && p.state !== "air") endDash(false);
     else if (p.dashT <= dt) endDash(true);
     else p.dashT -= dt;
@@ -1399,15 +1435,14 @@ function startDash() {
   if (p.dashStreak) p.dashStreak.live = false;
   p.dashStreak = FX.streak(p.x, p.y - 3, currentSkin.trail, 13);
   if (p.state === "run") FX.dust(p.x - 6, p.y + HALF_H, 7);
-  FX.burst(p.x - 10, p.y, 7, currentSkin.trail, 240); FX.shake(3.5);
-  Sound.fx.dash(); haptic(9);
+  skinMove("dash"); haptic(9);
 }
 // carry = the dash ran out by itself: keep some of the speed. Otherwise the caller sets the speed.
 function endDash(carry) {
   const p = player;
   if (p.dashStreak) { p.dashStreak.live = false; p.dashStreak = null; }
   if (p.dashT <= 0) return;
-  p.dashT = 0; p.dashEndT = 0;
+  p.dashT = 0; p.dashEndT = 0; skinMove("dashEnd");
   if (p.dashKills === 0) p.dashCombo = 0;   // a dash that cut nothing ends the kill streak
   if (carry && (p.state === "run" || p.state === "air")) {
     // a burst, not a new top speed: drop back to what you had, plus a little
@@ -1695,12 +1730,12 @@ const mkCanvas = (w, h) => { const c = document.createElement("canvas"); c.width
 
 // ================= FX =================
 const FX = (() => {
-  const parts = [], pops = [], rings = [], zips = [], slashes = [], streaks = [];
+  const parts = [], pops = [], rings = [], zips = [], slashes = [], streaks = [], glyphs = [];
   let shakeAmt = 0, flashA = 0, flashC = "#fff", impactT = 0, impactS = 0, slowT = 0, slowS = 1, ts = 1, hitT = 0;
   const MAXP = IS_TOUCH ? 260 : 520;
   function add(o) { if (parts.length >= MAXP) parts.shift(); parts.push(o); }
   const api = {
-    parts, pops, rings, zips, slashes, streaks,
+    parts, pops, rings, zips, slashes, streaks, glyphs,
     // a blade cut through a target: grows fast, then fades
     slash(x, y, ang, color, len = 90) { if (slashes.length > 10) slashes.shift(); slashes.push({ x, y, ang, color, len, life: 0.28, max: 0.28 }); },
     // the light trail of a dash: its head follows the runner until the dash ends, then it fades
@@ -1720,10 +1755,24 @@ const FX = (() => {
       for (let i = 0; i < n; i++) { const a = rand(-Math.PI, 0.2), s = rand(200, 650); add({ t: "debris", x, y, vx: Math.cos(a) * s + 200, vy: Math.sin(a) * s, life: rand(0.5, 1), max: 1, size: rand(3, 8), color: Math.random() < 0.5 ? color : "#ffffff", g: 1600, drag: 0.6, rot: rand(0, TAU), vr: rand(-14, 14) }); }
     },
     trail(x, y, color) { add({ t: "dot", x, y, vx: rand(-30, 30), vy: rand(-30, 30), life: 0.3, max: 0.3, size: rand(2, 3.5), color, g: 0, drag: 2 }); },
+    // soft coloured puffs that spread and drift up (exhaust, smoke bombs)
+    smoke(x, y, n, color, spread = 140, up = 30) {
+      for (let i = 0; i < n; i++) { const a = rand(0, TAU), s = rand(0.3, 1) * spread; add({ t: "dust", x: x + rand(-8, 8), y: y + rand(-6, 6), vx: Math.cos(a) * s, vy: Math.sin(a) * s * 0.45 - up, life: rand(0.45, 0.85), max: 0.85, size: rand(8, 16), color, g: -30, drag: 3.2 }); }
+    },
+    // square data bits; dir < 0 streams them backwards
+    pixels(x, y, n, dir = 0) {
+      for (let i = 0; i < n; i++) { const a = rand(0, TAU), s = rand(80, 320); add({ t: "dot", x: x + rand(-10, 10), y: y + rand(-18, 18), vx: Math.cos(a) * s * 0.5 + dir * rand(200, 420), vy: Math.sin(a) * s * 0.5, life: rand(0.25, 0.55), max: 0.55, size: rand(2.5, 5), color: Math.random() < 0.6 ? "#4ff3ff" : "#ff4fd8", g: 0, drag: 4 }); }
+    },
+    // speed lines rushing past; down > 0 blows them downwards (a kick-off gust)
+    wind(x, y, n, down = 0) {
+      for (let i = 0; i < n; i++) add({ t: "spark", x: x + rand(-30, 30), y: y + rand(-26, 26) * (down ? 0.4 : 1), vx: -rand(900, 1600) * (1 - down * 0.8), vy: rand(-40, 40) + down * rand(500, 900), life: rand(0.12, 0.22), max: 0.22, size: rand(1, 2), color: Math.random() < 0.5 ? "#ffffff" : "#bffcf6", g: 0, drag: 1 });
+    },
+    // a flat holographic hexagon to kick off from
+    glyph(x, y, c1, c2) { if (glyphs.length > 6) glyphs.shift(); glyphs.push({ x, y, c1, c2, life: 0.5, max: 0.5 }); },
     whoosh(x, y, vx, vy) {
       for (let i = 0; i < 7; i++) add({ t: "spark", x: x + rand(-14, 14), y: y + rand(-20, 20), vx: -vx * 0.3, vy: -vy * 0.3, life: rand(0.12, 0.24), max: 0.24, size: rand(1, 2), color: "#e9f6ff", g: 0, drag: 2 });
     },
-    ring(x, y, color, max) { rings.push({ x, y, r: 6, max, color, life: 0.4, maxLife: 0.4 }); },
+    ring(x, y, color, max, flat = 1) { rings.push({ x, y, r: 6, max, color, life: 0.4, maxLife: 0.4, flat }); }, // flat < 1 = a shockwave on the ground
     zip(x1, y1, x2, y2) { zips.push({ x1, y1, x2, y2, life: 0.14 }); },
     popup(x, y, text, color, scale = 1, follow = true) {
       if (pops.length > 8) pops.shift();
@@ -1745,7 +1794,7 @@ const FX = (() => {
     flash(c, a) { flashC = c; flashA = Math.max(flashA, settings.fx ? a : a * 0.35); },
     impact(s) { if (settings.fx) { impactT = 0.075; impactS = s; } else api.flash("#ffffff", 0.15); },
     slowmo(scale, dur) { slowS = Math.min(slowT > 0 ? slowS : 1, scale); slowT = Math.max(slowT, dur); },
-    clear() { parts.length = pops.length = rings.length = zips.length = slashes.length = streaks.length = 0; shakeAmt = flashA = impactT = slowT = hitT = 0; ts = slowS = 1; },
+    clear() { parts.length = pops.length = rings.length = zips.length = slashes.length = streaks.length = glyphs.length = 0; shakeAmt = flashA = impactT = slowT = hitT = 0; ts = slowS = 1; },
     // real-time step (not slowed): returns the game time scale
     tick(rdt) {
       shakeAmt *= Math.exp(-rdt * 9); flashA *= Math.exp(-rdt * 7); impactT -= rdt;
@@ -1764,6 +1813,7 @@ const FX = (() => {
       for (let i = rings.length - 1; i >= 0; i--) { const r = rings[i]; r.life -= dt; r.r = lerp(r.max, 6, (r.life / r.maxLife) ** 2); if (r.life <= 0) rings.splice(i, 1); }
       for (let i = zips.length - 1; i >= 0; i--) { zips[i].life -= dt; if (zips[i].life <= 0) zips.splice(i, 1); }
       for (let i = slashes.length - 1; i >= 0; i--) { slashes[i].life -= dt; if (slashes[i].life <= 0) slashes.splice(i, 1); }
+      for (let i = glyphs.length - 1; i >= 0; i--) { glyphs[i].life -= dt; if (glyphs[i].life <= 0) glyphs.splice(i, 1); }
       for (let i = streaks.length - 1; i >= 0; i--) { const s = streaks[i]; if (!s.live) { s.life -= dt; if (s.life <= 0) streaks.splice(i, 1); } }
     },
     get shakeAmt() { return shakeAmt; }, get flashA() { return flashA; }, get flashC() { return flashC; },
@@ -2309,7 +2359,7 @@ function drawWorld(time, pulse, L, R, T, B) {
   drawEnemies(time, L, R);
 }
 
-// ================= C3: the 3D character engine (generated from lab/c3_*.js by mk_c3.py, do not edit here) =================
+// ================= C3: the 3D character engine (originally generated from lab/c3_*.js by mk_c3.py; the lab sources are not in this repo, so it is edited here) =================
 const C3 = (() => {
 "use strict";
 // ================= C3 CORE: vectors, rotations, springs, curves, colours =================
@@ -3261,8 +3311,19 @@ function worldOf(inst, p) { const P = inst.P; return v3(inst.wx + p.x * (P.sx ||
 function fxUpdate3(inst, dt, time, mode, q) {
   if (dt <= 0) return;
   const def = inst.def, J = inst.J, fx = def.fx || {};
-  inst.fxMode = mode; inst.fxT = (inst.fxT || 0) + dt;
+  inst.fxMode = mode; inst.fxT = (inst.fxT || 0) + dt; inst.flipK = q.flipK; inst.dashK = q.dashT > 0 ? clamp(1 - q.dashT / 0.17, 0, 1) : 1;
   const fast = Math.max(0, q.vx || 0) > 420 || mode === "dash";
+  // jets throw embers in the direction they fire while boosting
+  if (fx.thrusters && (mode === "dash" || (mode === "flip" && q.flipK < 0.7))) {
+    const F = J.F[BN.chest], jd = jetDir(F, J.F[BN.pelvis], mode);
+    for (const th of fx.thrusters) {
+      const b = worldOf(inst, boneToModel(F, th.p[0], th.p[1], th.p[2]));
+      for (let i = 0; i < 2; i++) {
+        const sp = rand(260, 520);
+        inst.parts.push({ x: b.x, y: b.y, z: b.z, vx: jd.x * sp + rand(-50, 50) + (mode === "dash" ? -(q.vx || 0) * 0.15 : 0), vy: jd.y * sp + rand(-50, 50), life: rand(0.12, 0.3), max: 0.3, s: rand(0.7, 1.5), c: pick(["#fff3c4", "#ffb347", "#ff6a2b"]) });
+      }
+    }
+  }
   // light soles leave streaks while running fast
   if (fx.soles) {
     for (const [k, key] of [[0, "toeR"], [1, "toeL"]]) {
@@ -3293,25 +3354,46 @@ function fxUpdate3(inst, dt, time, mode, q) {
   while (inst.parts.length && (inst.parts[0].life <= 0 || inst.parts.length > 160)) inst.parts.shift();
   inst.parts = inst.parts.filter((p) => p.life > 0);
 }
+function jetDir(F, Fp, mode) {
+  if (mode === "dash") return vnorm(vadd(vscl(F.X, -1), vscl(F.Y, -0.1)));        // straight back: the boost pushes forward
+  if (mode === "flip") return vnorm(vadd(vscl(Fp.Y, -1), vscl(Fp.X, -0.12)));    // straight down: the rocket lifts
+  return vnorm(vadd(vscl(F.Y, -1), vscl(F.X, -0.35)));
+}
 function fxDraw3(g, inst, V, o) {
   const def = inst.def, fx = def.fx || {}, J = inst.J, S = o.s, mode = inst.fxMode || "run", a0 = o.alpha == null ? 1 : o.alpha;
   const scr = (w, out) => { V.v(w.x - inst.wx, w.y - inst.wy, w.z, _t); out[0] = o.x + _t.x * S; out[1] = o.y - _t.y * S; return out; };
   const s1 = [0, 0], s2 = [0, 0], s3 = [0, 0], s4 = [0, 0];
   g.save(); g.globalCompositeOperation = "lighter"; g.lineCap = "round"; g.lineJoin = "round";
-  // jets
+  // jets: the pack fires down-back while running, straight down for the rocket jump, straight back for the dash
   if (fx.thrusters) {
-    const air = mode === "air" || mode === "flip" || mode === "dive", big = mode === "dash" ? 1.9 : mode === "flip" ? 1.6 : air ? 1.1 : mode === "slamland" ? 0.7 : 0.35;
-    const F = J.F[BN.chest];
-    for (const th of fx.thrusters) {
-      const base = boneToModel(F, th.p[0], th.p[1], th.p[2]), dir = vnorm(vadd(vscl(F.Y, -1), vscl(F.X, mode === "dash" ? -0.9 : -0.35)));
-      const L = (5 + Math.random() * 3) * big, tip = vmad(base, dir, L);
+    const air = mode === "air" || mode === "flip" || mode === "dive", fk = inst.flipK == null || inst.flipK < 0 ? 1 : inst.flipK;
+    const big = mode === "dash" ? 4.4 - (inst.dashK || 0) * 0.9 : mode === "flip" ? lerp(4.8, 1.3, smooth(fk)) : air ? 1.1 : mode === "slamland" ? 0.7 : 0.35;
+    const F = J.F[BN.chest], dir = jetDir(F, J.F[BN.pelvis], mode);
+    const flame = (base, d, L, w) => {
+      const tip = vmad(base, d, L);
       V.v(base.x, base.y, base.z, _t); const bx = o.x + _t.x * S, by = o.y - _t.y * S;
       V.v(tip.x, tip.y, tip.z, _t); const tx = o.x + _t.x * S, ty = o.y - _t.y * S;
-      const nx = -(ty - by), ny = tx - bx, nl = Math.hypot(nx, ny) || 1, w = (1.15 + big * 0.35) * S;
+      const nx = -(ty - by), ny = tx - bx, nl = Math.hypot(nx, ny) || 1;
       const gr = g.createLinearGradient(bx, by, tx, ty);
       gr.addColorStop(0, rgba("#fff3c4", 0.95 * a0)); gr.addColorStop(0.35, rgba("#ff9a4d", 0.85 * a0)); gr.addColorStop(1, rgba("#ff2e63", 0));
       g.fillStyle = gr; g.beginPath(); g.moveTo(bx + (nx / nl) * w, by + (ny / nl) * w); g.lineTo(tx, ty); g.lineTo(bx - (nx / nl) * w, by - (ny / nl) * w); g.closePath(); g.fill();
+      // white-hot core
+      g.fillStyle = rgba("#ffffff", 0.7 * a0); g.beginPath(); g.moveTo(bx + (nx / nl) * w * 0.45, by + (ny / nl) * w * 0.45); g.lineTo(lerp(bx, tx, 0.4), lerp(by, ty, 0.4)); g.lineTo(bx - (nx / nl) * w * 0.45, by - (ny / nl) * w * 0.45); g.closePath(); g.fill();
+      return [bx, by];
+    };
+    for (const th of fx.thrusters) {
+      const base = boneToModel(F, th.p[0], th.p[1], th.p[2]);
+      const [bx, by] = flame(base, dir, (5 + Math.random() * 3) * big, (1.15 + big * 0.35) * S);
       const r = (3 + big * 3) * S; g.globalAlpha = 0.7 * a0; g.drawImage(glowSprite("#ff9a4d"), bx - r, by - r, r * 2, r * 2); g.globalAlpha = a0;
+    }
+    // rocket boots join in for the boost moves
+    if (mode === "dash" || (mode === "flip" && fk < 0.85)) {
+      const bd = mode === "dash" ? dir : vnorm(vadd(vscl(J.F[BN.pelvis].Y, -1), vscl(J.F[BN.pelvis].X, -0.08)));
+      for (const [a, t] of [["ankR", "toeR"], ["ankL", "toeL"]]) {
+        const sole = vmad(vlerp(J[a], J[t], 0.35), bd, 0.8);
+        const [bx, by] = flame(sole, bd, (4 + Math.random() * 2.5) * big * 0.75, (0.9 + big * 0.22) * S);
+        const r = (2 + big * 2) * S; g.globalAlpha = 0.6 * a0; g.drawImage(glowSprite("#ffb347"), bx - r, by - r, r * 2, r * 2); g.globalAlpha = a0;
+      }
     }
   }
   // light soles
@@ -3347,7 +3429,7 @@ const STYLES3 = {
   parkour: { id: "parkour", name: "Parkour", desc: "Realistischer Sprint: Arme pumpen, Becken und Schultern drehen gegeneinander, Hitch-Kick in der Luft.",
     cad: [2.2, 3.35], lean: [11, 20], startLean: 28, bounce: 1.6, knee: 1.0, heel: 1.0, reach: 1.0, armMode: "pump", armAmp: 1.0,
     twist: 14, hipYaw: 10, hipRoll: 4.5, footIn: 0.5, head: -5, spr: { chest: [240, 0.7], head: [170, 0.8], arm: [360, 0.68], py: [420, 0.6] },
-    air: "hitch", flip: "tuck", dash: "superman", land: "roll", swing: "two", slam: "hero", blend: 0.12, twos: 0 },
+    air: "hitch", flip: "butterfly", dash: "superman", land: "roll", swing: "two", slam: "hero", blend: 0.12, twos: 0 },
   shinobi: { id: "shinobi", name: "Shinobi", desc: "Ninja-Lauf: tief nach vorn gebeugt, Arme nach hinten, lange gleitende Schritte, Korkenzieher-Salto.",
     cad: [2.35, 3.5], lean: [36, 46], startLean: 14, bounce: 0.9, knee: 0.9, heel: 1.2, reach: 1.12, armMode: "back", armAmp: 0.25,
     twist: 6, hipYaw: 8, hipRoll: 3, footIn: 0.42, head: -3, spr: { chest: [260, 0.74], head: [200, 0.85], arm: [210, 0.6], py: [460, 0.7] },
@@ -3356,7 +3438,7 @@ const STYLES3 = {
     cad: [2.05, 3.05], lean: [16, 28], startLean: 32, bounce: 2.6, knee: 1.28, heel: 1.25, reach: 1.25, armMode: "pump", armAmp: 1.4,
     twist: 19, hipYaw: 13, hipRoll: 6, footIn: 0.48, head: -4, spr: { chest: [560, 0.5], head: [460, 0.55], arm: [680, 0.48], py: [760, 0.48] },
     air: "hero", flip: "spin", dash: "smear", land: "hero", swing: "one", slam: "hero", blend: 0.06, twos: 12 },
-  power: { id: "power", name: "Power", desc: "Schwer und mechanisch: wuchtige Schritte mit breitem Stand, Düsenschub statt Salto, harte Landungen.",
+  power: { id: "power", name: "Power", desc: "Schwer und mechanisch: wuchtige Schritte mit breitem Stand, Raketenschub statt Salto, Dash kerzengerade per Düse, harte Landungen.",
     cad: [1.85, 2.75], lean: [9, 17], startLean: 20, bounce: 2.1, knee: 0.8, heel: 0.72, reach: 0.92, armMode: "pump", armAmp: 0.62,
     twist: 8, hipYaw: 6, hipRoll: 5, footIn: 0.95, head: -3, spr: { chest: [150, 0.85], head: [120, 0.9], arm: [200, 0.8], py: [260, 0.72] },
     air: "jet", flip: "jet", dash: "thrust", land: "crouch", swing: "one", slam: "hero", blend: 0.16, twos: 0 },
@@ -3509,7 +3591,10 @@ function genPose(rig, q, D, time, dt = 0) {
     const f = Math.sin(time * 40);
     if (S.dash === "blade") specPose(P, D, { py: 2, pp: 58, cp: 12, hp: -52, fR: [-5, -11, 1.8], fL: [-22 + f, -6, 2.4], hR: [3, 9.5, -2.2], hL: [-7, -9, 3], gR: 1 });
     else if (S.dash === "smear") specPose(P, D, { py: 3, pp: 70, cp: 8, hp: -60, fR: [-22, -4 + f, 1.9], fL: [-21, -7 - f, 1.9], hR: [-9, -10, 1.4], hL: [-9, -10, 1.4], stretch: 0.32 });
-    else if (S.dash === "thrust") specPose(P, D, { py: 3, pp: 46, cp: 6, hp: -40, fR: [-11, -16 + f * 0.5, 1.3], fL: [-13, -14, 1.3], hR: [-6, -11, 3.5], hL: [-6, -11, 3.5] });
+    else if (S.dash === "thrust") { // upright like a rocket on rails: legs trail a little, fists pressed back, the jets do the work
+      const k = clamp(1 - (q.dashT || 0) / 0.17, 0, 1), kick = Math.sin(Math.min(1, k * 2.2) * Math.PI) * 1.4;
+      specPose(P, D, { py: 4.5, pp: 3, cp: -3 - kick, hp: -1 + kick, fR: [-3.5 - kick, -20.5 + f * 0.25, 0.95], fL: [-6.5 - kick, -19, 1.05], hR: [-5.5, -11.5, 3.4], hL: [-5.5, -11.5, 3.4] });
+    }
     else specPose(P, D, { py: 3, pp: 76, cp: 4, hp: -64, fR: [-24, -3 + f * 0.6, 1.4], fL: [-23, -6, 1.4], hR: [2, 9.5, -1.6], hL: [1, 8.5, -1.0] });
     return P;
   }
@@ -3521,7 +3606,17 @@ function genPose(rig, q, D, time, dt = 0) {
     const k = clamp(q.flipK, 0, 1);
     if (S.flip === "cork") { specPose(P, D, { py: 5, pp: 4, cp: 4, hp: 0, fR: [0.5, -25, 0.95, 0.4], fL: [-0.5, -25, 0.95, 0.4], hR: [3, -5.5, -2.4], hL: [3, -5.5, -2.4] }); P.spinR = easeInOut(k) * TAU; P.spinP = Math.sin(Math.PI * k) * 0.45; }
     else if (S.flip === "spin") { specPose(P, D, { py: 5, pp: 6, cp: 2, hp: -4, fR: [9, -17, 0.3], fL: [-10, -18, 0.9], hR: [2, 1, 6.5], hL: [2, 1, 6.5] }); P.spinY = easeOut(k) * TAU; }
-    else if (S.flip === "jet") specPose(P, D, { py: 5, pp: 4, cp: 2, hp: -6, fR: [-1, -19, 0.75], fL: [-3, -19.5, 0.8], hR: [-2, -9, 4.5], hL: [-2, -9, 4.5] });
+    else if (S.flip === "jet") { // rocket boost: a short ignition crouch, then the legs drive straight down, fists back, body stays upright
+      const ig = 1 - smooth(clamp(k / 0.28, 0, 1));
+      specPose(P, D, { py: 5 + ig * 1.6, pp: 2, cp: lerp(1, 10, ig), hp: lerp(-3, -14, ig),
+        fR: [lerp(-0.5, 2.5, ig), lerp(-21.5, -12.5, ig), lerp(0.9, 0.35, ig)], fL: [lerp(-2.5, 0.5, ig), lerp(-21, -13.5, ig), lerp(0.95, 0.4, ig)],
+        hR: [lerp(-4, 1.5, ig), lerp(-13.5, -9, ig), lerp(4.6, 3.4, ig)], hL: [lerp(-4, 1.5, ig), lerp(-13.5, -9, ig), lerp(4.6, 3.4, ig)] });
+    }
+    else if (S.flip === "butterfly") { // tricking move: body tips flat, twists once round the vertical axis, legs scissor
+      const e = easeInOut(k), sc = Math.cos(k * TAU);
+      specPose(P, D, { py: 5, pp: 0, cp: 6, hp: 8, fR: [7 * sc, -19, 0.25], fL: [-8 * sc, -18, 0.9], hR: [1, 2.5, 7.5], hL: [1, 2.5, 7.5] });
+      P.spinP = Math.sin(Math.PI * Math.min(1, k * 1.12)) * 1.3; P.spinY = e * TAU;
+    }
     else { specPose(P, D, { py: 5, pp: 32, cp: 38, hp: 26, fR: [5, -7, 0.4], fL: [4, -8, 0.5], hR: [5, -9.5, 0.5], hL: [5, -9.5, 0.5] }); P.spinP = easeOut(k) * TAU; }
     return P;
   }
@@ -3627,6 +3722,52 @@ const SKINS = C3.MODEL_ORDER.map((id) => {
   return { id, name: d.name, tag: d.tag, motion: d.motion, trail: d.trail, rim: d.rim, glow: d.trail, holo: d.shade === "holo" };
 });
 const OLD_SKINS = { phantom: "vektor", neon: "vektor", chrom: "titan", nova: "titan", volt: "aero", street: "aero" }; // ids from the 2D roster
+// ---------- every runner has its own double jump and dash: the pose comes from its C3 style, the effects and sound from here ----------
+let cloneReq = null; // a shadow double to leave behind on the next drawn frame
+const SKIN_MOVES = {
+  kage: {
+    dj(p) { // ninja vanish: smoke where you kicked off, a shadow double stays behind
+      FX.smoke(p.x, p.y + 8, 12, "#2f2552", 150); FX.burst(p.x, p.y + HALF_H, 6, "#4ff3ff", 160);
+      cloneReq = { col: "#120b2a", edge: "#4ff3ff", life: 0.45 }; Sound.fx.poof();
+    },
+    dash(p) { // iaido: one clean cut ahead, smoke where the draw started
+      FX.slash(p.x + 70, p.y - 6, -0.04, "#bff9ff", 170); FX.smoke(p.x - 6, p.y + 4, 7, "#2f2552", 110);
+      FX.burst(p.x - 10, p.y, 5, "#29c9ff", 200); FX.shake(3.5); Sound.fx.dash(); Sound.fx.draw();
+    },
+    tick(p) { if (Math.random() < 0.18) FX.smoke(p.x - 14, p.y + rand(-10, 10), 1, "#2f2552", 30, 5); },
+    dashEnd(p) { FX.sparks(p.x + 6, p.y - 8, 0.6, -0.8, 4); },
+  },
+  vektor: {
+    dj(p) { FX.glyph(p.x, p.y + HALF_H + 3, "#4ff3ff", "#ff4fd8"); FX.pixels(p.x, p.y + HALF_H, 14, 0); Sound.fx.glitch(); }, // anime air step on a hex glyph
+    djTick(p, k) { if (Math.random() < 0.2) FX.pixels(p.x, p.y + rand(-10, 16), 1, 0); },
+    dash(p) { FX.pixels(p.x, p.y, 22, -1); FX.ring(p.x, p.y, "#ff4fd8", 50); FX.shake(3); Sound.fx.blink(); },      // dissolves into a data stream
+    tick(p) { FX.pixels(p.x - 8, p.y, 2, -1); },
+    dashEnd(p) { FX.pixels(p.x, p.y, 12, 1); FX.ring(p.x, p.y, "#4ff3ff", 46); },
+  },
+  titan: {
+    dj(p) { // rocket boost: shock ring under the boots, exhaust rolling out sideways
+      FX.ring(p.x, p.y + HALF_H + 6, "#ff8a3d", 110, 0.3); FX.ring(p.x, p.y + HALF_H + 2, "#fff3c4", 60, 0.3); FX.smoke(p.x, p.y + HALF_H + 10, 16, "#4b3f5e", 220, 60);
+      FX.burst(p.x, p.y + HALF_H + 4, 10, "#ffb347", 260); FX.shake(5); Sound.fx.rocket(); haptic(18);
+    },
+    dash(p) { // jet boost: blast ring behind the pack, smoke left hanging in the air
+      FX.ring(p.x - 22, p.y - 4, "#ff9a4d", 70); FX.smoke(p.x - 20, p.y - 2, 10, "#4b3f5e", 170, 10);
+      FX.burst(p.x - 18, p.y, 8, "#ffb347", 260); FX.shake(5); Sound.fx.jet(); haptic(14);
+    },
+    tick(p) { if (Math.random() < 0.3) FX.smoke(p.x - 26, p.y - 4 + rand(-6, 6), 1, "#4b3f5e", 40, 8); },
+    djTick(p, k) { if (k < 0.6 && Math.random() < 0.45) FX.smoke(p.x + rand(-5, 5), p.y + HALF_H + 18, 1, "#4b3f5e", 40, -140); }, // exhaust pushed down under the boots
+    dashEnd(p) { FX.smoke(p.x - 10, p.y, 4, "#4b3f5e", 90, 10); },
+  },
+  aero: {
+    dj(p) { // the light soles kick off: a teal pulse and a gust under the feet
+      FX.ring(p.x, p.y + HALF_H, "#4ffff0", 80, 0.32); FX.burst(p.x, p.y + HALF_H, 8, "#4ffff0", 200); FX.wind(p.x, p.y + HALF_H, 6, 1);
+      Sound.fx.squeak();
+    },
+    dash(p) { FX.wind(p.x + 40, p.y, 12, 0); FX.burst(p.x - 10, p.y, 6, "#29e0cf", 220); FX.shake(3.5); Sound.fx.gust(); Sound.fx.dash(); }, // superman dive through a wind tunnel
+    tick(p) { if (Math.random() < 0.35) FX.wind(p.x + 30, p.y, 1, 0); },
+    dashEnd(p) { FX.wind(p.x, p.y, 4, 0); },
+  },
+};
+function skinMove(kind) { const m = SKIN_MOVES[currentSkin.id]; if (m && m[kind]) m[kind](player); }
 let currentSkin = (() => { const s = store.get("skin", "kage"), id = OLD_SKINS[s] || s; return SKINS.find((k) => k.id === id) || SKINS[0]; })();
 let pInst = C3.makeInst3(currentSkin.id), pRig = C3.makeRig3(currentSkin.motion), pView = null;
 let ghostInst = null, ghostRig = null;
@@ -3722,7 +3863,12 @@ function drawPlayerAll(time, dt) {
   drawStreaks();
   const hurt = p.stumbleT > 0 && Math.sin(time * 50) > 0;
   const o = pView;
-  o.rim = hurt ? "#ff2e63" : od ? "#ffd23f" : sk.rim; o.time = time; o.glitch = sk.holo ? 0.06 : 0;
+  o.rim = hurt ? "#ff2e63" : od ? "#ffd23f" : sk.rim; o.time = time; o.glitch = sk.holo ? (dash ? 0.7 : 0.06) : 0; o.split = sk.holo && dash ? 3.2 : 1;
+  if (cloneReq && dt > 0) { // the ninja's shadow double: the take-off silhouette stays where it was
+    const path = C3.drawInst3(ctx, pInst, Object.assign({}, o, { mono: "#ffffff", toPath: true }));
+    if (path) after.push({ path, life: cloneReq.life, max: cloneReq.life, shadow: cloneReq });
+    cloneReq = null;
+  }
   afterT -= dt;
   if (fast && afterT <= 0 && dt > 0) {
     const path = C3.drawInst3(ctx, pInst, Object.assign({}, o, { mono: "#ffffff", toPath: true }));
@@ -3730,8 +3876,14 @@ function drawPlayerAll(time, dt) {
     afterT = dash ? 0.011 : 0.03;
   }
   for (let i = after.length - 1; i >= 0; i--) { after[i].life -= dt; if (after[i].life <= 0) after.splice(i, 1); }
+  for (const g of after) {
+    if (!g.shadow) continue;
+    const k = clamp(g.life / g.max, 0, 1);
+    ctx.globalAlpha = k * 0.75; ctx.fillStyle = g.shadow.col; ctx.fill(g.path);
+    ctx.globalAlpha = k * 0.55; ctx.strokeStyle = g.shadow.edge; ctx.lineWidth = 1.2; ctx.stroke(g.path);
+  }
   ctx.globalCompositeOperation = "lighter";
-  for (const g of after) { ctx.globalAlpha = (g.life / 0.24) * (g.dash ? 0.42 : 0.3); ctx.fillStyle = g.col; ctx.fill(g.path); }
+  for (const g of after) { if (g.shadow) continue; ctx.globalAlpha = (g.life / 0.24) * (g.dash ? 0.42 : 0.3); ctx.fillStyle = g.col; ctx.fill(g.path); }
   ctx.globalAlpha = od ? 0.42 + Math.sin(time * 20) * 0.12 : 0.15;
   ctx.drawImage(Art.glow(od ? "#ffd23f" : sk.glow), p.x - 42, p.y - 52, 84, 96);
   ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
@@ -3815,8 +3967,20 @@ function drawFxWorld() {
     else { ctx.globalAlpha = a; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.fillStyle = p.color; ctx.fillRect(-p.size / 2, -p.size / 3, p.size, p.size * 0.66); ctx.restore(); }
   }
   ctx.globalAlpha = 1;
-  for (const r of FX.rings) { ctx.strokeStyle = rgba(r.color, clamp(r.life / r.maxLife, 0, 1)); ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, TAU); ctx.stroke(); }
+  for (const r of FX.rings) { ctx.strokeStyle = rgba(r.color, clamp(r.life / r.maxLife, 0, 1)); ctx.lineWidth = 4; ctx.beginPath(); if (r.flat < 1) ctx.ellipse(r.x, r.y, r.r, r.r * r.flat, 0, 0, TAU); else ctx.arc(r.x, r.y, r.r, 0, TAU); ctx.stroke(); }
   for (const z of FX.zips) { ctx.strokeStyle = rgba("#ffffff", z.life / 0.14); ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(z.x1, z.y1); ctx.lineTo(z.x2, z.y2); ctx.stroke(); }
+  for (const gl of FX.glyphs) { // hologram hexagon, seen flat from the side
+    const k = clamp(gl.life / gl.max, 0, 1), e = 1 - k, r = 17 + easeOut(e) * 16;
+    ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = k * 0.8;
+    ctx.drawImage(Art.glow(gl.c1), gl.x - r * 1.6, gl.y - r * 0.6, r * 3.2, r * 1.2);
+    ctx.save(); ctx.translate(gl.x, gl.y); ctx.scale(1, 0.3); ctx.rotate(e * 0.9);
+    for (const [rr, c, w] of [[r, gl.c1, 3], [r * 0.62, gl.c2, 2]]) {
+      ctx.beginPath(); for (let i = 0; i <= 6; i++) { const a = (i / 6) * TAU; ctx[i ? "lineTo" : "moveTo"](Math.cos(a) * rr, Math.sin(a) * rr); }
+      ctx.strokeStyle = c; ctx.lineWidth = w / 0.3 * 0.45; ctx.globalAlpha = k * 0.95; ctx.stroke();
+    }
+    ctx.fillStyle = rgba(gl.c1, 0.18 * k); ctx.fill();
+    ctx.restore(); ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+  }
   drawSlashes();
   ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.lineJoin = "round";
   for (const p of FX.pops) {
