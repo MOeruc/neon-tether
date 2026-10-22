@@ -28,7 +28,9 @@ Vier Figuren in Echtzeit-3D, jede mit eigenem Bewegungsstil und eigenem Doppelsp
 
 ## Strecke
 
-Neben Dächern, Seilen und Grind-Stellen gibt es eigene Abschnitte: **Lichtschächte** (durch einen Durchgang unter einem Turm rennen, dann per Walljump zwischen den zwei Türmen hoch), **Arkaden** (ein Turm auf Säulen: unten durch, oder per Wandlauf obendrüber) und **Stufen-Hochhäuser** (Absätze hochspringen oder hochlaufen). Auf den Dächern stehen Wassertanks, Satellitenschüsseln, Klimaanlagen, Treppenhäuser, Neon-Schriftzüge und Solarzellen.
+Neben Dächern, Seilen und Grind-Stellen gibt es eigene Abschnitte: **Lichtschächte** (durch eine Ladenpassage unter einem Turm rennen, dann per Walljump im Hinterhof zwischen den zwei Türmen hoch), **Arkaden** (ein Turm auf Säulen mit Läden darunter: unten durch, oder per Wandlauf obendrüber), **Stufen-Hochhäuser** (Absätze hochspringen oder hochlaufen), **Glas-Etagen** (vorn durch die Scheibe in ein Großraumbüro, hinten wieder hinaus), **Taxi-Sprünge** (über eine riesige Lücke von Lufttaxi zu Lufttaxi federn) und **Ringe** in der Luft, die Tempo und Punkte geben. Auf den Dächern stehen Wassertanks, Satellitenschüsseln, Klimaanlagen, Treppenhäuser, Neon-Schriftzüge und Solarzellen. Über der Stadt ziehen Flugverkehr, Suchscheinwerfer, ein Werbe-Luftschiff und in jeder Zone ein riesiges Hologramm vorbei (Koi, Qualle, Globus, Auge).
+
+**Kampfhubschrauber:** Kurz nach jedem Zonenwechsel (alle 800 m) jagt dich ein Kampfhubschrauber. Rote Kreise auf den Dächern zeigen, wo seine Raketen einschlagen: drüberspringen oder durchdashen. Nach jeder Salve kommt er tiefer (gelber Ring): hochspringen und mit dem Dash, Slam oder von oben treffen. Drei Treffer holen ihn vom Himmel, sonst zieht er nach 15 Sekunden ab.
 
 ## Gegner
 
@@ -44,7 +46,7 @@ Neben Dächern, Seilen und Grind-Stellen gibt es eigene Abschnitte: **Lichtschä
 
 Alle 50 gesammelten Münzen gibt es einen Skillpunkt, dazu einmalig für Meilensteine (z. B. 1.000 m, 5× Perfekt, 3 Loopings, 3 Walljumps am Stück, 4 Grind-Stellen). Im Menü unter **Skills** schaltest du damit frei:
 
-- **Joker** (einer ist ausgerüstet): **Greifhaken** zieht dich zur nächsten Dachkante hoch (1× pro Lauf, Stufe 2: 2×), **EMP-Schlag** zerlegt alle Gegner vor dir und schaltet Laser ab (1× pro Lauf).
+- **Joker** (einer ist ausgerüstet): **Greifhaken** zieht dich zur nächsten Dachkante hoch (1× pro Lauf, Stufe 2: 2×), **EMP-Schlag** zerlegt alle Gegner vor dir, schaltet Laser ab, holt Raketen und den Kampfhubschrauber vom Himmel (1× pro Lauf).
 - **Fähigkeiten** (wirken immer): Münzmagnet, Schutzschild (fängt einen Treffer ab), Dreifachsprung, Turbo-Overdrive (+3 s).
 
 Der Fortschritt wird im Browser gespeichert.
