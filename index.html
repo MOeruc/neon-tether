@@ -2432,7 +2432,7 @@ function gunUpdate(dt) {
   if (g.st === "wait") { // a few seconds into the new zone it comes
     if (g.t > 4 && !run.dead && p.state !== "dead") {
       g.st = "warn"; g.t = 0; g.hp = GUN.HP; g.salvoT = 1.4; g.salvos = 0; g.x = p.x + 1100; g.y = g.ground - GUN.HIGH - 260;
-      banner("WARNUNG", "KAMPFHUBSCHRAUBER", true, 2.6); Sound.fx.alarm(); FX.flash("#ff2e63", 0.18);
+      if (state === "play") { banner("WARNUNG", "KAMPFHUBSCHRAUBER", true, 2.6); Sound.fx.alarm(); FX.flash("#ff2e63", 0.18); } // the attract mode in the menu plays it silently
     }
     return;
   }
@@ -2459,7 +2459,7 @@ function gunUpdate(dt) {
     if (g.salvoT <= 0 && !run.dead) { fireSalvo(g); g.salvoT = GUN.SALVO; g.dipT = GUN.DIP; }
     if (g.t > GUN.ATTACK && g.marks.length === 0) {
       g.st = "leave"; g.t = 0; g.dipT = 0;
-      if (!run.dead) { award(250); addFlow(12); FX.popup(p.x, p.y - 80, "ENTKOMMEN!", "#4ff3ff", 1.3, false); banner("ÜBERSTANDEN", "ENTKOMMEN", false, 1.8); Sound.fx.zone(); }
+      if (!run.dead) { award(250); addFlow(12); FX.popup(p.x, p.y - 80, "ENTKOMMEN!", "#4ff3ff", 1.3, false); if (state === "play") { banner("ÜBERSTANDEN", "ENTKOMMEN", false, 1.8); Sound.fx.zone(); } }
     }
   }
   for (const m of g.marks) { // rockets: they leave the pods, arc over and come down on the circle
