@@ -440,7 +440,7 @@ const SKILLS = [
   { id: "grapple", joker: true, name: "Greifhaken", icon: "hook", cost: [3, 4],
     desc: ["Schießt einen Haken an die nächste Dachkante und zieht dich hoch: raus aus der Schlucht, den Lichtschacht oder die Hauswand hinauf. 1× pro Lauf.", "Stufe 2: 2× pro Lauf."] },
   { id: "emp", joker: true, name: "EMP-Schlag", icon: "emp", cost: [4],
-    desc: ["Ein Elektroschlag zerlegt alle Drohnen und Wächter vor dir, schaltet Laser ab und löscht Schüsse. 1× pro Lauf."] },
+    desc: ["Ein Elektroschlag zerlegt alle Drohnen und Wächter vor dir, schaltet Laser ab, löscht Schüsse und holt Raketen vom Himmel. 1× pro Lauf."] },
   { id: "magnet", name: "Münzmagnet", icon: "magnet", cost: [2], desc: ["Münzen in deiner Nähe fliegen von selbst zu dir."] },
   { id: "shield", name: "Schutzschild", icon: "shield", cost: [3], desc: ["Fängt pro Lauf einen Treffer ab: Laser, Schuss, Stacheldrohne oder Kiste."] },
   { id: "triple", name: "Dreifachsprung", icon: "triple", cost: [5], desc: ["Ein zusätzlicher Sprung in der Luft, auch nach jedem Walljump."] },
@@ -798,6 +798,23 @@ const Sound = (() => {
       if (!ok()) return; const t = now(); noise(t, 0.42, "bandpass", 450, 0.38, sfxBus, 0.9, 2600);
     },
     charge() { if (ok()) osc("sine", 320, now(), 0.46, 0.05, sfxBus, 1150, 0.3); },
+    // ---- die neuen Gegner ----
+    alarm() { // Späher hat dich erfasst: zweitönige Sirene
+      if (!ok()) return; const t = now();
+      for (let i = 0; i < 3; i++) { osc("square", 920, t + i * 0.24, 0.11, 0.055, sfxBus); osc("square", 690, t + i * 0.24 + 0.12, 0.11, 0.055, sfxBus); }
+    },
+    lockBeep(locked) { if (ok()) osc("square", locked ? 1760 : 1240, now(), locked ? 0.045 : 0.06, 0.045, sfxBus); },
+    missile() { // Jäger startet: ein Fauchen, das anschwillt
+      if (!ok()) return; const t = now();
+      noise(t, 0.6, "bandpass", 500, 0.32, sfxBus, 1.1, 2600); osc("sawtooth", 160, t, 0.45, 0.06, sfxBus, 420);
+    },
+    boom() { if (!ok()) return; const t = now(); kick(t, 1.1, sfxBus); noise(t, 0.5, "lowpass", 1400, 0.5, sfxBus, 1, 110); },
+    block() { // Klinge auf Energieschild: heller Gong, Funken
+      if (!ok()) return; const t = now();
+      osc("triangle", 1250, t, 0.32, 0.1, sfxBus); osc("triangle", 1870, t, 0.22, 0.05, sfxBus); osc("square", 620, t, 0.12, 0.06, sfxBus, 260); noise(t, 0.08, "highpass", 5200, 0.26, sfxBus);
+    },
+    thud() { if (!ok()) return; const t = now(); kick(t, 1, sfxBus); noise(t, 0.32, "lowpass", 520, 0.42, sfxBus, 1, 90); osc("sine", 980, t, 0.25, 0.03, sfxBus, 300); },
+    clang() { if (!ok()) return; const t = now(); osc("triangle", 190, t, 0.6, 0.22, sfxBus, 120); osc("square", 95, t, 0.3, 0.1, sfxBus, 60); noise(t, 0.22, "bandpass", 900, 0.42, sfxBus, 1.2); },
     shot() { if (!ok()) return; osc("square", 980, now(), 0.16, 0.06, sfxBus, 180); noise(now(), 0.1, "bandpass", 2400, 0.14, sfxBus, 2); },
     grind(on) {
       if (!ctx || !started) return;
@@ -843,9 +860,13 @@ const world = {
   rng: Math.random, genX: 0, lastTop: 420, introDone: false,
   buildings: [], anchors: [], drones: [], boxes: [], lasers: [], rails: [], pads: [], coins: [], guards: [], bolts: [], blocks: [],
 };
-const WORLD_KEYS = ["buildings", "anchors", "drones", "boxes", "lasers", "rails", "pads", "coins", "guards", "bolts", "blocks"];
+const WORLD_KEYS = ["buildings", "anchors", "drones", "boxes", "lasers", "rails", "pads", "coins", "guards", "bolts", "blocks", "spotters", "hunters", "waves", "balls"];
 const GUARD_H = 44;          // Wächter robot: feet on the roof, 44 px tall
 const ENEMY_FREE_X = 5200;   // no guards / spike drones in the first ~200 m (except the intro guard)
+const NEW_FOE_X = 6500;      // from ~260 m on the new enemies come in, one after the other: shield guard, spotter (330 m), wrecking ball (420 m), hunter (560 m)
+const SPOT_H = 236, SPOT_POOL = 52;                      // Späher-Drohne: Flughöhe über dem Dach, halbe Breite ihres Lichtflecks
+const HUNT_WARN = 1.15, HUNT_LOCK = 0.38, HUNT_V = 760;  // Jäger-Rakete: Vorwarnung, die letzten Sekunden davon eingerastet, Tempo
+const BALL_R = 27;                                       // Abrissbirne
 const TOP_MIN = 250, TOP_MAX = 640;
 const baseSpeedAt = (x) => Math.min(440 + Math.max(0, x) / PX_PER_M * 0.08, 840);
 const R = () => world.rng();
@@ -886,6 +907,12 @@ const addGuard = (x, roof) => world.guards.push({ x, top: roof, y: roof - GUARD_
 const addBox = (x, w, h, roof) => world.boxes.push({ x, w, h, top: roof - h, hit: false });
 const addLaser = (x, h, roof) => world.lasers.push({ x, h, top: roof - h, bottom: roof, hit: false, ph: RR(0, TAU) });
 const addPad = (x, roof) => world.pads.push({ x, w: 64, top: roof, used: 0 });
+const addSpotter = (x, roof) => world.spotters.push({ x, y0: roof - SPOT_H, y: roof - SPOT_H, roof, ph: RR(0, TAU), lx: x, alive: true, dead: 0, vx: 0, vy: 0, rot: 0, seen: false, alarmT: 0, slipped: false });
+const addHunter = (trig) => world.hunters.push({ trig, st: "idle", t: 0, x: 0, y: 0, hy: 0, vx: 0, vy: 0, rot: 0, dead: 0, passed: false, beep: 0, smoke: 0 });
+const addShieldGuard = (x, roof) => world.guards.push({ x, top: roof, y: roof - GUARD_H / 2, alive: true, dead: 0, vx: 0, vy: 0, rot: 0,
+  cd: RR(0.3, 0.7), charge: 0, recoil: 0, ph: RR(0, TAU), shield: true, wind: 0, blockT: 0 });
+const addBall = (cx, roof, len) => world.balls.push({ cx, roof, len, py: roof - len - BALL_R - 8, amp: 0.78, w: TAU / RR(2.5, 3), ph: RR(0, TAU),
+  x: cx, y: roof - BALL_R - 8, vx: 0, vy: 0, hitT: 0, side: -1, close: false, whoosh: false });
 // Grind-Stellen sind echte Objekte (kind): cable = Stromleitung zwischen zwei Dach-Masten,
 // pipe = Rohrbrücke aus dem Dach mit Stütze von der Straße, boom = Gitterausleger eines Raupenkrans auf dem nächsten Dach.
 // Die Oberkante (x1,y1) -> (x2,y2) bleibt die Grind-Fläche, die Physik ist dieselbe.
@@ -915,13 +942,23 @@ function coinSwing(ax, ay, r, from = -0.75, to = 0.75, n = 7) {
 // decorate a roof with obstacles between x1 and x2
 function decorateRoof(b, x1, x2, d) {
   let x = x1 + RR(120, 220);
-  const early = world.genX < ENEMY_FREE_X;
+  const early = world.genX < ENEMY_FREE_X, fresh = world.genX > NEW_FOE_X, m = world.genX / PX_PER_M;
   while (x < x2 - 270) {
-    const r = R();
+    let r = R();
+    if (fresh) { // now and then one of the new enemies instead of a classic obstacle (each has its own section too, see PATTERNS)
+      const room = x2 - x, pBall = m > 420 && room > 840 ? 0.06 + d * 0.05 : 0, pSpot = m > 330 && room > 660 ? 0.07 + d * 0.04 : 0, pHunt = m > 560 ? 0.05 + d * 0.05 : 0;
+      if (r < pBall) { const cx = x + 300; addBall(cx, b.top, RR(228, 262)); coinArc(cx - 175, b.top - 72, cx + 175, b.top - 72, 120, 7); x += RR(720, 800); continue; }
+      if (r < pBall + pSpot) { addSpotter(x + 230, b.top); coinLine(x + 110, x + 350, b.top - 28, 40); x += RR(580, 660); continue; }
+      if (r < pBall + pSpot + pHunt) { addHunter(x); x += RR(260, 340); continue; }
+      r = R();
+    }
     if (r < 0.2 + d * 0.08) { addBox(x, RR(44, 78), RR(30, 58 + d * 22), b.top); x += RR(300, 420); }
     else if (r < 0.34 + d * 0.12) { addLaser(x, RR(70, 104), b.top); x += RR(320, 440); }
     else if (r < 0.48 + d * 0.14) { addDrone(x, b.top - RR(44, 66), 14, !early && R() < 0.2 + d * 0.3); x += RR(320, 420); }
-    else if (r < 0.58 + d * 0.16 && !early && x < x2 - 380) { addGuard(x + 60, b.top); x += RR(500, 640); }
+    else if (r < 0.58 + d * 0.16 && !early && x < x2 - 380) {
+      if (fresh && R() < 0.4 + d * 0.3) addShieldGuard(x + 60, b.top); else addGuard(x + 60, b.top); // from ~260 m some carry a shield
+      x += RR(500, 640);
+    }
     else if (r < 0.66 + d * 0.1) { addPad(x, b.top); coinArc(x + 40, b.top - 60, x + 520, b.top - 60, 300, 8); x += RR(560, 700); }
     else { coinLine(x, Math.min(x + RR(150, 260), x2 - 40), b.top - 28); x += RR(280, 380); }
   }
@@ -1039,10 +1076,42 @@ const PATTERNS = [
     let gx = b.x + RR(400, 470);
     const n = d > 0.5 ? 3 : 2;
     for (let i = 0; i < n && gx < b.x + b.w - 260; i++) {
-      addGuard(gx, b.top);
+      if (world.genX > NEW_FOE_X && i > 0 && R() < 0.45) addShieldGuard(gx, b.top); else addGuard(gx, b.top);
       if (R() < 0.6) coinLine(gx - 230, gx - 110, b.top - 28, 40);
       gx += RR(470, 610);
     }
+    return [b.x + b.w, b.top];
+  } },
+  // Späher-Dach: eine Späher-Drohne hält ein langes Dach unter Beobachtung, die Münzen liegen in ihrem Licht.
+  // Später zwei Lichter hintereinander, durch die man schlüpfen muss.
+  { key: "spot", w: (d) => (world.genX / PX_PER_M < 330 ? 0 : 0.85 + d * 0.6), fn(x, top, v, d) {
+    const gap = RR(0.3, 0.45) * v * 0.72;
+    const b = addBuilding(x + gap, RR(1100, 1500), clamp(top + RR(-50, 70), TOP_MIN, TOP_MAX));
+    const sx = b.x + RR(430, 520);
+    addSpotter(sx, b.top); coinLine(sx - 150, sx + 150, b.top - 28, 38);
+    const sx2 = sx + RR(540, 620);
+    if (d > 0.3 && sx2 < b.x + b.w - 260) addSpotter(sx2, b.top);
+    else if (R() < 0.5) addDrone(sx + RR(330, 420), b.top - RR(44, 60), 14);
+    return [b.x + b.w, b.top];
+  } },
+  // Abrissbaustelle: ein Raupenkran schwingt die Abrissbirne über das Dach. Später zwei, die gegeneinander pendeln.
+  { key: "ball", w: (d) => (world.genX / PX_PER_M < 420 ? 0 : 0.75 + d * 0.5), fn(x, top, v, d) {
+    const gap = RR(0.3, 0.45) * v * 0.72;
+    const b = addBuilding(x + gap, RR(1050, 1400), clamp(top + RR(-40, 60), TOP_MIN, TOP_MAX));
+    const cx = b.x + RR(380, 460);
+    addBall(cx, b.top, RR(228, 262)); coinArc(cx - 175, b.top - 72, cx + 175, b.top - 72, 120, 7);
+    const cx2 = cx + RR(570, 630);
+    if (d > 0.35 && cx2 + 320 < b.x + b.w && R() < 0.6) { addBall(cx2, b.top, RR(228, 262)); coinLine(cx2 - 120, cx2 + 120, b.top - 28, 40); }
+    return [b.x + b.w, b.top];
+  } },
+  // Raketenalarm: ein langes, flaches Dach, von vorn kommen Jäger-Raketen. Ausweichen oder mit dem Dash kontern.
+  { key: "hunt", w: (d) => (world.genX / PX_PER_M < 560 ? 0 : 0.6 + d * 0.8), fn(x, top, v, d) {
+    const gap = RR(0.3, 0.45) * v * 0.72;
+    const b = addBuilding(x + gap, RR(1350, 1750), clamp(top + RR(-40, 60), TOP_MIN, TOP_MAX));
+    const n = d > 0.5 ? 3 : 2;
+    let hx = b.x + 120;
+    for (let i = 0; i < n; i++) { addHunter(hx); hx += RR(400, 470); }
+    coinLine(b.x + 220, b.x + 640, b.top - 28, 44);
     return [b.x + b.w, b.top];
   } },
   // Lichtschacht: through the arcade under a tower, then wall-jump up the light well between the two towers
@@ -1097,6 +1166,18 @@ const PATTERNS = [
     return [bx, t];
   } },
 ];
+// the new enemies each get a clean first appearance, one at a time; after that the generator mixes them in
+const DEBUTS = [["shield", 270], ["spot", 360], ["ball", 470], ["hunt", 600]];
+// first shield guard: a long quiet roof, the coins lead up in an arc and onto its head
+function debutShield(x, top, v) {
+  const gap = RR(0.3, 0.45) * v * 0.72;
+  const b = addBuilding(x + gap, RR(1150, 1350), clamp(top + RR(-30, 40), TOP_MIN, TOP_MAX));
+  coinLine(b.x + 150, b.x + 360, b.top - 28, 42);
+  const gx = b.x + RR(700, 780);
+  addShieldGuard(gx, b.top);
+  coinArc(gx - 240, b.top - 60, gx - 6, b.top - GUARD_H - 30, 120, 5);
+  return [b.x + b.w, b.top];
+}
 // first guard of every run: a long, quiet roof so you can learn the dash on it
 function introGuard(x, top, v) {
   const gap = RR(0.3, 0.45) * v * 0.72;
@@ -1114,6 +1195,12 @@ function genPattern() {
     [world.genX, world.lastTop] = introGuard(world.genX, world.lastTop, v);
     return;
   }
+  const m = world.genX / PX_PER_M;
+  for (const [key, at] of DEBUTS) if (!world.debut[key] && m >= at) {
+    world.debut[key] = true;
+    [world.genX, world.lastTop] = key === "shield" ? debutShield(world.genX, world.lastTop, v) : PATTERNS.find((pt) => pt.key === key).fn(world.genX, world.lastTop, v, Math.min(d, 0.2));
+    return;
+  }
   let total = 0;
   const ws = PATTERNS.map((p) => { const w = p.w(d); total += w; return w; });
   let r = R() * total, idx = 0;
@@ -1125,7 +1212,7 @@ function genPattern() {
 }
 
 function worldReset(seed) {
-  world.rng = mulberry32(seed); world.introDone = false; lastAerialKind = ""; lastRailKind = "";
+  world.rng = mulberry32(seed); world.introDone = false; world.debut = {}; lastAerialKind = ""; lastRailKind = "";
   for (const k of WORLD_KEYS) world[k] = [];
   const b = addBuilding(-900, 2200, 420);
   b.ant = -1;
@@ -1142,6 +1229,10 @@ function worldCull(minX) {
   world.drones = world.drones.filter((o) => o.x > minX && (o.alive || o.dead < 2));
   world.guards = world.guards.filter((o) => o.x > minX && (o.alive || o.dead < 2));
   world.bolts = world.bolts.filter((o) => o.life > 0);
+  world.spotters = world.spotters.filter((o) => o.x > minX - 200 && (o.alive || o.dead < 2));
+  world.hunters = world.hunters.filter((h) => h.st === "warn" || (h.st === "idle" ? h.trig > minX - 2000 : h.st !== "gone" && h.x > minX - 400));
+  world.waves = world.waves.filter((o) => o.life > 0);
+  world.balls = world.balls.filter((o) => o.cx + 400 > minX);
   world.boxes = world.boxes.filter((o) => o.x + o.w > minX);
   world.lasers = world.lasers.filter((o) => o.x > minX);
   world.rails = world.rails.filter((o) => o.x2 > minX);
@@ -1852,6 +1943,11 @@ function empBlast() {
   for (const g of world.guards) if (g.alive && g.x > x0 && g.x < x1 && Math.abs(g.top - p.y) < 650) { destroyEnemy(g, "guard", "bolt"); n++; }
   for (const b of world.bolts) if (b.life > 0 && b.x > x0 && b.x < x1) { b.life = 0; FX.sparks(b.x, b.y, 0, -1, 4); }
   for (const L of world.lasers) if (!L.hit && L.x > x0 && L.x < x1) { L.hit = true; FX.sparks(L.x, L.top, 0, -1, 6); n++; }
+  for (const s of world.spotters) if (s.alive && s.x > x0 && s.x < x1 && Math.abs(s.y - p.y) < 700) { killSpotter(s, "emp"); n++; }
+  for (const h of world.hunters) { // jams the hunters: the ones in the air drop, the warnings go dark
+    if (h.st === "fly" && h.x > x0 && h.x < x1) { hunterBoom(h, "emp"); n++; } else if (h.st === "warn") { h.st = "gone"; n++; }
+  }
+  for (const w of world.waves) if (w.life > 0 && w.x > x0 && w.x < x1) { w.life = 0; FX.sparks(w.x, w.y, -1, -0.5, 6); }
   FX.ring(p.x, p.y, "#4ff3ff", 700); FX.ring(p.x, p.y, "#ffffff", 360); FX.flash("#4ff3ff", 0.45); FX.shake(14); FX.impact(0.6);
   FX.popup(p.x, p.y - 70, n ? "EMP ×" + n : "EMP!", "#4ff3ff", 1.3); Sound.fx.emp(); haptic([20, 30, 40]);
   award(30 * n);
@@ -1929,6 +2025,7 @@ function enemyContacts(p, dt) {
   }
   for (const g of world.guards) {
     if (!g.alive) continue;
+    if (g.shield) { shieldGuardContact(g, p, dt, dash, top, bot); continue; }
     const dx = g.x - p.x, head = g.top - GUARD_H;
     if (dash) { if (dx > -30 && dx < 50 && bot > head - 6 && top < g.top) dashKill(g, "guard"); continue; }
     if (Math.abs(dx) > 15 + PW / 2 || bot < head || top > g.top) continue;
@@ -1948,6 +2045,7 @@ function enemyContacts(p, dt) {
     FX.burst(b.x, b.y, 10, "#ff2e63", 260);
     if (crash(b.x, b.y, "TREFFER!")) Sound.fx.zap();
   }
+  newFoesContacts(p, dt);
 }
 
 function fireBolt(g) {
@@ -1966,6 +2064,7 @@ function enemiesUpdate(dt) {
   const view = (W / Math.max(0.35, cam.zoom)) * 0.66, live = !run.dead && p.state !== "dead";
   for (const g of world.guards) {
     if (!g.alive) { g.dead += dt; g.vy += G * dt; g.x += g.vx * dt; g.y += g.vy * dt; continue; }
+    if (g.shield) { shieldGuardUpdate(g, dt, live, view); continue; }
     g.recoil = Math.max(0, g.recoil - dt * 6);
     if (g.charge > 0) { g.charge -= dt; if (g.charge <= 0) { g.charge = 0; fireBolt(g); } continue; }
     g.cd -= dt;
@@ -1984,7 +2083,8 @@ function enemiesUpdate(dt) {
     if (b.life <= 0) { FX.sparks(b.x, b.y, b.vx > 0 ? -1 : 1, -0.4, 6); continue; }
     if (!b.refl) continue;
     // a countered bolt takes out whatever it meets
-    for (const g of world.guards) if (g.alive && Math.abs(g.x - b.x) < 22 && b.y > g.top - GUARD_H - 6 && b.y < g.top + 4) {
+    for (const g of world.guards) if (g.alive && Math.abs(g.x - (g.shield && b.vx > 0 ? 30 : 0) - b.x) < 22 && b.y > g.top - GUARD_H - 6 && b.y < g.top + 4) {
+      if (g.shield && b.vx > 0) { b.life = 0; g.blockT = 0.35; FX.sparks(b.x, b.y, -1, -0.5, 10); FX.popup(g.x, g.top - GUARD_H - 26, "ABGEPRALLT", "#4ff3ff", 0.85, false); Sound.fx.block(); break; } // the shield holds
       b.life = 0; destroyEnemy(g, "guard", "bolt"); award(80); FX.shake(8);
       FX.popup(g.x, g.top - GUARD_H - 26, "VOLLTREFFER!", "#ffd23f", 0.95, false); Sound.fx.slice(2); break;
     }
@@ -1993,14 +2093,401 @@ function enemiesUpdate(dt) {
       FX.popup(d.x, d.y - 30, "VOLLTREFFER!", "#ffd23f", 0.9, false); break;
     }
   }
+  newFoesUpdate(dt, live, view);
+}
+
+
+// ================= NEUE GEGNER: Späher-Drohne, Jäger-Rakete, Schild-Wächter, Abrissbirne =================
+// Späher-Drohne: schwebt hoch über einem Dach und streicht mit ihrem Suchscheinwerfer darüber. Wer im Lichtfleck auf dem
+//   Dach erwischt wird, löst ALARM aus: zwei Jäger-Raketen kommen von vorn. Drüberspringen, durchdashen (zu schnell für
+//   die Kamera) oder die Drohne zerlegen: Doppelsprung und von oben drauf, Slam, EMP.
+// Jäger-Rakete: ein rotes ! am rechten Rand folgt deiner Höhe und rastet ein, dann schießt sie flach heran.
+//   Ausweichen (springen, abtauchen) oder mit dem DASH hinein: Konter.
+// Schild-Wächter: hält einen Energieschild nach vorn, ein Dash prallt daran ab (BLOCK). Er rammt den Schild aufs Dach,
+//   eine Stoßwelle läuft auf dich zu: drüberspringen. Von oben draufspringen oder Slam knackt ihn.
+// Abrissbirne: hängt an einem Raupenkran und pendelt über das Dach. Timing: drunter durch oder drüber springen.
+//   Auch ein Dash prallt an der Stahlkugel ab, nur Overdrive bricht durch.
+function dashRefill() { // a dash that cuts something refills itself and carries you through the wreck
+  const p = player;
+  p.dashKills++; p.dashCombo++; run.dashKills++;
+  if (p.dashCombo > run.maxDashKills) run.maxDashKills = p.dashCombo;
+  p.dashCD = 0; p.airDash = 1; p.dashT = Math.max(p.dashT, 0.07);
+  if (!dashTutDone) { dashTutDone = true; store.set("dashTut", true); }
+}
+function killSpotter(s, how) {
+  const p = player;
+  s.alive = false; s.dead = 0; s.rot = rand(-6, 6);
+  s.vx = how === "dash" ? p.vx * 0.5 + 120 : rand(-60, 140); s.vy = how === "stomp" ? 420 : rand(-420, -260);
+  FX.debris(s.x, s.y, "#ff2e63", 18);
+  if (how === "crash") return; // ran into its belly: it breaks, no reward
+  run.kills++; run.drones++; award(150); addFlow(14); addChain();
+  FX.burst(s.x, s.y, 12, "#ffd23f", 320); FX.ring(s.x, s.y, "#bfe6ff", 110);
+  FX.popup(s.x, s.y - 42, "AUGE ZU!", "#ffd23f", 1.05, false);
+  if (how !== "dash") Sound.fx.stomp();
+}
+function callHunters(n) { // the alarm: hunters come from ahead, one after the other
+  for (let i = 0; i < n; i++) world.hunters.push({ trig: -1, st: "warn", t: -0.25 - i * 0.6, x: 0, y: 0, hy: player.y, vx: 0, vy: 0, rot: 0, dead: 0, passed: false, beep: 0, smoke: 0 });
+}
+function hunterBoom(h, how) { // how: wall (hit a building), hit (on you), counter / slam / emp (shot down: the wreck tumbles)
+  const down = how === "counter" || how === "slam" || how === "emp";
+  if (down) { h.st = "dead"; h.dead = 0; h.vx = how === "counter" ? 460 : 160; h.vy = -380; }
+  else h.st = "gone";
+  FX.burst(h.x, h.y, 14, "#ff8a3d", 340); FX.smoke(h.x, h.y, 5, "#4a4058", 120, 40); FX.ring(h.x, h.y, "#ff8a3d", 70);
+  if (how === "wall") FX.debris(h.x, h.y, "#ff8a3d", 8);
+  Sound.fx.boom();
+}
+function ballPos(b, t) { const th = b.amp * Math.sin(b.w * t + b.ph); return [b.cx + Math.sin(th) * b.len, b.py + Math.cos(th) * b.len]; }
+function shieldSlam(g) { // the shield hits the roof: a shock wave runs along it towards you
+  world.waves.push({ x: g.x - 30, y: g.top, vx: -560, life: 1.5, hit: false, over: false });
+  FX.ring(g.x - 24, g.top, "#4ff3ff", 90, 0.25); FX.sparks(g.x - 28, g.top, -1, -0.4, 8); FX.shake(4); Sound.fx.thud();
+}
+function shieldGuardUpdate(g, dt, live, view) {
+  const p = player;
+  g.blockT = Math.max(0, g.blockT - dt);
+  if (g.wind > 0) { g.wind -= dt; if (g.wind <= 0) { g.wind = 0; shieldSlam(g); } return; }
+  g.cd -= dt;
+  const dx = g.x - p.x;
+  if (g.cd <= 0 && live && dx > 170 && dx < Math.min(760, view) && Math.abs(p.y - (g.top - HALF_H)) < 130) { g.wind = 0.5; g.cd = 1.8; Sound.fx.charge(); }
+}
+function shieldBlock(g) { // a dash into the shield: it holds, you bounce off
+  const p = player;
+  endDash(false);
+  p.x = Math.min(p.x, g.x - 30 - PW / 2);
+  p.state = "air"; p.vx = -240; p.vy = -560; p.kickT = 0.18; p.jumpCut = true; p.diving = false; p.flipT = 0; p.dashCombo = 0;
+  g.blockT = 0.35;
+  FX.ring(g.x - 30, g.top - 24, "#4ff3ff", 80); FX.sparks(g.x - 30, g.top - 26, -1, -0.6, 12); FX.shake(9); FX.hitstop(0.05);
+  FX.popup(g.x - 10, g.top - GUARD_H - 30, "BLOCK!", "#4ff3ff", 1.1, false); Sound.fx.block(); haptic(25);
+}
+function shieldGuardContact(g, p, dt, dash, top, bot) {
+  const dx = g.x - p.x, head = g.top - GUARD_H;
+  if (dash) {
+    if (dx > -30 && dx < 62 && bot > head - 6 && top < g.top) { if (p.x < g.x - 6) shieldBlock(g); else dashKill(g, "guard"); }
+    return;
+  }
+  if (Math.abs(dx) > 18 + PW / 2 || bot < head || top > g.top) return;
+  if (run.od > 0 || p.diving) { destroyEnemy(g, "guard", "slam"); award(60); FX.popup(g.x, head - 20, "GEKNACKT!", "#ffd23f", 1, false); return; }
+  if (p.vy > 0 && bot - p.vy * dt <= head + 10) { // came down on its head: the shield cannot help
+    destroyEnemy(g, "guard", "stomp"); award(60);
+    if (p.state !== "swing" && p.state !== "grind") { p.state = "air"; p.vy = -900; p.airJumps = AIRJ; p.airDash = 1; p.jumpCut = true; }
+    FX.popup(g.x, head - 24, "GEKNACKT!", "#ffd23f", 1, false); FX.ring(g.x, head, "#4ff3ff", 80);
+  } else { destroyEnemy(g, "guard", "crash"); crash(g.x, g.top - GUARD_H / 2, "CRASH!"); }
+}
+
+function newFoesUpdate(dt, live, view) {
+  const p = player, t = run.t;
+  // Späher-Drohnen: schweben, der Lichtfleck streicht übers Dach; wer darin auf dem Dach steht, wird erfasst
+  for (const s of world.spotters) {
+    if (!s.alive) { s.dead += dt; s.vy += G * dt; s.x += s.vx * dt; s.y += s.vy * dt; continue; }
+    s.y = s.y0 + Math.sin(t * 1.7 + s.ph) * 6;
+    s.lx = s.x + Math.sin(t * 1.5 + s.ph) * 150;
+    if (s.seen) { s.alarmT += dt; continue; }
+    const feet = p.y + HALF_H;
+    if (!live || feet < s.roof - 70 || feet > s.roof + 6 || Math.abs(p.x - s.lx) > SPOT_POOL + PW / 2) continue;
+    if (p.dashT > 0 || run.od > 0) { // zu schnell für die Kamera
+      if (!s.slipped) { s.slipped = true; award(40); addFlow(4); FX.popup(p.x, p.y - 58, "ZU SCHNELL!", "#4ff3ff", 0.8, false); }
+      continue;
+    }
+    s.seen = true; s.alarmT = 0;
+    FX.popup(s.x, s.y - 42, "ERFASST!", "#ff2e63", 1.15, false); FX.flash("#ff2e63", 0.2); FX.shake(5);
+    Sound.fx.alarm(); haptic([30, 40, 30]);
+    callHunters(2);
+  }
+  // Jäger-Raketen: Vorwarnung am rechten Rand, dann flach heran
+  const viewR = cam.x + W / (2 * Math.max(0.35, cam.zoom)), viewL = cam.x - W / (2 * Math.max(0.35, cam.zoom));
+  for (const h of world.hunters) {
+    if (h.st === "idle") { if (live && p.x > h.trig) { h.st = "warn"; h.t = 0; h.hy = p.y; } continue; }
+    if (h.st === "warn") {
+      h.t += dt;
+      if (h.t < 0) continue;
+      const locked = h.t > HUNT_WARN - HUNT_LOCK;
+      if (!locked) h.hy += (p.y - h.hy) * Math.min(1, dt * 7);                   // folgt deiner Höhe, dann rastet sie ein
+      h.beep -= dt; if (h.beep <= 0) { Sound.fx.lockBeep(locked); h.beep = locked ? 0.09 : 0.24; }
+      if (h.t >= HUNT_WARN) {
+        h.st = "fly"; h.x = viewR + 40; h.y = h.hy; h.vx = -HUNT_V; Sound.fx.missile();
+        for (const b of world.buildings) if (h.x > b.x && h.x < b.x + b.w && h.y > b.top) { hunterBoom(h, "wall"); break; } // aus der Deckung: sie schlägt im Haus ein
+      }
+      continue;
+    }
+    if (h.st === "fly") {
+      h.x += h.vx * dt;
+      h.smoke -= dt; if (h.smoke <= 0) { h.smoke = 0.035; FX.smoke(h.x + 24, h.y, 1, "#4a4058", 24, 6); }
+      for (const b of world.buildings) if (h.x > b.x && h.x < b.x + b.w && h.y > b.top) { hunterBoom(h, "wall"); break; }
+      if (h.st === "fly") for (const k of world.blocks) if (h.x > k.x && h.x < k.x + k.w && h.y > k.top && h.y < k.bot) { hunterBoom(h, "wall"); break; }
+      if (h.st === "fly" && !h.passed && h.x < p.x - 36) {
+        h.passed = true;
+        if (live && Math.abs(h.y - p.y) < 170) { award(40); addFlow(5); addChain(); FX.popup(p.x, p.y - 58, "AUSGEWICHEN!", "#4ff3ff", 0.8, false); } // close call: it was coming for you
+      }
+      if (h.st === "fly" && h.x < viewL - 200) h.st = "gone";
+      continue;
+    }
+    if (h.st === "dead") { h.dead += dt; h.vy += G * dt; h.x += h.vx * dt; h.y += h.vy * dt; h.rot += 9 * dt; if (h.dead > 2) h.st = "gone"; }
+  }
+  // Stoßwellen der Schild-Wächter laufen übers Dach, an der Kante ist Schluss
+  for (const w of world.waves) {
+    if (w.life <= 0) continue;
+    w.life -= dt; w.x += w.vx * dt;
+    const r = roofAt(w.x);
+    if (!r || Math.abs(r.top - w.y) > 4) { w.life = 0; FX.sparks(w.x, w.y, -1, -0.5, 5); continue; }
+    if (!w.hit && !w.over && live && w.x < p.x - PW / 2 - 14 && Math.abs(p.x - w.x) < 90) { w.over = true; award(20); addFlow(3); }
+  }
+  // Abrissbirnen pendeln (fest an der Zeit, damit man das Timing lernen kann)
+  for (const b of world.balls) {
+    const [x, y] = ballPos(b, t);
+    b.vx = (x - b.x) / Math.max(dt, 1e-4); b.vy = (y - b.y) / Math.max(dt, 1e-4); b.x = x; b.y = y;
+    b.hitT = Math.max(0, b.hitT - dt);
+    if (b.side < 0 && p.x > b.x) { // just went past it
+      b.side = 1;
+      if (live && b.hitT <= 0 && !b.close && Math.hypot(p.x - b.x, p.y - b.y) < BALL_R + 70) { b.close = true; award(60); addFlow(6); addChain(); FX.popup(p.x, p.y - 60, "KNAPP!", "#ffd23f", 0.9, false); }
+    } else if (b.side > 0 && p.x < b.x - 40) b.side = -1;
+    if (live && b.hitT <= 0 && Math.abs(b.vx) > 260 && Math.abs(p.x - b.x) < 120 && Math.abs(p.y - b.y) < 90 && !b.whoosh) { b.whoosh = true; Sound.fx.whoosh(); }
+    if (Math.abs(b.vx) < 120) b.whoosh = false;
+  }
+}
+
+function newFoesContacts(p, dt) {
+  const dash = p.dashT > 0, top = p.y - HALF_H, bot = p.y + HALF_H;
+  for (const s of world.spotters) {
+    if (!s.alive) continue;
+    const dx = s.x - p.x, dy = s.y - p.y;
+    if (dash) { if (dx > -34 && dx < 54 && Math.abs(dy) < 34) { dashRefill(); killSpotter(s, "dash"); FX.slash(s.x, s.y, -0.5, currentSkin.trail, 100); FX.hitstop(0.06); FX.shake(8); Sound.fx.slice(1); haptic(20); } continue; }
+    if (Math.abs(dx) > 34 || Math.abs(dy) > 30) continue;
+    if ((p.vy > 0 && bot < s.y + 8) || p.diving || run.od > 0) {
+      killSpotter(s, "stomp");
+      if (!p.diving && p.state !== "swing" && p.state !== "grind") { p.state = "air"; p.vy = -900; p.airJumps = AIRJ; p.airDash = 1; p.jumpCut = true; }
+    } else { killSpotter(s, "crash"); crash(s.x, s.y, "CRASH!"); }
+  }
+  for (const h of world.hunters) {
+    if (h.st !== "fly" || Math.abs(h.x - p.x) > 36 || Math.abs(h.y - p.y) > HALF_H + 7) continue;
+    if (dash) { // Konter: die Klinge erwischt sie im Flug
+      dashRefill(); hunterBoom(h, "counter"); run.kills++;
+      award(90); addFlow(10); addChain(); FX.slash(h.x, h.y, -0.4, currentSkin.trail, 96); FX.hitstop(0.06); FX.shake(8);
+      FX.popup(h.x, h.y - 40, "KONTER!", "#4ff3ff", 1.05, false); Sound.fx.slice(2); haptic(20);
+    } else if (p.diving || run.od > 0) {
+      hunterBoom(h, "slam"); run.kills++; award(70); addFlow(8); addChain(); FX.popup(h.x, h.y - 40, "SMASH!", "#ffd23f", 0.9, false);
+    } else { hunterBoom(h, "hit"); crash(h.x, h.y, "TREFFER!"); }
+  }
+  for (const w of world.waves) {
+    if (w.life <= 0 || w.hit || Math.abs(w.x - p.x) > PW / 2 + 12 || bot < w.y - 26 || bot > w.y + 8) continue;
+    if (dash || run.od > 0) continue;                                   // durchgedasht: die Welle geht durch dich hindurch
+    w.hit = true; w.life = 0; crash(w.x, w.y - 16, "STOSSWELLE!");
+  }
+  for (const b of world.balls) {
+    if (b.hitT > 0) continue;
+    const cx = clamp(b.x, p.x - PW / 2, p.x + PW / 2), cy = clamp(b.y, top, bot);
+    if ((cx - b.x) ** 2 + (cy - b.y) ** 2 > BALL_R * BALL_R) continue;
+    b.hitT = 0.9; b.close = true;
+    FX.sparks(b.x - Math.sign(b.x - p.x) * BALL_R, b.y, Math.sign(p.x - b.x) || -1, -0.5, 12); Sound.fx.clang();
+    if (run.od > 0) { FX.popup(b.x, b.y - 52, "UNAUFHALTSAM!", "#ffd23f", 0.9, false); continue; }
+    if (p.dashT > 0) endDash(false);                                    // Stahl schlägt Klinge: auch der Dash prallt ab
+    if (crash(b.x, b.y, "ABRISS!") && (p.state === "run" || p.state === "air")) { // the ball shoves you along its swing
+      p.state = "air"; p.vy = Math.min(p.vy, -420); p.vx = clamp(b.vx * 0.55, -260, p.vx); p.kickT = 0.12; p.jumpCut = true;
+    }
+  }
 }
 
 // ---------- drawing ----------
-function drawEnemies(time, L, R) {
+function drawEnemies(time, L, R, T, B) {
+  for (const s of world.spotters) if (s.x > L - 260 && s.x < R + 260) drawSpotter(s, time);
+  for (const b of world.balls) if (b.cx > L - 400 && b.cx < R + 400) drawBall(b);
   for (const d of world.drones) { if (d.x < L || d.x > R) continue; if (d.spike) drawSpikeDrone(d, time); else drawDrone(d, time); }
-  for (const g of world.guards) { if (g.x < L - 40 || g.x > R + 40) continue; drawGuard(g, time); }
+  for (const g of world.guards) { if (g.x < L - 40 || g.x > R + 40) continue; if (g.shield) drawShieldGuard(g, time); else drawGuard(g, time); }
+  drawWaves();
   drawBolts(L, R);
+  for (const h of world.hunters) if (h.st === "warn" || (h.x > L - 80 && h.x < R + 120)) drawHunter(h, time, R, T, B);
 }
+
+// ---------- die neuen Gegner zeichnen ----------
+function drawSpotter(s, time) {
+  const alive = s.alive, alarm = s.seen;
+  if (alive) { // Lichtkegel vom Scheinwerfer bis aufs Dach, mit Lichtfleck und einer Scanlinie, die nach unten läuft
+    const col = alarm ? (Math.sin(time * 14) > 0 ? "#ff2e63" : "#ff6f91") : "#bfe6ff";
+    const lx = s.x + 7, ly = s.y + 10, k = alarm ? 1 : 0.85 + 0.15 * Math.sin(time * 3 + s.ph);
+    const g = ctx.createLinearGradient(0, ly, 0, s.roof);
+    g.addColorStop(0, rgba(col, 0.34 * k)); g.addColorStop(1, rgba(col, 0.09 * k));
+    ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = g;
+    ctx.beginPath(); ctx.moveTo(lx - 5, ly); ctx.lineTo(lx + 5, ly); ctx.lineTo(s.lx + SPOT_POOL, s.roof); ctx.lineTo(s.lx - SPOT_POOL, s.roof); ctx.closePath(); ctx.fill();
+    const sk = (time * 0.9 + s.ph) % 1, sy = lerp(ly, s.roof, sk), sw = lerp(5, SPOT_POOL, sk), sxc = lerp(lx, s.lx, sk);
+    ctx.strokeStyle = rgba(col, 0.4 * (1 - sk)); ctx.lineWidth = 1.5; line(sxc - sw, sy, sxc + sw, sy);
+    ctx.globalAlpha = 0.65 * k; ctx.drawImage(Art.glow(col), s.lx - SPOT_POOL * 1.6, s.roof - 15, SPOT_POOL * 3.2, 28); ctx.globalAlpha = 1;
+    ctx.strokeStyle = rgba(col, 0.8); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(s.lx, s.roof - 1, SPOT_POOL, 5, 0, 0, TAU); ctx.stroke();
+    ctx.globalCompositeOperation = "source-over";
+  }
+  ctx.save(); ctx.translate(s.x, s.y);
+  if (!alive) { ctx.rotate(s.rot * s.dead); ctx.globalAlpha = Math.max(0, 1 - s.dead * 0.8); }
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  ctx.strokeStyle = "#0a0716"; ctx.lineWidth = 3; line(-16, -7, -25, -13); line(13, -7, 22, -13);           // Rotorarme
+  const rw = Math.abs(Math.sin(time * 34 + s.ph)) * 15 + 5;
+  ctx.strokeStyle = "rgba(220,220,255,0.7)"; ctx.lineWidth = 1.6; line(-25 - rw, -15, -25 + rw, -15); line(22 - rw, -15, 22 + rw, -15);
+  ctx.fillStyle = "#0c0820"; ctx.beginPath(); ctx.moveTo(14, -8); ctx.lineTo(25, -19); ctx.lineTo(27, -5); ctx.closePath(); ctx.fill(); // Heckflosse
+  ctx.fillStyle = "#140e2b"; ctx.beginPath(); ctx.moveTo(-31, 0); ctx.lineTo(-16, -9); ctx.lineTo(18, -8); ctx.lineTo(26, -2); ctx.lineTo(20, 7); ctx.lineTo(-14, 8); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = "#3a2f70"; ctx.lineWidth = 1.6; ctx.stroke();
+  ctx.fillStyle = "#0c0820"; ctx.beginPath(); ctx.moveTo(-14, 8); ctx.lineTo(20, 7); ctx.lineTo(23, 1); ctx.lineTo(-20, 2); ctx.closePath(); ctx.fill(); // Bauch im Schatten
+  if (alive) { ctx.strokeStyle = rgba("#ff2e63", 0.75); ctx.lineWidth = 1.1; ctx.beginPath(); ctx.moveTo(-31, 0); ctx.lineTo(-16, -9); ctx.lineTo(18, -8); ctx.stroke(); }
+  ctx.fillStyle = "#0a0716"; ctx.beginPath(); ctx.arc(7, 7, 7.5, 0, Math.PI); ctx.fill();                  // Scheinwerfer unter dem Bauch
+  ctx.fillStyle = alive ? (alarm ? "#ff2e63" : "#eaf7ff") : "#3a2f70"; ctx.beginPath(); ctx.ellipse(7, 9, 5.5, 2.6, 0, 0, TAU); ctx.fill();
+  if (alive) {
+    glowAt(alarm ? "#ff2e63" : "#bfe6ff", 7, 10, 36, 22, 0.9);
+    ctx.fillStyle = "#ff2e63"; ctx.fillRect(-25, -2.6, 7, 3.2); glowAt("#ff2e63", -21, -1, 20, 14, 0.75);  // Kameraauge vorne
+    ctx.fillStyle = "#ffe1e8"; ctx.fillRect(-23 + Math.sin(time * 2.2 + s.ph) * 1.5, -2, 2.2, 1.6);
+    if (alarm) { const on = Math.sin(time * 18) > 0; glowAt(on ? "#ff2e63" : "#4f8bff", 0, -12, 32, 32, 0.95); ctx.fillStyle = on ? "#ff2e63" : "#4f8bff"; ctx.fillRect(-3, -13, 6, 3); }
+  }
+  ctx.restore();
+}
+function drawHunter(h, time, R, T, B) {
+  if (h.st === "warn") { // rotes ! am rechten Rand, auf deiner Höhe; eingerastet blinkt es schnell und zeigt die Fluglinie
+    if (h.t < 0) return;
+    const s = 1 / Math.max(0.35, cam.zoom), locked = h.t > HUNT_WARN - HUNT_LOCK, vw = W * s, vh = H * s;   // the real edge of the screen (R/T/B carry a margin)
+    const x = cam.x + vw / 2 - 30 * s, y = clamp(h.hy, cam.y - vh / 2 + 44 * s, cam.y + vh / 2 - 44 * s);
+    const on = locked ? Math.sin(time * 40) > -0.3 : Math.sin(time * 15) > -0.2;
+    if (locked) {
+      ctx.globalCompositeOperation = "lighter"; ctx.strokeStyle = rgba("#ff2e63", 0.3); ctx.lineWidth = 2 * s;
+      ctx.setLineDash([10 * s, 10 * s]); ctx.lineDashOffset = time * 300; line(x - 22 * s, y, x - 640 * s, y); ctx.setLineDash([]);
+      ctx.globalCompositeOperation = "source-over";
+    }
+    glowAt("#ff2e63", x, y, 74 * s, 74 * s, on ? 0.85 : 0.35);
+    ctx.fillStyle = on ? "#ff2e63" : "#7a1030";
+    ctx.beginPath(); ctx.moveTo(x, y - 18 * s); ctx.lineTo(x + 16 * s, y + 11 * s); ctx.lineTo(x - 16 * s, y + 11 * s); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#ffffff"; ctx.fillRect(x - 1.7 * s, y - 8 * s, 3.4 * s, 10 * s); ctx.fillRect(x - 1.7 * s, y + 4.2 * s, 3.4 * s, 3.4 * s);
+    return;
+  }
+  if (h.st !== "fly" && h.st !== "dead") return;
+  ctx.save(); ctx.translate(h.x, h.y);
+  if (h.st === "dead") { ctx.rotate(h.rot); ctx.globalAlpha = Math.max(0, 1 - h.dead); }
+  else { // Triebwerksflamme
+    glowAt("#ff8a3d", 32, 0, 60, 24, 0.85); glowAt("#ffd23f", 25, 0, 24, 12, 0.9);
+    const fl = 18 + Math.random() * 12;
+    ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = rgba("#ffb347", 0.85);
+    ctx.beginPath(); ctx.moveTo(19, -3.6); ctx.lineTo(19 + fl, 0); ctx.lineTo(19, 3.6); ctx.closePath(); ctx.fill();
+    ctx.globalCompositeOperation = "source-over";
+  }
+  ctx.fillStyle = "#0c0820"; ctx.beginPath(); ctx.moveTo(9, -4); ctx.lineTo(19, -12); ctx.lineTo(20, -4); ctx.closePath(); ctx.fill(); // Leitwerk
+  ctx.beginPath(); ctx.moveTo(9, 4); ctx.lineTo(19, 12); ctx.lineTo(20, 4); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#1a1230"; roundBox(-20, -4.5, 40, 9, 4); ctx.fill();
+  ctx.fillStyle = "#3a2f70"; ctx.beginPath(); ctx.moveTo(-19, -4.5); ctx.lineTo(-32, 0); ctx.lineTo(-19, 4.5); ctx.closePath(); ctx.fill(); // Spitze
+  ctx.fillStyle = "#ff2e63"; ctx.fillRect(-7, -4.5, 4, 9);
+  ctx.strokeStyle = "rgba(255,255,255,0.28)"; ctx.lineWidth = 1; line(-18, -3.2, 16, -3.2);
+  if (h.st === "fly") { ctx.fillStyle = "#ffe1e8"; ctx.fillRect(-28, -1, 3, 2); if (Math.sin(time * 30) > 0) glowAt("#ff2e63", -27, 0, 20, 20, 0.9); }
+  ctx.restore();
+}
+function drawShieldGuard(g, time) {
+  const alive = g.alive, wind = alive && g.wind > 0 ? clamp(1 - g.wind / 0.5, 0, 1) : 0, blk = g.blockT > 0 ? g.blockT / 0.35 : 0;
+  ctx.save();
+  if (alive) ctx.translate(g.x, g.top);
+  else { ctx.translate(g.x, g.y); ctx.rotate(g.rot * g.dead); ctx.translate(0, GUARD_H / 2); ctx.globalAlpha = Math.max(0, 1 - g.dead * 0.9); }
+  const bob = alive ? Math.sin(time * 2.6 + g.ph) * 0.7 : 0;
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  const poly = (pts) => { ctx.beginPath(); ctx.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]); ctx.closePath(); };
+  for (const [hx, far] of [[7, true], [-4, false]]) { // schwere Beine, breiter Stand
+    const hy = -20 + bob, kx = hx + 7, ky = -10 + bob * 0.5, ax = hx - 2, ay = -3;
+    ctx.fillStyle = far ? "#08060f" : "#17102f";
+    poly([hx - 4, hy - 1, hx + 4, hy - 2, kx + 3, ky, kx - 2.5, ky + 1.6]); ctx.fill();
+    ctx.strokeStyle = far ? "#08060f" : "#120c26"; ctx.lineWidth = 4.4; line(kx, ky, ax, ay);
+    poly([ax - 8, 0, ax + 7, 0, ax + 3.5, -4.4, ax - 4.5, -4.8]); ctx.fill();
+    ctx.fillStyle = far ? "#251d4a" : "#4a3d8f"; ctx.beginPath(); ctx.arc(kx, ky, 2.6, 0, TAU); ctx.fill();
+  }
+  ctx.translate(0, bob);
+  const HULL = [-17, -29, -12, -43, 6, -47, 18, -42, 21, -28, 13, -18, -10, -18]; // breiter, gepanzerter Rumpf
+  ctx.fillStyle = "#140e2b"; poly(HULL); ctx.fill(); ctx.strokeStyle = "#3a2f70"; ctx.lineWidth = 1.8; ctx.stroke();
+  ctx.fillStyle = "#0c0820"; poly([-10, -18, 13, -18, 21, -28, 6, -26]); ctx.fill();
+  ctx.fillStyle = "#231b4a"; poly([-12, -43, 6, -47, 18, -42, 4, -39, -9, -37.5]); ctx.fill();
+  ctx.fillStyle = "#2b2357"; poly([10, -40, 22, -37, 23, -29, 12, -31]); ctx.fill();                      // Schulterpanzer
+  if (alive) { ctx.strokeStyle = rgba("#ff2e63", 0.75); ctx.lineWidth = 1.1; ctx.beginPath(); ctx.moveTo(-17, -29); ctx.lineTo(-12, -43); ctx.lineTo(6, -47); ctx.lineTo(18, -42); ctx.stroke(); }
+  ctx.fillStyle = alive ? "#ff2e63" : "#3a2f70"; poly([-15, -31, -10, -38, 1, -39, -2, -33]); ctx.fill();   // Visier
+  if (alive) { ctx.fillStyle = "#ffe1e8"; ctx.fillRect(-10 + Math.sin(time * 2.4 + g.ph) * 1.6, -36.5, 4, 1.6); glowAt("#ff2e63", -7, -35, 28, 18, 0.55); }
+  const sy = -wind * 12, sx = -31;                                                                         // der Schild hebt sich vor dem Stoß
+  ctx.strokeStyle = "#120c26"; ctx.lineWidth = 4; line(-6, -30, sx + 4, -26 + sy);                            // Arm zum Schild
+  if (alive) {
+    const a = 0.5 + 0.25 * Math.sin(time * 4 + g.ph) + wind * 0.4 + blk * 0.6, edge = blk > 0 ? "#ffffff" : "#4ff3ff";
+    glowAt("#4ff3ff", sx - 4, -26 + sy, 46, 74, Math.min(1, a * 0.6));
+    ctx.beginPath(); ctx.moveTo(sx + 3, -54 + sy); ctx.quadraticCurveTo(sx - 15, -27 + sy, sx + 3, 0 + sy); ctx.quadraticCurveTo(sx - 6, -27 + sy, sx + 3, -54 + sy); ctx.closePath();
+    ctx.fillStyle = rgba("#4ff3ff", 0.16 + wind * 0.15 + blk * 0.3); ctx.fill();
+    ctx.strokeStyle = rgba(edge, 0.95); ctx.lineWidth = 2.2; ctx.stroke();
+    ctx.strokeStyle = rgba("#ffffff", 0.7); ctx.lineWidth = 0.8; ctx.stroke();
+    ctx.strokeStyle = rgba("#bffbff", 0.35); ctx.lineWidth = 1; ctx.beginPath();                            // Waben im Feld
+    for (let i = 0; i < 5; i++) { const yy = -46 + i * 10 + sy, xx = sx - 7 + Math.abs(i - 2) * 1.8; ctx.moveTo(xx - 2.5, yy); ctx.lineTo(xx, yy + 3); ctx.lineTo(xx + 2.5, yy); }
+    ctx.stroke();
+  } else { ctx.strokeStyle = "#3a2f70"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(sx + 3, -54); ctx.quadraticCurveTo(sx - 15, -27, sx + 3, 0); ctx.stroke(); }
+  ctx.restore();
+}
+function drawWaves() {
+  for (const w of world.waves) {
+    if (w.life <= 0) continue;
+    const a = Math.min(1, w.life * 3);
+    glowAt("#4ff3ff", w.x + 6, w.y - 12, 66, 42, 0.55 * a);
+    const tg = ctx.createLinearGradient(w.x, 0, w.x + 120, 0); tg.addColorStop(0, rgba("#4ff3ff", 0.55 * a)); tg.addColorStop(1, rgba("#4ff3ff", 0));
+    ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = tg; ctx.fillRect(w.x, w.y - 3, 120, 3); ctx.globalCompositeOperation = "source-over";
+    ctx.lineCap = "round"; ctx.beginPath(); ctx.moveTo(w.x - 15, w.y); ctx.quadraticCurveTo(w.x - 4, w.y - 36, w.x + 15, w.y);
+    ctx.strokeStyle = rgba("#4ff3ff", a); ctx.lineWidth = 3.2; ctx.stroke();
+    ctx.strokeStyle = rgba("#ffffff", a); ctx.lineWidth = 1.2; ctx.stroke(); ctx.lineCap = "butt";
+  }
+}
+// Fachwerk-Ausleger zwischen zwei beliebigen Punkten (für den Abrisskran)
+function trussLine(x1, y1, x2, y2, d, P) {
+  const len = Math.hypot(x2 - x1, y2 - y1) || 1, nx = -(y2 - y1) / len, ny = (x2 - x1) / len, segs = Math.max(4, Math.round(len / 26)), A = [], Q = [];
+  for (let i = 0; i <= segs; i++) {
+    const t = i / segs, w = d * 0.5 * clamp(Math.min(t / 0.15, (1 - t) / 0.15), 0.3, 1), x = lerp(x1, x2, t), y = lerp(y1, y2, t);
+    A.push([x + nx * w, y + ny * w]); Q.push([x - nx * w, y - ny * w]);
+  }
+  ctx.beginPath(); ctx.moveTo(A[0][0], A[0][1]); for (const q of A) ctx.lineTo(q[0], q[1]); for (let i = segs; i >= 0; i--) ctx.lineTo(Q[i][0], Q[i][1]); ctx.closePath();
+  ctx.fillStyle = rgba(P.deep, 0.58); ctx.fill();
+  ctx.strokeStyle = P.brace; ctx.lineWidth = 1.4; ctx.beginPath();
+  for (let i = 0; i < segs; i++) { const a = i & 1 ? A[i] : Q[i], b = i & 1 ? Q[i + 1] : A[i + 1]; ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); }
+  ctx.stroke();
+  ctx.strokeStyle = P.body; ctx.lineWidth = 3;
+  for (const ch of [A, Q]) { ctx.beginPath(); ctx.moveTo(ch[0][0], ch[0][1]); for (let i = 1; i <= segs; i++) ctx.lineTo(ch[i][0], ch[i][1]); ctx.stroke(); }
+  const up = A[segs >> 1][1] < Q[segs >> 1][1] ? A : Q;
+  ctx.strokeStyle = rgba(P.rim, 0.5); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(up[0][0], up[0][1] - 1.5); for (let i = 1; i <= segs; i++) ctx.lineTo(up[i][0], up[i][1] - 1.5); ctx.stroke();
+}
+// Raupenkran-Unterbau (Raupen, Oberwagen, Kabine mit Licht, Gegengewicht, A-Bock); gibt die Spitze des A-Bocks zurück
+function drawCrawler(bx, gr, P, time, ph) {
+  const gx = bx + 16, gy = gr - 96;
+  ctx.lineCap = "butt"; ctx.lineJoin = "miter";
+  ctx.strokeStyle = P.body; ctx.lineWidth = 3.4; ctx.beginPath(); ctx.moveTo(bx + 2, gr - 40); ctx.lineTo(gx, gy); ctx.lineTo(bx + 32, gr - 40); ctx.stroke(); // A-Bock
+  rimLine(gx + 1, gy, bx + 33, gr - 40, P, 0.45, 1);
+  ctx.fillStyle = P.deep; roundBox(bx - 50, gr - 16, 100, 16, 8); ctx.fill();                       // Raupen
+  ctx.strokeStyle = P.body; ctx.lineWidth = 2; roundBox(bx - 50, gr - 16, 100, 16, 8); ctx.stroke();
+  ctx.lineWidth = 1; ctx.beginPath(); for (let k = -42; k <= 42; k += 6) { ctx.moveTo(bx + k, gr - 16); ctx.lineTo(bx + k, gr - 13.5); } ctx.stroke();
+  for (let k = -36; k <= 36; k += 18) { ctx.fillStyle = P.mid; ctx.beginPath(); ctx.arc(bx + k, gr - 8, 4.4, 0, TAU); ctx.fill(); ctx.fillStyle = P.deep; ctx.fillRect(bx + k - 1, gr - 9, 2, 2); }
+  ctx.fillStyle = P.body; ctx.fillRect(bx - 42, gr - 40, 86, 24); rimLine(bx - 42, gr - 40.5, bx + 44, gr - 40.5, P, 0.55); // Oberwagen
+  ctx.fillStyle = P.deep; for (let k = 0; k < 4; k++) ctx.fillRect(bx - 4 + k * 6, gr - 34, 3, 12);
+  ctx.fillStyle = P.mid; roundBox(bx - 40, gr - 63, 27, 24, 3); ctx.fill();                          // Kabine, Fenster leuchtet
+  const wg = ctx.createLinearGradient(0, gr - 60, 0, gr - 48);
+  wg.addColorStop(0, rgba(P.lamp, 0.95)); wg.addColorStop(1, rgba(P.lamp, 0.4));
+  ctx.fillStyle = wg; ctx.fillRect(bx - 37, gr - 60, 19, 11);
+  glowAt(P.lamp, bx - 27, gr - 54, 56, 34, 0.3);
+  rimLine(bx - 40, gr - 63.5, bx - 13, gr - 63.5, P, 0.5, 1);
+  hazard(bx + 22, gr - 48, 28, 30, 5);                                                             // Gegengewicht
+  ctx.strokeStyle = P.body; ctx.lineWidth = 1.5; ctx.strokeRect(bx + 22, gr - 48, 28, 30);
+  navLight(gx, gy - 4, time, ph, "#ff8a3d");
+  return [gx, gy];
+}
+// Abrisskran: steht hinter dem Pendelbereich auf dem Dach, sein Ausleger reicht bis über die Kugel
+function drawBallRig(b, time) {
+  const P = palAt(b.cx), gr = b.roof, bx = b.cx + 255;
+  const [gx, gy] = drawCrawler(bx, gr, P, time, b.ph);
+  const fx = bx - 30, fy = gr - 42;
+  trussLine(fx, fy, b.cx + 4, b.py - 6, 17, P);
+  ctx.fillStyle = P.body; ctx.beginPath(); ctx.moveTo(fx - 6, fy + 4); ctx.lineTo(fx + 12, gr - 39); ctx.lineTo(fx - 12, gr - 39); ctx.fill(); // Fußgelenk
+  ctx.strokeStyle = rgba(P.hi, 0.55); ctx.lineWidth = 1.2; line(gx, gy, lerp(fx, b.cx, 0.86), lerp(fy, b.py, 0.86) - 6); // Abspannung
+  ctx.fillStyle = P.mid; ctx.beginPath(); ctx.arc(b.cx, b.py, 7, 0, TAU); ctx.fill();                  // Rolle an der Spitze
+  ctx.fillStyle = P.deep; ctx.beginPath(); ctx.arc(b.cx, b.py, 2.5, 0, TAU); ctx.fill();
+}
+function drawBall(b) {
+  const P = palAt(b.cx), dx = b.x - b.cx, dy = b.y - b.py, d = Math.hypot(dx, dy) || 1, ex = b.x - (dx / d) * (BALL_R + 4), ey = b.y - (dy / d) * (BALL_R + 4);
+  const hgt = b.roof - (b.y + BALL_R), sa = clamp(1 - hgt / 220, 0, 1);                               // Schatten auf dem Dach
+  if (sa > 0) { ctx.fillStyle = rgba("#000000", 0.45 * sa); ctx.beginPath(); ctx.ellipse(b.x, b.roof - 1, BALL_R * (0.8 + 0.4 * sa), 4, 0, 0, TAU); ctx.fill(); }
+  ctx.lineCap = "butt"; ctx.strokeStyle = P.deep; ctx.lineWidth = 4; line(b.cx, b.py, ex, ey);           // Kette
+  ctx.strokeStyle = P.hi; ctx.lineWidth = 2; ctx.setLineDash([4, 3]); line(b.cx, b.py, ex, ey); ctx.setLineDash([]);
+  ctx.fillStyle = P.body; ctx.beginPath(); ctx.arc(ex, ey, 4.5, 0, TAU); ctx.fill();                      // Schäkel
+  const sp = Math.hypot(b.vx, b.vy);
+  if (sp > 250) { ctx.fillStyle = P.body; for (let i = 2; i >= 1; i--) { ctx.globalAlpha = 0.12 * i; ctx.beginPath(); ctx.arc(b.x - b.vx * 0.014 * i, b.y - b.vy * 0.014 * i, BALL_R, 0, TAU); ctx.fill(); } ctx.globalAlpha = 1; }
+  const g = ctx.createRadialGradient(b.x - 9, b.y - 10, 3, b.x, b.y, BALL_R);
+  g.addColorStop(0, P.hi); g.addColorStop(0.35, P.mid); g.addColorStop(1, "#050308");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(b.x, b.y, BALL_R, 0, TAU); ctx.fill();
+  ctx.strokeStyle = rgba(P.rim, 0.65); ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(b.x, b.y, BALL_R - 1, -1.0, 0.9); ctx.stroke(); // Kantenlicht
+  ctx.strokeStyle = rgba("#ffffff", 0.12); ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(b.x, b.y, BALL_R * 0.62, 3.6, 4.6); ctx.stroke();
+}
+
 function drawDrone(d, time) {
   ctx.save(); ctx.translate(d.x, d.y); if (!d.alive) { ctx.rotate(d.rot * d.dead); ctx.globalAlpha = Math.max(0, 1 - d.dead); }
   ctx.fillStyle = "#120c26"; ctx.beginPath(); ctx.ellipse(0, 0, 19, 9, 0, 0, TAU); ctx.fill();
@@ -2820,28 +3307,11 @@ function drawBoomRail(r, time, pulse, P) {
     tp.push([x, y + 1.5]); bt.push([x + f.nx * d, y + 1.5 + f.ny * d]);
   }
   // Raupenkran auf dem nächsten Dach: der Ausleger sitzt mit dem Fuß auf dem Oberwagen
-  const px = r.x2, gr = r.roof2, bx = px + 40, gx = bx + 16, gy = gr - 96;
-  ctx.lineCap = "butt"; ctx.lineJoin = "miter";
-  ctx.strokeStyle = P.body; ctx.lineWidth = 3.4; ctx.beginPath(); ctx.moveTo(bx + 2, gr - 40); ctx.lineTo(gx, gy); ctx.lineTo(bx + 32, gr - 40); ctx.stroke(); // A-Bock
-  rimLine(gx + 1, gy, bx + 33, gr - 40, P, 0.45, 1);
-  ctx.fillStyle = P.deep; roundBox(bx - 50, gr - 16, 100, 16, 8); ctx.fill();                       // Raupen
-  ctx.strokeStyle = P.body; ctx.lineWidth = 2; roundBox(bx - 50, gr - 16, 100, 16, 8); ctx.stroke();
-  ctx.lineWidth = 1; ctx.beginPath(); for (let k = -42; k <= 42; k += 6) { ctx.moveTo(bx + k, gr - 16); ctx.lineTo(bx + k, gr - 13.5); } ctx.stroke();
-  for (let k = -36; k <= 36; k += 18) { ctx.fillStyle = P.mid; ctx.beginPath(); ctx.arc(bx + k, gr - 8, 4.4, 0, TAU); ctx.fill(); ctx.fillStyle = P.deep; ctx.fillRect(bx + k - 1, gr - 9, 2, 2); }
-  ctx.fillStyle = P.body; ctx.fillRect(bx - 42, gr - 40, 86, 24); rimLine(bx - 42, gr - 40.5, bx + 44, gr - 40.5, P, 0.55); // Oberwagen
-  ctx.fillStyle = P.deep; for (let k = 0; k < 4; k++) ctx.fillRect(bx - 4 + k * 6, gr - 34, 3, 12);  // Lüftungsschlitze
-  ctx.fillStyle = P.mid; roundBox(bx - 40, gr - 63, 27, 24, 3); ctx.fill();                          // Kabine, Fenster leuchtet
-  const wg = ctx.createLinearGradient(0, gr - 60, 0, gr - 48);
-  wg.addColorStop(0, rgba(P.lamp, 0.95)); wg.addColorStop(1, rgba(P.lamp, 0.4));
-  ctx.fillStyle = wg; ctx.fillRect(bx - 37, gr - 60, 19, 11);
-  glowAt(P.lamp, bx - 27, gr - 54, 56, 34, 0.3);
-  rimLine(bx - 40, gr - 63.5, bx - 13, gr - 63.5, P, 0.5, 1);
-  hazard(bx + 22, gr - 48, 28, 30, 5);                                                             // Gegengewicht
-  ctx.strokeStyle = P.body; ctx.lineWidth = 1.5; ctx.strokeRect(bx + 22, gr - 48, 28, 30);
+  const px = r.x2, gr = r.roof2, bx = px + 40;
+  const [gx, gy] = drawCrawler(bx, gr, P, time, r.ph * TAU);
   ctx.fillStyle = P.body; ctx.beginPath(); ctx.moveTo(px - 4, r.y2 + 4); ctx.lineTo(px + 13, gr - 39); ctx.lineTo(px - 9, gr - 39); ctx.fill(); // Fußgelenk
   ctx.strokeStyle = rgba(P.hi, 0.55); ctx.lineWidth = 1.2;                                          // Abspannung zur Auslegerspitze
   line(gx, gy, r.x1 + f.ux * 26, r.y1 + f.uy * 26 - 3);
-  navLight(gx, gy - 4, time, r.ph * TAU, "#ff8a3d");
   // Ausleger: dunkle Füllung (man sieht durch), Diagonalen, Gurte
   ctx.beginPath(); ctx.moveTo(tp[0][0], tp[0][1]); for (let i = 1; i <= segs; i++) ctx.lineTo(tp[i][0], tp[i][1]);
   for (let i = segs; i >= 0; i--) ctx.lineTo(bt[i][0], bt[i][1]); ctx.closePath();
@@ -3175,6 +3645,7 @@ function drawWorld(time, pulse, L, R, T, B) {
     ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
     if (b.prop && b.w >= 300) drawRoofProp(b, time, pulse);
   }
+  for (const b of world.balls) if (b.cx + 330 > L && b.cx - 60 < R) drawBallRig(b, time); // demolition cranes stand on their roofs
   // ---- towers over arcades, then the back yards of the light wells ----
   for (const k of world.blocks) { if (k.x > R || k.x + k.w < L || k.top > B || k.floor < T) continue; drawBlock(k, time, pulse, T, B); }
   for (const b of world.buildings) if (b.well != null && b.x + 40 > L && b.well - 40 < R) drawWell(b, time, pulse);
@@ -3248,7 +3719,7 @@ function drawWorld(time, pulse, L, R, T, B) {
     }
   }
   // ---- drones, guards, bolts ----
-  drawEnemies(time, L, R);
+  drawEnemies(time, L, R, T, B);
 }
 
 // ================= C3: the 3D character engine (originally generated from lab/c3_*.js by mk_c3.py; the lab sources are not in this repo, so it is edited here) =================
@@ -5125,7 +5596,7 @@ document.querySelector(".hud-left").appendChild(ghostLine);
 const fmt = (n) => Math.round(n).toLocaleString("de-DE");
 
 // ---------- best + ghost (this browser only) ----------
-const bestKey = "best_" + SEED, ghostKey = "ghost3_" + SEED; // ghost3: the level layout changed with light wells, arcades and stepped towers
+const bestKey = "best_" + SEED, ghostKey = "ghost4_" + SEED; // ghost4: the level layout changed again with the new enemies
 let bestToday = store.get(bestKey, { dist: 0, score: 0 });
 let ghost = store.get(ghostKey, null);   // { d: [x,y,st,ang, ...], step }
 const ST_CODE = { run: 0, air: 1, swing: 2, grind: 3, wall: 4, dead: 1, grapple: 2, mantle: 4 }, ST_NAME = ["run", "air", "swing", "grind", "wall", "dash"];
@@ -5282,6 +5753,10 @@ const HINTS = IS_TOUCH ? {
   spike: "Stachel-Drohne: nicht draufspringen · <kbd>DASH</kbd> durch!",
   wall: "An der Wand links <kbd>tippen</kbd> = Walljump zur Gegenwand",
   joker: "Nach oben <kbd>wischen</kbd> = Joker einsetzen",
+  spot: "Suchlicht: nicht im Lichtfleck erwischen lassen · <kbd>drüberspringen</kbd> oder <kbd>DASH</kbd>",
+  hunt: "Rotes <kbd>!</kbd> = Jäger-Rakete · ausweichen oder nach rechts <kbd>wischen</kbd> = Konter",
+  shield: "Schild-Wächter blockt den Dash · von oben <kbd>draufspringen</kbd>!",
+  ball: "Abrissbirne: Timing! · drunter durch oder <kbd>drüber springen</kbd>",
 } : {
   jump: "<kbd>LEER</kbd> springen · nochmal in der Luft = Doppelsprung",
   swing: "<kbd>J</kbd> oder <kbd>MAUS</kbd> halten = Seil an den Haken",
@@ -5292,11 +5767,16 @@ const HINTS = IS_TOUCH ? {
   spike: "Stachel-Drohne: nicht draufspringen · <kbd>DASH</kbd> durch!",
   wall: "An der Wand <kbd>LEER</kbd> = Walljump zur Gegenwand",
   joker: "<kbd>G</kbd> oder <kbd>Q</kbd> = Joker einsetzen",
+  spot: "Suchlicht: nicht im Lichtfleck erwischen lassen · <kbd>drüberspringen</kbd> oder <kbd>DASH</kbd>",
+  hunt: "Rotes <kbd>!</kbd> = Jäger-Rakete · ausweichen oder <kbd>DASH</kbd> hinein = Konter",
+  shield: "Schild-Wächter blockt den <kbd>DASH</kbd> · von oben draufspringen!",
+  ball: "Abrissbirne: Timing! · drunter durch oder <kbd>drüber springen</kbd>",
 };
 let hintShown = {}, hintT = 0, zoneShownIdx = 0, zoneT = 0;
 const tutDone = () => store.get("tut", false);
 let pumpTutDone = store.get("pumpTut", false);
 let dashTutDone = store.get("dashTut", false), spikeTutDone = store.get("spikeTut", false), wallTutDone = store.get("wallTut", false);
+const newTut = { spot: store.get("tutSpot", false), hunt: store.get("tutHunt", false), shield: store.get("tutShield", false), ball: store.get("tutBall", false) };
 function showHint(key, dur = 3.2, force = false) {
   if (hintShown[key] || (tutDone() && !force)) return;
   hintShown[key] = true; ui.hint.innerHTML = HINTS[key]; ui.hint.classList.remove("fade"); hintT = dur;
@@ -5371,7 +5851,7 @@ function botLandsSafely(p) { // ballistic look-ahead: will this arc end on a roo
 // something to cut within [lo, hi] px ahead at about the runner's height?
 function botFoe(p, lo, hi, dyMax) {
   for (const d of world.drones) if (d.alive && d.x - p.x > lo && d.x - p.x < hi && Math.abs(d.y - p.y) < dyMax) return true;
-  for (const g of world.guards) if (g.alive && g.x - p.x > lo && g.x - p.x < hi && Math.abs(g.top - GUARD_H / 2 - p.y) < dyMax + 12) return true;
+  for (const g of world.guards) if (g.alive && !g.shield && g.x - p.x > lo && g.x - p.x < hi && Math.abs(g.top - GUARD_H / 2 - p.y) < dyMax + 12) return true;
   for (const b of world.bolts) if (b.life > 0 && !b.refl && b.x - p.x > lo - 40 && b.x - p.x < hi + 90 && Math.abs(b.y - p.y) < 28) return true;
   return false;
 }
@@ -5381,12 +5861,80 @@ function botDashLands(p) {
   for (const b of world.buildings) if (b.x > p.x && b.x < x + PW && p.y + HALF_H > b.top + 36) return false;
   return botLandsSafely({ x, y: p.y, vx: Math.max(baseSpeedAt(x) + 180, v * 0.62), vy: -60 });
 }
+// the new enemies: returns "jump", "dash", "dive", "wait" (hold still, nothing safe yet) or null
+function botBallHits(b, path) {
+  for (const [t, x, y] of path) {
+    const th = b.amp * Math.sin(b.w * (run.t + t) + b.ph), bx = b.cx + Math.sin(th) * b.len, by = b.py + Math.cos(th) * b.len;
+    const cx = clamp(bx, x - PW / 2, x + PW / 2), cy = clamp(by, y - HALF_H, y + HALF_H);
+    if ((cx - bx) ** 2 + (cy - by) ** 2 < (BALL_R + 7) ** 2) return true;
+  }
+  return false;
+}
+function botBallPlan(p, b, ready) {
+  const air = p.state === "air";
+  const sim = (vx, vy, grav, dashT) => {
+    const out = []; let x = p.x, y = p.y, u = vx, w = vy;
+    for (let t = 1 / 30; t <= 0.8; t += 1 / 30) {
+      if (dashT > 0 && t > dashT) u = Math.max(baseSpeedAt(x) + 60, Math.min(u, p.vx + 90));
+      x += u / 30;
+      if (grav) { w += G / 30; y += w / 30; if (!air && y > p.y) { y = p.y; w = 0; } }
+      out.push([t, x, y]);
+    }
+    return out;
+  };
+  if (!botBallHits(b, sim(p.vx, air ? p.vy : 0, air, 0))) return null;
+  if (!air) {
+    if (!botBallHits(b, sim(p.vx, -880, true, 0))) return "jump";
+    if (ready && !botBallHits(b, sim(clamp(Math.max(p.vx, baseSpeedAt(p.x)) + 820, 1250, 1900), 0, false, DASH_T))) return "dash";
+  } else if (p.airJumps > 0 && !botBallHits(b, sim(p.vx, Math.min(p.vy, -800), true, 0))) return "jump";
+  return "wait";
+}
+function botNewFoes(p, ready) {
+  const ground = p.state === "run", air = p.state === "air";
+  if (!ground && !air) return null;
+  for (const h of world.hunters) { // a hunter coming in at your height: cut it (dash) or get out of its line
+    if (h.st !== "fly" || h.x < p.x - 20 || Math.abs(h.y - p.y) > 42) continue;
+    const tc = (h.x - p.x) / Math.max(200, p.vx + HUNT_V);
+    if (tc > 0.24) continue;
+    if (ready && tc < 0.2) return "dash";
+    if (ground) return "jump";
+    if (air && p.airJumps > 0 && p.vy > -300) return "jump";
+  }
+  if (ground) for (const w of world.waves) { // shock wave: hop over it
+    if (w.life <= 0 || w.x < p.x) continue;
+    if ((w.x - p.x) / Math.max(200, p.vx - w.vx) < 0.15 && Math.abs(w.y - (p.y + HALF_H)) < 10) return "jump";
+  }
+  for (const g of world.guards) { // shield guard: never dash into it, jump and come down on its head
+    if (!g.alive || !g.shield) continue;
+    const dx = g.x - p.x;
+    if (ground && dx > 0 && dx < Math.max(150, p.vx * 0.3) && Math.abs(g.top - (p.y + HALF_H)) < 8) return "jump";
+    if (air && Math.abs(dx) < 20 && p.y + HALF_H < g.top - GUARD_H - 4 && p.vy > -250) return "dive";
+  }
+  if (ground) for (const s of world.spotters) { // search light: jump the light pool or dash through it
+    if (!s.alive || s.seen || Math.abs(s.roof - (p.y + HALF_H)) > 10) continue;
+    for (let t = 0.04; t <= 0.3; t += 0.04) {
+      const lx = s.x + Math.sin((run.t + t) * 1.5 + s.ph) * 150;
+      if (Math.abs(p.x + p.vx * t - lx) < SPOT_POOL + PW / 2 + 8) return t < 0.13 && ready ? "dash" : t >= 0.08 ? "jump" : ready ? "dash" : "jump";
+    }
+  }
+  for (const b of world.balls) if (Math.abs(b.cx - p.x) < 650) { const a = botBallPlan(p, b, ready); if (a) return a; }
+  return null;
+}
 function botThink() {
   const p = player, la = Math.max(120, p.vx * 0.2);
   const here = roofAt(p.x), ahead = roofAt(p.x + la);
   const ready = dashReady(p);
   let swing = false;
   input.jumpSrc.delete("bot");
+  const nf = botNewFoes(p, ready);
+  if (nf) { // the new enemies first
+    if (nf === "jump") { input.jumpPressed = true; input.jumpSrc.add("bot"); }
+    else if (nf === "dash") input.dashPressed = true;
+    else if (nf === "dive") input.divePressed = true;
+    else if (p.state === "air" && p.vy < 0) input.jumpSrc.add("bot");
+    input.swingSrc.delete("bot");
+    return;
+  }
   if (p.state === "run") {
     const ceil = blockAbove(p.x + 30, p.y - HALF_H, 170);                  // in an arcade: no room to jump
     const edge = !ahead || (!ceil && here && ahead !== here && ahead.top < here.top - 8);
@@ -5502,6 +6050,12 @@ function hudUpdate(rdt, gp) {
     if (!wallTutDone && !hintShown.wall && (player.state === "wall" || world.blocks.some((k) => k.x - player.x < 320 && k.x + k.w > player.x)) &&
         world.buildings.some((b) => b.well != null && b.x - player.x < 700 && b.x > player.x - 40)) { ui.hint.classList.add("fade"); hintT = 0; showHint("wall", 4, true); }
     if (!hintShown.dive && hintT <= 0 && run.dist > 120 && world.drones.some((d) => d.alive && !d.spike && d.x > player.x && d.x - player.x < 700)) showHint("dive", 3.4);
+    // the new enemies explain themselves once, the first time they show up
+    const tutNew = (key, flag, seen) => { if (!newTut[key] && !hintShown[key] && seen()) { ui.hint.classList.add("fade"); hintT = 0; showHint(key, 3.8, true); newTut[key] = true; store.set(flag, true); } };
+    tutNew("spot", "tutSpot", () => world.spotters.some((s) => s.alive && s.x > player.x && s.x - player.x < 760));
+    tutNew("hunt", "tutHunt", () => world.hunters.some((h) => h.st === "warn" && h.t >= 0));
+    tutNew("shield", "tutShield", () => world.guards.some((g) => g.alive && g.shield && g.x > player.x && g.x - player.x < 720));
+    tutNew("ball", "tutBall", () => world.balls.some((b) => b.cx > player.x - 150 && b.cx - player.x < 820));
     if (hintShown.swing && run.firstSwing && hintT > 50) { hintT = 0.01; }
   }
   // zone banner

@@ -30,6 +30,16 @@ Vier Figuren in Echtzeit-3D, jede mit eigenem Bewegungsstil und eigenem Doppelsp
 
 Neben Dächern, Seilen und Grind-Stellen gibt es eigene Abschnitte: **Lichtschächte** (durch einen Durchgang unter einem Turm rennen, dann per Walljump zwischen den zwei Türmen hoch), **Arkaden** (ein Turm auf Säulen: unten durch, oder per Wandlauf obendrüber) und **Stufen-Hochhäuser** (Absätze hochspringen oder hochlaufen). Auf den Dächern stehen Wassertanks, Satellitenschüsseln, Klimaanlagen, Treppenhäuser, Neon-Schriftzüge und Solarzellen.
 
+## Gegner
+
+- **Drohne:** draufspringen, Slam oder Dash.
+- **Stachel-Drohne:** nicht draufspringen, Dash oder Slam.
+- **Wächter:** schießt übers Dach. Drüberspringen oder Dash, der Dash schießt den Schuss zurück.
+- **Schild-Wächter** (ab ca. 270 m): blockt den Dash mit einem Energieschild und schickt Stoßwellen übers Dach. Drüberspringen und von oben draufspringen.
+- **Späher-Drohne** (ab ca. 360 m): streicht mit einem Suchscheinwerfer übers Dach. Wer im Lichtfleck erwischt wird, löst Alarm aus und bekommt zwei Jäger-Raketen. Über das Licht springen, durchdashen oder die Drohne von oben zerlegen.
+- **Abrissbirne** (ab ca. 470 m): pendelt an einem Raupenkran übers Dach. Timing: drunter durch oder drüber springen. Auch der Dash prallt an ihr ab.
+- **Jäger-Rakete** (ab ca. 600 m): ein rotes ! am rechten Rand folgt deiner Höhe und rastet ein, dann kommt die Rakete. Ausweichen oder mit dem Dash kontern.
+
 ## Skillpunkte und Skills
 
 Alle 50 gesammelten Münzen gibt es einen Skillpunkt, dazu einmalig für Meilensteine (z. B. 1.000 m, 5× Perfekt, 3 Loopings, 3 Walljumps am Stück, 4 Grind-Stellen). Im Menü unter **Skills** schaltest du damit frei:
