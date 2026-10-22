@@ -20,6 +20,7 @@ Läuft als installierbare Web-App (PWA): Vollbild, eigenes Icon, funktioniert of
 | Dash (zerlegt Gegner) | D, →, Shift | nach rechts wischen |
 | Slam | S, ↓ | nach unten wischen |
 | Walljump zur Gegenwand | an der Wand Leertaste | an der Wand links tippen |
+| Joker (Greifhaken / EMP) | G oder Q | nach oben wischen oder Joker-Knopf oben rechts |
 
 ## Figuren
 
@@ -28,3 +29,12 @@ Vier Figuren in Echtzeit-3D, jede mit eigenem Bewegungsstil und eigenem Doppelsp
 ## Strecke
 
 Neben Dächern, Seilen und Grind-Stellen gibt es eigene Abschnitte: **Lichtschächte** (durch einen Durchgang unter einem Turm rennen, dann per Walljump zwischen den zwei Türmen hoch), **Arkaden** (ein Turm auf Säulen: unten durch, oder per Wandlauf obendrüber) und **Stufen-Hochhäuser** (Absätze hochspringen oder hochlaufen). Auf den Dächern stehen Wassertanks, Satellitenschüsseln, Klimaanlagen, Treppenhäuser, Neon-Schriftzüge und Solarzellen.
+
+## Skillpunkte und Skills
+
+Alle 50 gesammelten Münzen gibt es einen Skillpunkt, dazu einmalig für Meilensteine (z. B. 1.000 m, 5× Perfekt, 3 Loopings, 3 Walljumps am Stück, 4 Grind-Stellen). Im Menü unter **Skills** schaltest du damit frei:
+
+- **Joker** (einer ist ausgerüstet): **Greifhaken** zieht dich zur nächsten Dachkante hoch (1× pro Lauf, Stufe 2: 2×), **EMP-Schlag** zerlegt alle Gegner vor dir und schaltet Laser ab (1× pro Lauf).
+- **Fähigkeiten** (wirken immer): Münzmagnet, Schutzschild (fängt einen Treffer ab), Dreifachsprung, Turbo-Overdrive (+3 s).
+
+Der Fortschritt wird im Browser gespeichert.
