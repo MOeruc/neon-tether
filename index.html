@@ -1937,7 +1937,7 @@ function drawSky(time, pulse) {
 
 // ---- Haken-Objekte: Kran, Funkmast, Neon-Schild (hinter den Gebäuden) und Lastdrohne (davor) ----
 const SIGN_COLS = ["#ff2e63", "#4ff3ff", "#ffd23f", "#b86bff"];
-const STRUCT = "#150f2e", STRUCT_HI = "#2c2457";
+const STRUCT = "#2d2360", STRUCT_HI = "#5b4fa8"; // heller als die Dächer, damit Kran, Mast und Schild vor dem Himmel lesbar bleiben
 function latticeV(x, y0, y1, w, T, B) { // senkrechter Gittermast von y0 (oben) bis y1 (unten), nur der sichtbare Teil
   const ya = Math.max(y0, T - 60), yb = Math.min(y1, B + 60);
   if (yb <= ya) return;
