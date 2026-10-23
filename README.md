@@ -30,7 +30,14 @@ Vier Figuren in Echtzeit-3D, jede mit eigenem Bewegungsstil und eigenem Doppelsp
 
 Neben Dächern, Seilen und Grind-Stellen gibt es eigene Abschnitte: **Lichtschächte** (durch eine Ladenpassage unter einem Turm rennen, dann per Walljump im Hinterhof zwischen den zwei Türmen hoch), **Arkaden** (ein Turm auf Säulen mit Läden darunter: unten durch, oder per Wandlauf obendrüber), **Stufen-Hochhäuser** (Absätze hochspringen oder hochlaufen), **Glas-Etagen** (vorn durch die Scheibe in ein Großraumbüro, hinten wieder hinaus), **Taxi-Sprünge** (über eine riesige Lücke von Lufttaxi zu Lufttaxi federn) und **Ringe** in der Luft, die Tempo und Punkte geben. Auf den Dächern stehen Wassertanks, Satellitenschüsseln, Klimaanlagen, Treppenhäuser, Neon-Schriftzüge und Solarzellen. Über der Stadt ziehen Flugverkehr, Suchscheinwerfer, ein Werbe-Luftschiff und in jeder Zone ein riesiges Hologramm vorbei (Koi, Qualle, Globus, Auge).
 
-**Kampfhubschrauber:** Kurz nach jedem Zonenwechsel (alle 800 m) jagt dich ein Kampfhubschrauber. Rote Kreise auf den Dächern zeigen, wo seine Raketen einschlagen: drüberspringen oder durchdashen. Nach jeder Salve kommt er tiefer (gelber Ring): hochspringen und mit dem Dash, Slam oder von oben treffen. Drei Treffer holen ihn vom Himmel, sonst zieht er nach 15 Sekunden ab.
+## Bosse
+
+Ab 1.100 m kommt alle 1.200 m ein Boss, jedes Mal ein anderer. Jeder bekommt seine eigene Arena: ein Tor mit seinem Namen in Neon, dahinter saubere Dächer ohne normale Gegner. Am Tor beginnt der Kampf. Oben erscheint seine Lebensleiste und darunter eine gelbe Linie, die zeigt, wie viel von der Arena noch übrig ist. Besiegst du ihn vorher, gibt es den großen Bonus; hältst du bis zum Ende durch, bist du ENTKOMMEN. Welcher Boss zuerst kommt, wechselt jeden Tag. Nach allen vieren kommen sie stärker wieder (mehr Treffer, schnellere Angriffe).
+
+- **Kampfhubschrauber:** Rote Kreise auf den Dächern zeigen, wo seine Raketen einschlagen: drüberspringen oder durchdashen. Nach jeder Salve kommt er tiefer (gelber Ring): hochspringen und mit Dash, Slam oder von oben treffen.
+- **Krabbler:** ein Spinnen-Panzer, der auf den Dächern vor dir herläuft. Er legt Minen (drüberspringen oder mit dem Dash entschärfen) und feuert einen Bodenlaser übers Dach (springen). Danach überhitzt er, bleibt stehen und der Kern auf seinem Rücken liegt frei: draufspringen, Slam oder Dash. Sonst prallst du an seinem Panzer ab.
+- **Schwarm-Träger:** ein fliegender Träger, der Drohnen-Staffeln aussetzt: eine Reihe, eine hohe Reihe, eine Treppe und über großen Lücken eine Brücke. Zerlegst du eine ganze Staffel, schlägt die Rückkopplung in den Träger ein.
+- **Die KI:** ein riesiges Auge über der Stadt. Bodenlaser (Pfeile nach oben): springen. Laserdecke (Pfeile nach unten): unten bleiben. Sie beamt Generatoren auf die Dächer vor dir; jeder zerstörte Generator (Dash, Slam oder von oben) ist ein Treffer. Wer reinrennt, bekommt einen Stromschlag.
 
 ## Gegner
 
@@ -44,9 +51,9 @@ Neben Dächern, Seilen und Grind-Stellen gibt es eigene Abschnitte: **Lichtschä
 
 ## Skillpunkte und Skills
 
-Alle 50 gesammelten Münzen gibt es einen Skillpunkt, dazu einmalig für Meilensteine (z. B. 1.000 m, 5× Perfekt, 3 Loopings, 3 Walljumps am Stück, 4 Grind-Stellen). Im Menü unter **Skills** schaltest du damit frei:
+Alle 50 gesammelten Münzen gibt es einen Skillpunkt, dazu einmalig für Meilensteine (z. B. 1.000 m, 5× Perfekt, 3 Loopings, 3 Walljumps am Stück, 4 Grind-Stellen, einen Boss besiegen). Im Menü unter **Skills** schaltest du damit frei:
 
-- **Joker** (einer ist ausgerüstet): **Greifhaken** zieht dich zur nächsten Dachkante hoch (1× pro Lauf, Stufe 2: 2×), **EMP-Schlag** zerlegt alle Gegner vor dir, schaltet Laser ab, holt Raketen und den Kampfhubschrauber vom Himmel (1× pro Lauf).
+- **Joker** (einer ist ausgerüstet): **Greifhaken** zieht dich zur nächsten Dachkante hoch (1× pro Lauf, Stufe 2: 2×), **EMP-Schlag** zerlegt alle Gegner vor dir, schaltet Laser ab, holt Raketen vom Himmel und trifft einen Boss doppelt (1× pro Lauf).
 - **Fähigkeiten** (wirken immer): Münzmagnet, Schutzschild (fängt einen Treffer ab), Dreifachsprung, Turbo-Overdrive (+3 s).
 
 Der Fortschritt wird im Browser gespeichert.

@@ -76,6 +76,14 @@ body {
 #dashbar.ready #dashfill { background: var(--tether); }
 #dashbar.empty { outline-color: color-mix(in srgb, var(--hot) 75%, transparent); }
 #chain { font-weight: 700; font-size: var(--step--1); letter-spacing: 0.14em; color: var(--tether); min-height: 1.2em; }
+#bossbar { display: grid; grid-template-columns: auto auto; align-items: center; justify-content: center; gap: 4px 10px; }
+#bossbar[hidden] { display: none; }
+#bossName { font-family: var(--font-display); font-size: var(--step-0); letter-spacing: 0.06em; color: var(--hot); text-shadow: 2px 2px 0 #2a0010; white-space: nowrap; }
+#bossHp { display: flex; gap: 4px; }
+#bossHp i { width: 18px; height: 9px; transform: skewX(-20deg); background: var(--hot); box-shadow: 0 0 9px color-mix(in srgb, var(--hot) 70%, transparent); }
+#bossHp i.off { background: color-mix(in srgb, var(--paper) 14%, transparent); box-shadow: none; }
+#bossLeft { grid-column: 1 / -1; height: 3px; background: color-mix(in srgb, var(--paper) 12%, transparent); overflow: hidden; }
+#bossLeft span { display: block; height: 100%; background: var(--volt); transform-origin: left center; }
 .hud-right { display: flex; justify-content: flex-end; align-items: start; gap: 8px; }
 .speedo { text-align: right; line-height: 1; margin-right: 4px; }
 #speed { font-family: var(--font-display); font-size: var(--step-1); }
@@ -104,6 +112,7 @@ body {
 #zone small { display: block; font-family: var(--font-ui); font-weight: 700; font-size: var(--step--1); letter-spacing: 0.4em; color: var(--volt); text-shadow: none; margin-bottom: 6px; }
 #zone.alert { color: #ff2e63; text-shadow: 3px 3px 0 #2a0010, -2px -2px 0 #ffd23f; animation: alertBlink 0.5s steps(2) 3; }
 #zone.alert small { color: #ffd23f; }
+body.boss #zone { top: 29%; } /* below the boss bar */
 @keyframes alertBlink { 50% { opacity: 0.35; } }
 .fade { opacity: 0; }
 
@@ -205,6 +214,7 @@ html:not(.touch) .keys .kt, html.touch .keys .kd { display: none; } /* phones se
   font-family: var(--font-display); font-size: var(--step-1); letter-spacing: 0.04em; transition: opacity 0.3s;
 }
 #toast small { display: block; font: 700 var(--step--1) var(--font-ui); letter-spacing: 0.14em; }
+body.boss #toast { top: calc(env(safe-area-inset-top, 0px) + 106px); } /* below the boss bar */
 .sp-badge { color: var(--volt); }
 #screenSkills { align-content: start; } /* long page: start at the top so nothing gets cut off above */
 .skills-wrap { width: min(100%, 980px); margin-inline: auto; display: grid; gap: 14px; }
@@ -269,6 +279,7 @@ html:not(.touch) .keys .kt, html.touch .keys .kd { display: none; } /* phones se
     <div class="flow-row"><span class="flow-label">FLOW</span><div id="flowbar"><div id="flowfill"></div></div><span id="mult">x1</span></div>
     <div class="flow-row dash-row"><span class="flow-label">DASH</span><div id="dashbar" class="ready"><div id="dashfill"></div></div><span class="dash-sp" aria-hidden="true"></span></div>
     <div id="chain"></div>
+    <div id="bossbar" hidden><span id="bossName"></span><span id="bossHp"></span><span id="bossLeft"><span></span></span></div>
   </div>
   <div class="hud-right">
     <div class="speedo"><div id="speed">0</div><span>KM/H</span></div>
@@ -443,7 +454,7 @@ const SKILLS = [
   { id: "grapple", joker: true, name: "Greifhaken", icon: "hook", cost: [3, 4],
     desc: ["Schießt einen Haken an die nächste Dachkante und zieht dich hoch: raus aus der Schlucht, den Lichtschacht oder die Hauswand hinauf. 1× pro Lauf.", "Stufe 2: 2× pro Lauf."] },
   { id: "emp", joker: true, name: "EMP-Schlag", icon: "emp", cost: [4],
-    desc: ["Ein Elektroschlag zerlegt alle Drohnen und Wächter vor dir, schaltet Laser ab, löscht Schüsse und holt Raketen vom Himmel. 1× pro Lauf."] },
+    desc: ["Ein Elektroschlag zerlegt alle Drohnen und Wächter vor dir, schaltet Laser ab, löscht Schüsse, holt Raketen vom Himmel und trifft einen Boss doppelt. 1× pro Lauf."] },
   { id: "magnet", name: "Münzmagnet", icon: "magnet", cost: [2], desc: ["Münzen in deiner Nähe fliegen von selbst zu dir."] },
   { id: "shield", name: "Schutzschild", icon: "shield", cost: [3], desc: ["Fängt pro Lauf einen Treffer ab: Laser, Schuss, Stacheldrohne oder Kiste."] },
   { id: "triple", name: "Dreifachsprung", icon: "triple", cost: [5], desc: ["Ein zusätzlicher Sprung in der Luft, auch nach jedem Walljump."] },
@@ -460,6 +471,8 @@ const MILESTONES = [
   { id: "kill15", name: "Drohnenjäger", desc: "15 Gegner in einem Lauf zerlegen", sp: 1, test: () => run.kills >= 15 },
   { id: "grind4", name: "Grind-Profi", desc: "4 Grind-Stellen in einem Lauf", sp: 1, test: () => run.grinds >= 4 },
   { id: "od2", name: "Overdrive-Junkie", desc: "2× Overdrive in einem Lauf", sp: 1, test: () => run.odN >= 2 },
+  { id: "boss1", name: "Bossjäger", desc: "Einen Boss besiegen", sp: 2, test: () => run.bosses >= 1 },
+  { id: "boss2", name: "Doppelschlag", desc: "Zwei Bosse in einem Lauf besiegen", sp: 2, test: () => run.bosses >= 2 },
 ];
 const prog = (() => {
   const d = store.get("prog", null) || {};
@@ -812,6 +825,14 @@ const Sound = (() => {
       noise(t, 0.6, "bandpass", 500, 0.32, sfxBus, 1.1, 2600); osc("sawtooth", 160, t, 0.45, 0.06, sfxBus, 420);
     },
     boom() { if (!ok()) return; const t = now(); kick(t, 1.1, sfxBus); noise(t, 0.5, "lowpass", 1400, 0.5, sfxBus, 1, 110); },
+    laser() { // a heavy beam firing: a falling saw over a hiss
+      if (!ok()) return; const t = now();
+      osc("sawtooth", 1500, t, 0.42, 0.09, sfxBus, 110); osc("square", 760, t, 0.2, 0.04, sfxBus, 90); noise(t, 0.4, "bandpass", 2600, 0.3, sfxBus, 2, 500);
+    },
+    beam() { // the AI beams something down: a rising shimmer
+      if (!ok()) return; const t = now();
+      osc("sine", 280, t, 0.5, 0.06, sfxBus, 1700); osc("triangle", 840, t + 0.06, 0.42, 0.035, sfxBus, 2600); noise(t, 0.45, "highpass", 5200, 0.1, sfxBus, 1, 9000);
+    },
     block() { // Klinge auf Energieschild: heller Gong, Funken
       if (!ok()) return; const t = now();
       osc("triangle", 1250, t, 0.32, 0.1, sfxBus); osc("triangle", 1870, t, 0.22, 0.05, sfxBus); osc("square", 620, t, 0.12, 0.06, sfxBus, 260); noise(t, 0.08, "highpass", 5200, 0.26, sfxBus);
@@ -873,7 +894,7 @@ const world = {
   rng: Math.random, genX: 0, lastTop: 420, introDone: false,
   buildings: [], anchors: [], drones: [], boxes: [], lasers: [], rails: [], pads: [], coins: [], guards: [], bolts: [], blocks: [],
 };
-const WORLD_KEYS = ["buildings", "anchors", "drones", "boxes", "lasers", "rails", "pads", "coins", "guards", "bolts", "blocks", "spotters", "hunters", "waves", "balls", "taxis", "rings"];
+const WORLD_KEYS = ["buildings", "anchors", "drones", "boxes", "lasers", "rails", "pads", "coins", "guards", "bolts", "blocks", "spotters", "hunters", "waves", "balls", "taxis", "rings", "arenas"];
 const GUARD_H = 44;          // Wächter robot: feet on the roof, 44 px tall
 const ENEMY_FREE_X = 5200;   // no guards / spike drones in the first ~200 m (except the intro guard)
 const NEW_FOE_X = 6500;      // from ~260 m on the new enemies come in, one after the other: shield guard, spotter (330 m), wrecking ball (420 m), hunter (560 m)
@@ -1235,6 +1256,58 @@ function introGuard(x, top, v) {
   return [b.x + b.w, b.top];
 }
 
+// ---------- Boss-Arenen (die Bosse selbst stehen weiter unten bei BOSSE) ----------
+// Ab 1.100 m kommt alle 1.200 m ein Boss, jedes Mal ein anderer. Der Generator baut ihm eine eigene Arena: ein langes
+// Einstiegsdach mit einem Tor, auf dem sein Name in Neon steht, dahinter saubere Dächer ohne normale Gegner, zugeschnitten
+// auf ihn (der Krabbler braucht Dächer zum Laufen, die KI lange Dächer für ihre Laser, der Schwarm-Träger Lücken, über
+// die er Drohnen-Brücken legt). Welcher Boss zuerst kommt, wechselt jeden Tag; nach allen vieren kommen sie stärker wieder.
+const BOSS_AT = 1100, BOSS_EVERY = 1200;
+const BOSS_TYPES = ["gunship", "mech", "carrier", "core"];
+const BOSS_NAME = { gunship: "KAMPFHUBSCHRAUBER", mech: "KRABBLER", carrier: "SCHWARM-TRÄGER", core: "DIE KI" };
+const BOSS_COL = { gunship: "#ff2e63", mech: "#ff8a3d", carrier: "#4ff3ff", core: "#ff2e63" };
+const BOSS_S = { gunship: 17, mech: 19, carrier: 19, core: 19 };   // so viele Sekunden (bei Grundtempo) ist seine Arena lang
+const BOSS_ROT = SEED % BOSS_TYPES.length;                            // die Reihenfolge wechselt jeden Tag
+const bossTypeAt = (n) => BOSS_TYPES[(n + BOSS_ROT) % BOSS_TYPES.length];
+const bossM = (n) => BOSS_AT + n * BOSS_EVERY;
+function genArena(x, top, v) {
+  const n = world.arenaN++, type = bossTypeAt(n), lvl = 1 + Math.floor(n / BOSS_TYPES.length);
+  const E = addBuilding(x + RR(0.3, 0.42) * v * 0.72, RR(1250, 1400), clamp(top + RR(-30, 40), TOP_MIN + 40, TOP_MAX - 40));
+  E.prop = 0;
+  world.hunters = world.hunters.filter((h) => h.st !== "idle" || h.trig < E.x - 900);   // no rockets flying in while the boss arrives
+  const gx = E.x + RR(330, 380);
+  coinLine(E.x + 110, gx - 90, E.top - 28, 44);
+  const A = { n, type, lvl, x0: gx, x1: 0, gy: E.top, bridges: [], done: false };
+  const end = gx + (BOSS_S[type] + (lvl - 1) * 4) * v * 1.12;
+  let bx = E.x + E.w, bt = E.top, i = 0;
+  while (bx < end) {
+    i++;
+    const room = bx > gx + 1600 && end - bx > 2200;
+    if (type === "carrier" && room && A.bridges.length < 2 && i % 2 === 0) { // a wide gap: the carrier lays a drone bridge over it
+      const nd = lvl > 1 ? 4 : 3, sp = 205, gap = 120 + (nd - 1) * sp + RR(250, 280);
+      A.bridges.push({ x: bx, top: bt, n: nd, sp, used: false });
+      addAnchor(bx + gap * 0.5, bt - RR(320, 350), aerialKind(true));                       // second chance if the bridge is gone
+      const b = addBuilding(bx + gap, RR(950, 1300), clamp(bt + RR(0, 50), TOP_MIN, TOP_MAX));
+      bx = b.x + b.w; bt = b.top; continue;
+    }
+    if (type === "gunship" && room && i === 3) { // once: a swing over a wide gap while the rockets come down
+      const gap = RR(1.35, 1.7) * v * 0.72, nt = clamp(bt + RR(-40, 70), TOP_MIN, TOP_MAX);
+      const ax = bx + gap * RR(0.4, 0.5), ay = Math.min(bt, nt) - RR(230, 280);
+      addAnchor(ax, ay, aerialKind(true)); coinSwing(ax, ay, 210, -0.2, 0.9, 6);
+      const b = addBuilding(bx + gap, RR(850, 1200), nt);
+      bx = b.x + b.w; bt = b.top; continue;
+    }
+    const core = type === "core", gap = RR(0.28, 0.4) * v * 0.72;
+    const nt = clamp(bt + (core ? RR(-30, 30) : RR(-60, 80)), TOP_MIN + 20, TOP_MAX - 20);
+    if (R() < 0.55) coinArc(bx - 40, bt - 40, bx + gap + 60, nt - 40, 110, 6);
+    const b = addBuilding(bx + gap, core ? RR(1150, 1550) : type === "mech" ? RR(1250, 1750) : RR(850, 1300), nt);
+    if (R() < 0.45) { const c0 = b.x + RR(220, 420); coinLine(c0, c0 + RR(160, 280), b.top - 28, 44); }
+    bx = b.x + b.w; bt = b.top;
+  }
+  A.x1 = bx;
+  world.arenas.push(A);
+  return [bx, bt];
+}
+
 function genPattern() {
   const d = clamp(world.genX / PX_PER_M / 3600, 0, 1);
   const v = baseSpeedAt(world.genX);
@@ -1249,6 +1322,7 @@ function genPattern() {
     [world.genX, world.lastTop] = key === "shield" ? debutShield(world.genX, world.lastTop, v) : PATTERNS.find((pt) => pt.key === key).fn(world.genX, world.lastTop, v, Math.min(d, 0.2));
     return;
   }
+  if (m >= bossM(world.arenaN)) { [world.genX, world.lastTop] = genArena(world.genX, world.lastTop, v); return; } // the next boss gets its arena
   let total = 0;
   const ws = PATTERNS.map((p) => { const w = p.w(d); total += w; return w; });
   let r = R() * total, idx = 0;
@@ -1260,7 +1334,7 @@ function genPattern() {
 }
 
 function worldReset(seed) {
-  world.rng = mulberry32(seed); world.introDone = false; world.debut = {}; lastAerialKind = ""; lastRailKind = "";
+  world.rng = mulberry32(seed); world.introDone = false; world.debut = {}; world.arenaN = 0; lastAerialKind = ""; lastRailKind = "";
   for (const k of WORLD_KEYS) world[k] = [];
   const b = addBuilding(-900, 2200, 420);
   b.ant = -1;
@@ -1288,6 +1362,7 @@ function worldCull(minX) {
   world.rails = world.rails.filter((o) => o.x2 > minX);
   world.pads = world.pads.filter((o) => o.x + o.w > minX);
   world.coins = world.coins.filter((o) => o.x > minX && !o.taken);
+  world.arenas = world.arenas.filter((o) => o.x1 > minX);
 }
 // building whose roof spans x (the highest one if they overlap)
 function roofAt(x) {
@@ -1334,7 +1409,7 @@ function resetRun() {
     spGain: 0, spWhy: [], jokerLeft: jokerCharges(), jokersUsed: 0, shield: hasSkill("shield") ? 1 : 0,
     magnet: hasSkill("magnet") ? 170 : 0, odMax: OD_TIME + (hasSkill("turbo") ? 3 : 0),
   });
-  gunReset();
+  bossReset();
 }
 
 const mult = () => (run.od > 0 ? 5 : 1 + Math.min(3, Math.floor(run.flow / 25)));
@@ -1999,7 +2074,7 @@ function empBlast() {
     if (h.st === "fly" && h.x > x0 && h.x < x1) { hunterBoom(h, "emp"); n++; } else if (h.st === "warn") { h.st = "gone"; n++; }
   }
   for (const w of world.waves) if (w.life > 0 && w.x > x0 && w.x < x1) { w.life = 0; FX.sparks(w.x, w.y, -1, -0.5, 6); }
-  if (run.gun && (run.gun.st === "attack" || run.gun.st === "warn")) { gunDown(run.gun, "emp"); n++; } // the gunship drops out of the sky
+  if (run.boss && bossEmp(run.boss)) n++;                              // a boss: everything it has out there, and a double hit
   FX.ring(p.x, p.y, "#4ff3ff", 700); FX.ring(p.x, p.y, "#ffffff", 360); FX.flash("#4ff3ff", 0.45); FX.shake(14); FX.impact(0.6);
   FX.popup(p.x, p.y - 70, n ? "EMP ×" + n : "EMP!", "#4ff3ff", 1.3); Sound.fx.emp(); haptic([20, 30, 40]);
   award(30 * n);
@@ -2015,7 +2090,7 @@ function destroyEnemy(e, kind, how) {
   const p = player, guard = kind === "guard";
   e.alive = false; e.dead = 0; e.rot = rand(-8, 8);
   if (guard) e.y = e.top - GUARD_H / 2;        // the wreck tumbles from its middle
-  if (how === "crash") { e.vx = 200; e.vy = -300; return; } // ran into it: no reward, it just breaks
+  if (how === "crash") { e.vx = 200; e.vy = -300; e.crashed = true; return; } // ran into it: no reward, it just breaks
   if (how === "dash") { e.vx = p.vx * 0.5 + rand(60, 220); e.vy = rand(-560, -320); }
   else if (how === "stomp") { e.vx = p.vx * 0.5 + rand(-80, 80); e.vy = 500; }
   else if (how === "bolt") { e.vx = rand(200, 420); e.vy = rand(-500, -300); }
@@ -2110,6 +2185,12 @@ function fireBolt(g) {
 function enemiesUpdate(dt) {
   const p = player, t = run.t;
   for (const d of world.drones) {
+    if (d.fly && d.alive) { // a squadron drone on its way from the carrier's bay to its place
+      const f = d.fly, k = clamp((f.t += dt) / f.T, 0, 1), e = smoothT(k);
+      d.x = lerp(f.x0, d.tx, e); d.y = lerp(f.y0, d.y0, e) - Math.sin(k * Math.PI) * 50;
+      if (k >= 1) { d.fly = null; d.x = d.tx; d.y = d.y0; }
+      continue;
+    }
     if (d.alive) d.y = d.y0 + Math.sin(t * 2.4 + d.ph) * d.amp;
     else { d.dead += dt; d.vy += G * dt; d.x += d.vx * dt; d.y += d.vy * dt; }
   }
@@ -2322,7 +2403,7 @@ function newFoesUpdate(dt, live, view) {
     if (live && b.hitT <= 0 && Math.abs(b.vx) > 260 && Math.abs(p.x - b.x) < 120 && Math.abs(p.y - b.y) < 90 && !b.whoosh) { b.whoosh = true; Sound.fx.whoosh(); }
     if (Math.abs(b.vx) < 120) b.whoosh = false;
   }
-  gunUpdate(dt);
+  bossUpdate(dt);
 }
 
 function newFoesContacts(p, dt) {
@@ -2385,180 +2466,981 @@ function newFoesContacts(p, dt) {
       p.state = "air"; p.vy = Math.min(p.vy, -420); p.vx = clamp(b.vx * 0.55, -260, p.vx); p.kickT = 0.12; p.jumpCut = true;
     }
   }
-  gunContacts(p);
+  bossContacts(p);
 }
 
-// ================= KAMPFHUBSCHRAUBER: das Ereignis bei jedem Zonenwechsel =================
-// Kurz nach dem Zonenwechsel taucht er auf, fliegt vor dir her und markiert Raketen-Einschläge auf den Dächern vor dir
-// (rote Kreise, die sich zuziehen). Drüberspringen oder durchdashen. Nach jeder Salve sinkt er tiefer (gelber Ring):
-// dann ist er erreichbar, Doppelsprung und Dash, Slam oder von oben drauf. Drei Treffer = ABSCHUSS.
-// Wer die Angriffszeit übersteht, bekommt ENTKOMMEN. Der EMP holt ihn sofort vom Himmel.
-const GUN = { HP: 3, ATTACK: 15, SALVO: 2.8, DIP: 1.6, HIGH: 300, LOW: 178, BLAST: 50 };
-function gunReset() { run.gun = { st: "off", t: 0, x: 0, y: 0, ground: 400, hp: GUN.HP, salvoT: 1.6, dipT: 0, marks: [], hitT: 0, vx: 0, vy: 0, rot: 0, dead: 0, salvos: 0 }; run.gunZone = 0; }
+// ================= BOSSE: ab 1.100 m alle 1.200 m ein anderer, jeder in seiner eigenen Arena =================
+// Die Arena baut der Generator (genArena). Am Tor beginnt der Kampf: der Boss taucht auf, oben erscheint seine
+// Lebensleiste. Wer ihn besiegt, bevor die Arena zu Ende ist, bekommt den großen Bonus; wer bis zum Ende durchhält, ist
+// ENTKOMMEN. Der EMP-Joker räumt alles weg, was er draußen hat, und zählt doppelt.
+//  KAMPFHUBSCHRAUBER: markiert Raketen-Einschläge auf den Dächern (rote Kreise: drüberspringen oder durchdashen).
+//            Nach jeder Salve kommt er runter (gelber Ring): hoch und Dash, Slam oder von oben drauf.
+//  KRABBLER: ein Spinnen-Panzer, der auf den Dächern vor dir herläuft. Er legt Minen (drüberspringen oder mit dem Dash
+//            entschärfen), feuert einen Bodenlaser übers Dach (springen) und überhitzt dann: er bleibt stehen, der Kern auf
+//            seinem Rücken liegt frei. Draufspringen, Slam oder Dash. Gegen seinen Panzer prallst du sonst ab.
+//  SCHWARM-TRÄGER: ein fliegender Träger, der Drohnen-Staffeln aussetzt: eine Reihe, eine hohe Reihe, eine Treppe, über
+//            einer Lücke eine Brücke. Wer eine ganze Staffel zerlegt, schickt die Rückkopplung in den Träger: Treffer.
+//  DIE KI:   ein Auge über der Stadt. Bodenlaser = springen, Laserdecke = unten bleiben. Sie beamt Generatoren auf die
+//            Dächer vor dir; jeder zerstörte Generator (Dash, Slam, von oben) ist ein Treffer. Reinrennen = Stromschlag.
+const GUN = { SALVO: 2.8, DIP: 1.6, HIGH: 300, LOW: 178 }, BLAST = 50;
+const MECH = { H: 98, LOW: 52, AHEAD: 480, MINE_AHEAD: 660, VENT: 2.3, CHARGE: 0.8, FIRE: 0.3, HW: 96, S: 1.3, EMIT: 150 }; // S: drawn 1.3× its sketch size
+const CARR = { AHEAD: 560, HIGH: 272, EVERY: 3.3, HW: 132 };
+const CORE = { AHEAD: 440, HIGH: 186, TELE: 0.85, FIRE: 0.36, CEIL: 56, GEN_H: 78, GEN_EVERY: 3.1, LAS_EVERY: 2.8 };
+const BOSS_WIN = { gunship: "ABSCHUSS!", mech: "VERSCHROTTET!", carrier: "ABGESTÜRZT!", core: "ABGESCHALTET!" };
+const BOSS = {};
+function bossReset() { run.boss = null; run.bosses = 0; }
 function banner(small, big, alert, dur = 2.4) {
   ui.zone.innerHTML = "<small>" + small + "</small>" + big; ui.zone.classList.toggle("alert", !!alert);
   ui.zone.classList.remove("fade"); zoneT = dur;
 }
-function fireSalvo(g) {
-  const p = player, v = Math.max(p.vx, baseSpeedAt(p.x)) * (p.dashT > 0 ? 0.6 : 1);
-  g.salvos++;
-  for (let i = 0; i < 3; i++) {
+const bossOn = () => !!run.boss && (run.boss.st === "intro" || run.boss.st === "fight");
+const bossIs = (t) => bossOn() && run.boss.type === t;
+const bossVb = () => baseSpeedAt(player.x) * (run.od > 0 ? 1.3 : 1);
+// how fast you are really going (a dash is only a burst); the bosses keep pace with that, not with the base speed
+function bossPace(b, dt) {
+  const p = player, v = Math.max(p.dashT > 0 ? p.preDashVx : p.vx, bossVb() * 0.85);
+  b.pv += (Math.min(v, 2200) - b.pv) * Math.min(1, dt * 2.5);
+  return b.pv;
+}
+// the flyers keep their height over the roofs (the lower of the roof under you and the one ahead), not over your jumps
+function bossGround(b, dt, k = 1.5) {
+  const p = player, r1 = roofAt(p.x), r2 = roofAt(p.x + 320), gr = Math.min(r1 ? r1.top : 1e9, r2 ? r2.top : 1e9);
+  if (gr < 1e9) b.ground += (gr - b.ground) * Math.min(1, dt * k);
+}
+function bossStart(a) {
+  const p = player, lvl = a.lvl;
+  const b = { type: a.type, lvl, arena: a, st: "intro", t: 0, x: p.x + 1100, y: a.gy - 560, ground: a.gy, hp: 2 + lvl, hpMax: 2 + lvl,
+    hitT: 0, vx: 0, vy: 0, rot: 0, dead: 0, arcs: [], sp: Math.pow(0.88, lvl - 1), pv: Math.max(p.vx, bossVb()) }; // sp: higher levels attack faster
+  BOSS[a.type].start(b);
+  if (state === "play") {
+    banner("BOSS" + (lvl > 1 ? " · STUFE " + lvl : "") + " · " + fmt(bossM(a.n)) + " M", BOSS_NAME[a.type], true, 2.6);
+    Sound.fx.alarm(); FX.flash("#ff2e63", 0.18);
+  }
+  return b;
+}
+function bossUpdate(dt) {
+  const p = player, live = !run.dead && p.state !== "dead";
+  let b = run.boss;
+  if (!b) {
+    if (!live) return;
+    for (const a of world.arenas) if (!a.done && p.x >= a.x0 && p.x < a.x1 - 400) { a.done = true; b = run.boss = bossStart(a); break; }
+    if (!b) return;
+  }
+  b.t += dt; b.hitT = Math.max(0, b.hitT - dt);
+  bossPace(b, dt);
+  for (const a of b.arcs) a.t += dt;
+  if (b.arcs.length) b.arcs = b.arcs.filter((a) => a.t < 0.45);
+  BOSS[b.type].update(b, dt, live);
+  if (bossOn() && live && (p.x > b.arena.x1 - 250 || (b.st === "fight" && b.t > 40))) bossEscape(b); // made it to the end of its arena
+  if (b.st === "gone") run.boss = null;
+}
+function bossContacts(p) { const b = run.boss; if (b && !run.dead && b.st !== "gone") BOSS[b.type].contacts(b, p); }
+// one hit (or two, from the EMP) on the boss; true when it went down
+function bossHit(b, x, y, how, dmg = 1) {
+  b.hp = Math.max(0, b.hp - dmg); b.hitT = 0.6;
+  FX.hitstop(0.07); FX.shake(11); FX.burst(x, y, 14, "#ffd23f", 320); FX.sparks(x, y, -1, -0.5, 14);
+  Sound.fx.slice(2); Sound.fx.clang(); haptic(25);
+  if (b.hp <= 0) { bossDefeat(b, how); return true; }
+  award(150 * dmg); addFlow(10); addChain();
+  FX.popup(x, y - 56, "TREFFER " + (b.hpMax - b.hp) + "/" + b.hpMax, "#ffd23f", 1.15, false);
+  return false;
+}
+function bossDefeat(b, how) {
+  b.st = "down"; b.t = 0; b.dead = 0;
+  run.kills++; run.bosses++;
+  const bonus = (how === "emp" ? 500 : 800) * b.lvl, shown = Math.round(bonus * mult());
+  award(bonus); addFlow(30); addChain();
+  const [x, y] = BOSS[b.type].down(b, how);
+  FX.flash("#ffffff", 0.5); FX.slowmo(0.3, 0.7); FX.shake(22); FX.impact(0.8);
+  FX.burst(x, y, 30, "#ff8a3d", 520); FX.debris(x, y, BOSS_COL[b.type], 26); FX.smoke(x, y, 10, "#3a3448", 220, 60); FX.ring(x, y, "#ffd23f", 260);
+  if (state === "play") banner("BOSS BESIEGT · +" + fmt(shown) + " PKT", BOSS_WIN[b.type], false, 2.6);
+  else FX.popup(x, y - 70, BOSS_WIN[b.type], "#ffd23f", 1.6, false);           // the menu's autopilot run has no banner
+  Sound.fx.boom(); Sound.fx.overdrive(); haptic([30, 40, 60]);
+}
+function bossEscape(b) {
+  b.st = "leave"; b.t = 0;
+  BOSS[b.type].leave(b);
+  award(250); addFlow(12); FX.popup(player.x, player.y - 80, "ENTKOMMEN!", "#4ff3ff", 1.3, false);
+  if (state === "play") { banner("ÜBERSTANDEN", "ENTKOMMEN", false, 1.8); Sound.fx.zone(); }
+}
+function bossEmp(b) { // the EMP fries everything it has out there and hits it twice
+  if (!bossOn()) return false;
+  BOSS[b.type].emp(b);
+  const [x, y] = BOSS[b.type].pos(b);
+  FX.ring(x, y, "#4ff3ff", 170); FX.sparks(x, y, -1, -0.3, 18);
+  if (b.st === "intro") { b.st = "fight"; b.t = 0; }
+  bossHit(b, x, y, "emp", 2);
+  return true;
+}
+const botBoss = (p, ready, ground, air) => { const b = run.boss; return b && b.st !== "gone" ? BOSS[b.type].bot(b, p, ready, ground, air) : null; };
+
+// ---------- shared drawing: lightning arcs, chevrons, the boss itself ----------
+function drawArc(x1, y1, x2, y2, a, col) { // a jagged bolt of energy, new every frame
+  const n = 7, dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len;
+  ctx.globalCompositeOperation = "lighter"; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  for (const [w, c, al] of [[6, col, 0.35], [2.2, "#ffffff", 0.9]]) {
+    ctx.strokeStyle = rgba(c, al * a); ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(x1, y1);
+    for (let i = 1; i < n; i++) { const t = i / n, o = (Math.random() - 0.5) * 34 * Math.sin(t * Math.PI); ctx.lineTo(x1 + dx * t + nx * o, y1 + dy * t + ny * o); }
+    ctx.lineTo(x2, y2); ctx.stroke();
+  }
+  ctx.globalCompositeOperation = "source-over"; ctx.lineCap = "butt";
+}
+function chevron(x, y, up, s, col, a) {
+  ctx.strokeStyle = rgba(col, a); ctx.lineWidth = 2.6; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  ctx.beginPath(); ctx.moveTo(x - s, y + (up ? s * 0.6 : -s * 0.6)); ctx.lineTo(x, y + (up ? -s * 0.6 : s * 0.6)); ctx.lineTo(x + s, y + (up ? s * 0.6 : -s * 0.6)); ctx.stroke();
+  ctx.lineCap = "butt";
+}
+function drawBossGround(time, L, R) { const b = run.boss; if (b && b.st !== "gone") BOSS[b.type].ground(b, time, L, R); }
+function drawBoss(time, L, R) {
+  const b = run.boss;
+  if (!b || b.st === "gone") return;
+  BOSS[b.type].draw(b, time, L, R);
+  for (const a of b.arcs) drawArc(a.x, a.y, b.x, b.y + (b.type === "carrier" ? 22 : 0), 1 - a.t / 0.45, BOSS_COL[b.type]);
+}
+// the gate at the start of an arena: two lattice pylons, a sign with the boss's name in neon, warning lights
+function drawArenaGates(time, L, R, T, B) {
+  for (const a of world.arenas) {
+    if (a.x0 < L - 400 || a.x0 > R + 400) continue;
+    const P = palAt(a.x0), top = a.gy, col = BOSS_COL[a.type], name = neonText(BOSS_NAME[a.type], col, 26);
+    const hw = Math.max(150, name.ww / 2 + 30), yb = top - 168, x0 = a.x0 - hw, x1 = a.x0 + hw;
+    trussV(x0, yb - 8, top, 15, P, T, B); trussV(x1, yb - 8, top, 15, P, T, B);
+    ctx.fillStyle = P.deep; ctx.fillRect(x0 - 14, yb - 58, x1 - x0 + 28, 50);                            // sign box
+    ctx.strokeStyle = P.body; ctx.lineWidth = 2.5; ctx.strokeRect(x0 - 14, yb - 58, x1 - x0 + 28, 50);
+    rimLine(x0 - 14, yb - 59, x1 + 14, yb - 59, P, 0.6, 1.2);
+    hazard(x0 - 14, yb - 8, x1 - x0 + 28, 9, 6);
+    const live = run.boss && run.boss.arena === a, fl = a.done ? 1 : Math.sin(time * 1.7 + a.n) > 0.85 ? 0.4 + 0.6 * (Math.sin(time * 40) > 0 ? 1 : 0) : 0.95;
+    glowAt(col, a.x0, yb - 33, name.ww + 70, 96, (live ? 0.5 : 0.32) * fl);
+    drawNeon(name, a.x0, yb - 33, fl);
+    for (const [x, ph] of [[x0, 0], [x1, Math.PI]]) {                                                       // beacons on the pylons
+      ctx.fillStyle = P.body; ctx.fillRect(x - 6, yb - 66, 12, 8);
+      const on = Math.sin(time * (live ? 9 : 3) + ph) > 0;
+      ctx.fillStyle = on ? "#ff2e63" : "#4a0e22"; ctx.fillRect(x - 4, yb - 72, 8, 6);
+      if (on) glowAt("#ff2e63", x, yb - 70, live ? 70 : 44, live ? 70 : 44, 0.9);
+    }
+    if (!a.done) { // a red scan line runs down between the pylons until you pass
+      const sy = lerp(yb + 4, top - 4, (time * 0.8 + a.n * 0.3) % 1);
+      ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = rgba("#ff2e63", 0.28); ctx.fillRect(x0 + 8, sy - 1, x1 - x0 - 16, 2); ctx.globalCompositeOperation = "source-over";
+    }
+  }
+}
+
+// ---------- KAMPFHUBSCHRAUBER ----------
+function gunSalvo(b) {
+  const p = player, v = Math.max(p.vx, baseSpeedAt(p.x)) * (p.dashT > 0 ? 0.6 : 1), n = b.lvl > 1 ? 4 : 3;
+  b.salvos++;
+  for (let i = 0; i < n; i++) {
     const T = 1.05 + i * 0.3, x = p.x + v * T + (i - 1) * 14, r = roofAt(x);
     if (!r) continue;                                                              // over a gap: that rocket has nowhere to hit
-    g.marks.push({ x, y: r.top, t: 0, T, L: 0.22 + i * 0.12, sx: 0, sy: 0, boom: false });
+    b.marks.push({ x, y: r.top, t: 0, T, L: 0.22 + i * 0.12, sx: 0, sy: 0, boom: false });
   }
   Sound.fx.lockBeep(true);
 }
-function gunDown(g, how) {
-  g.st = "down"; g.t = 0; g.dead = 0; g.vx = 140; g.vy = -120; g.rot = 0; g.marks.length = 0;
-  run.kills++; award(how === "emp" ? 300 : 600); addFlow(30); addChain();
-  FX.flash("#ffffff", 0.5); FX.slowmo(0.3, 0.7); FX.shake(22); FX.impact(0.8);
-  FX.burst(g.x, g.y, 30, "#ff8a3d", 520); FX.debris(g.x, g.y, "#ff2e63", 26); FX.smoke(g.x, g.y, 10, "#3a3448", 220, 60); FX.ring(g.x, g.y, "#ffd23f", 260);
-  FX.popup(g.x, g.y - 70, "ABSCHUSS!", "#ffd23f", 1.6, false);
-  Sound.fx.boom(); Sound.fx.overdrive(); haptic([30, 40, 60]);
-}
-function gunUpdate(dt) {
-  const g = run.gun, p = player;
-  if (!g) return;
-  g.hitT = Math.max(0, g.hitT - dt);
-  if (g.st === "off") {
-    const zi = zoneIndexAt(p.x);
-    if (zi > run.gunZone) { run.gunZone = zi; g.st = "wait"; g.t = 0; }
-    return;
-  }
-  g.t += dt;
-  const r1 = roofAt(p.x), r2 = roofAt(p.x + 320), gr = Math.min(r1 ? r1.top : 1e9, r2 ? r2.top : 1e9); // it flies by the roofs, not by your jumps
-  if (gr < 1e9) g.ground += (gr - g.ground) * Math.min(1, dt * 1.5);
-  if (g.st === "wait") { // a few seconds into the new zone it comes
-    if (g.t > 4 && !run.dead && p.state !== "dead") {
-      g.st = "warn"; g.t = 0; g.hp = GUN.HP; g.salvoT = 1.4; g.salvos = 0; g.x = p.x + 1100; g.y = g.ground - GUN.HIGH - 260;
-      if (state === "play") { banner("WARNUNG", "KAMPFHUBSCHRAUBER", true, 2.6); Sound.fx.alarm(); FX.flash("#ff2e63", 0.18); } // the attract mode in the menu plays it silently
+BOSS.gunship = {
+  start(b) { b.y = b.ground - GUN.HIGH - 260; b.salvoT = 1.4; b.dipT = 0; b.salvos = 0; b.marks = []; },
+  pos: (b) => [b.x, b.y],
+  update(b, dt, live) {
+    const p = player;
+    bossGround(b, dt);
+    if (b.st === "down") { // shot down: it spins away, trailing smoke, and drops into the street
+      b.vy += 900 * dt; b.x += b.vx * dt; b.y += b.vy * dt; b.rot += 1.6 * dt; b.dead += dt;
+      if (Math.random() < 0.5) FX.smoke(b.x, b.y, 1, "#2a2436", 60, 20);
+      if (b.dead > 2.4) b.st = "gone";
+      return;
     }
-    return;
-  }
-  if (g.st === "down") { // shot down: it spins away, trailing smoke, and drops into the street
-    g.vy += 900 * dt; g.x += g.vx * dt; g.y += g.vy * dt; g.rot += 1.6 * dt; g.dead += dt;
-    if (Math.random() < 0.5) FX.smoke(g.x, g.y, 1, "#2a2436", 60, 20);
-    if (g.dead > 2.4) g.st = "off";
-    return;
-  }
-  const dip = g.dipT > 0;
-  // it keeps ahead of you; after a salvo it comes down low and slows down, so you catch up with it: jump and hit it
-  let tx = p.x + 460 + Math.sin(g.t * 0.7) * 50, ty = g.ground - (dip ? GUN.LOW : GUN.HIGH) + Math.sin(g.t * 1.9) * 6;
-  if (g.st === "warn") { tx = p.x + lerp(1000, 460, smoothT(Math.min(1, g.t / 2.2))); if (g.t > 2.2) { g.st = "attack"; g.t = 0; } }
-  if (g.st === "leave") { tx = g.x + 600; ty = g.y - 400; if (g.t > 2.4) g.st = "off"; }
-  const vb = baseSpeedAt(p.x) * (run.od > 0 ? 1.3 : 1);
-  if (g.st === "leave") g.x += (tx - g.x) * Math.min(1, dt * 1.2);
-  else if (dip && g.st === "attack") g.x += vb * 0.5 * dt;                    // half your speed: you close in on it
-  else g.x += vb * dt + (tx - g.x) * Math.min(1, dt * 2.6);                  // flies along with you, eases to its spot
-  g.y += (ty - g.y) * Math.min(1, dt * (dip ? 4 : 2.4));
-  if (g.hp < GUN.HP && Math.random() < (GUN.HP - g.hp) * 0.25) FX.smoke(g.x + 40, g.y - 8, 1, g.hp === 1 ? "#5a2a2a" : "#3a3448", 40, 30); // damaged: it smokes
-  if (g.st === "attack") {
-    g.dipT = Math.max(0, g.dipT - dt);
-    g.salvoT -= dt;
-    if (g.salvoT <= 0 && !run.dead) { fireSalvo(g); g.salvoT = GUN.SALVO; g.dipT = GUN.DIP; }
-    if (g.t > GUN.ATTACK && g.marks.length === 0) {
-      g.st = "leave"; g.t = 0; g.dipT = 0;
-      if (!run.dead) { award(250); addFlow(12); FX.popup(p.x, p.y - 80, "ENTKOMMEN!", "#4ff3ff", 1.3, false); if (state === "play") { banner("ÜBERSTANDEN", "ENTKOMMEN", false, 1.8); Sound.fx.zone(); } }
+    const dip = b.dipT > 0 && b.st === "fight";
+    // it keeps ahead of you; after a salvo it comes down low and slows down, so you catch up with it: jump and hit it
+    let tx = p.x + 460 + Math.sin(b.t * 0.7) * 50, ty = b.ground - (dip ? GUN.LOW : GUN.HIGH) + Math.sin(b.t * 1.9) * 6;
+    if (b.st === "intro") { tx = p.x + lerp(1000, 460, smoothT(Math.min(1, b.t / 2.2))); if (b.t > 2.2) { b.st = "fight"; b.t = 0; } }
+    if (b.st === "leave") { tx = b.x + 600; ty = b.y - 400; if (b.t > 2.4 && !b.marks.length) b.st = "gone"; }
+    const vb = b.pv;
+    if (b.st === "leave") b.x += (tx - b.x) * Math.min(1, dt * 1.2);
+    else if (dip) b.x += vb * 0.5 * dt;                                         // half your speed: you close in on it
+    else b.x += vb * dt + (tx - b.x) * Math.min(1, dt * 2.6);                  // flies along with you, eases to its spot
+    b.y += (ty - b.y) * Math.min(1, dt * (dip ? 4 : 2.4));
+    if (b.hp < b.hpMax && Math.random() < ((b.hpMax - b.hp) / b.hpMax) * 0.75) FX.smoke(b.x + 40, b.y - 8, 1, b.hp === 1 ? "#5a2a2a" : "#3a3448", 40, 30); // damaged: it smokes
+    if (b.st === "fight") {
+      b.dipT = Math.max(0, b.dipT - dt);
+      b.salvoT -= dt;
+      if (b.salvoT <= 0 && live) { gunSalvo(b); b.salvoT = GUN.SALVO * b.sp; b.dipT = GUN.DIP; }
     }
-  }
-  for (const m of g.marks) { // rockets: they leave the pods, arc over and come down on the circle
-    m.t += dt;
-    if (m.t >= m.L && !m.sx) { m.sx = g.x - 20; m.sy = g.y + 22; Sound.fx.missile(); FX.burst(m.sx, m.sy, 6, "#ffd23f", 160); }
-    if (m.t >= m.T && !m.boom) {
-      m.boom = true;
-      FX.burst(m.x, m.y - 6, 18, "#ff8a3d", 380); FX.smoke(m.x, m.y - 10, 6, "#3a3448", 160, 50); FX.ring(m.x, m.y, "#ff8a3d", 80, 0.3); FX.shake(7); Sound.fx.boom();
-      const feet = p.y + HALF_H;
-      if (!run.dead && Math.abs(p.x - m.x) < GUN.BLAST + PW / 2 && feet > m.y - 66 && feet < m.y + 30) crash(m.x, m.y - 24, "VOLLTREFFER!");
-      else if (!run.dead && Math.abs(p.x - m.x) < 150) { award(30); addFlow(3); }
+    for (const m of b.marks) { // rockets: they leave the pods, arc over and come down on the circle
+      m.t += dt;
+      if (m.t >= m.L && !m.sx) { m.sx = b.x - 20; m.sy = b.y + 22; Sound.fx.missile(); FX.burst(m.sx, m.sy, 6, "#ffd23f", 160); }
+      if (m.t >= m.T && !m.boom) {
+        m.boom = true;
+        FX.burst(m.x, m.y - 6, 18, "#ff8a3d", 380); FX.smoke(m.x, m.y - 10, 6, "#3a3448", 160, 50); FX.ring(m.x, m.y, "#ff8a3d", 80, 0.3); FX.shake(7); Sound.fx.boom();
+        const feet = p.y + HALF_H;
+        if (live && Math.abs(p.x - m.x) < BLAST + PW / 2 && feet > m.y - 66 && feet < m.y + 30) crash(m.x, m.y - 24, "VOLLTREFFER!");
+        else if (live && Math.abs(p.x - m.x) < 150) { award(30); addFlow(3); }
+      }
     }
-  }
-  g.marks = g.marks.filter((m) => !m.boom);
-}
-function gunContacts(p) {
-  const g = run.gun;
-  if (!g || (g.st !== "attack" && g.st !== "warn") || g.hitT > 0) return;
-  if (Math.abs(p.x - g.x) > 82 || Math.abs(p.y - g.y) > 42) return;
-  const fromAbove = p.vy > 0 && p.y + HALF_H < g.y - 4;
-  if (p.dashT > 0 || p.diving || fromAbove || run.od > 0) {
-    g.hp--; g.hitT = 0.6;
-    if (p.dashT > 0) dashRefill();
-    if (p.state !== "swing" && p.state !== "grind") { p.state = "air"; p.vy = -720; p.vx = Math.max(p.vx, baseSpeedAt(p.x)); p.airJumps = AIRJ; p.airDash = 1; p.diving = false; p.jumpCut = true; }
-    FX.sparks(g.x - 40, g.y, -1, -0.4, 16); FX.hitstop(0.07); FX.shake(11); FX.burst(g.x, g.y, 12, "#ffd23f", 300);
-    Sound.fx.slice(2); Sound.fx.clang(); haptic(25);
-    if (g.hp <= 0) gunDown(g, "hit");
-    else { award(150); addFlow(10); addChain(); FX.popup(g.x, g.y - 56, "TREFFER " + (GUN.HP - g.hp) + "/" + GUN.HP, "#ffd23f", 1.15, false); }
-  } else if (p.vy < 0) p.vy = 240; // bumped its belly from below: knocked back down
-}
-function drawGunMarks(time) {
-  const g = run.gun;
-  if (!g || !g.marks.length) return;
-  for (const m of g.marks) {
-    const k = clamp(m.t / m.T, 0, 1), r = lerp(GUN.BLAST * 1.9, GUN.BLAST, k), fl = Math.sin(time * (14 + k * 30)) > -0.2;
-    glowAt("#ff2e63", m.x, m.y - 4, GUN.BLAST * 3, 30, 0.35 + 0.4 * k);
-    ctx.strokeStyle = rgba("#ff2e63", fl ? 0.95 : 0.5); ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(m.x, m.y - 1, r, r * 0.22, 0, 0, TAU); ctx.stroke();
-    ctx.strokeStyle = rgba("#ffd23f", 0.8); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(m.x, m.y - 1, GUN.BLAST, GUN.BLAST * 0.22, 0, 0, TAU); ctx.stroke();
-    ctx.strokeStyle = rgba("#ff2e63", 0.7); ctx.lineWidth = 1.5; line(m.x - GUN.BLAST - 10, m.y - 1, m.x + GUN.BLAST + 10, m.y - 1); line(m.x, m.y - 14, m.x, m.y + 8);
-    if (m.t < m.L + 0.35) { ctx.globalCompositeOperation = "lighter"; ctx.strokeStyle = rgba("#ff2e63", 0.35 * (1 - m.t / (m.L + 0.35))); ctx.lineWidth = 2; line(g.x - 30, g.y + 20, m.x, m.y); ctx.globalCompositeOperation = "source-over"; } // Zielstrahl
-    if (m.sx && m.t < m.T) { // the rocket on its arc
-      const u = clamp((m.t - m.L) / (m.T - m.L), 0, 1), cx = lerp(m.sx, m.x, 0.45), cy = Math.min(m.sy, m.y) - 140;
-      const x = (1 - u) * (1 - u) * m.sx + 2 * (1 - u) * u * cx + u * u * m.x, y = (1 - u) * (1 - u) * m.sy + 2 * (1 - u) * u * cy + u * u * m.y;
-      const dx = 2 * (1 - u) * (cx - m.sx) + 2 * u * (m.x - cx), dy = 2 * (1 - u) * (cy - m.sy) + 2 * u * (m.y - cy), a = Math.atan2(dy, dx);
-      glowAt("#ff8a3d", x - Math.cos(a) * 10, y - Math.sin(a) * 10, 30, 30, 0.9);
-      ctx.save(); ctx.translate(x, y); ctx.rotate(a); ctx.fillStyle = "#1a1230"; ctx.fillRect(-9, -2.5, 16, 5); ctx.fillStyle = "#ff2e63"; ctx.fillRect(5, -2.5, 3, 5); ctx.restore();
+    b.marks = b.marks.filter((m) => !m.boom);
+  },
+  contacts(b, p) {
+    if ((b.st !== "fight" && b.st !== "intro") || b.hitT > 0) return;
+    if (Math.abs(p.x - b.x) > 82 || Math.abs(p.y - b.y) > 42) return;
+    const fromAbove = p.vy > 0 && p.y + HALF_H < b.y - 4;
+    if (p.dashT > 0 || p.diving || fromAbove || run.od > 0) {
+      if (p.dashT > 0) dashRefill();
+      if (p.state !== "swing" && p.state !== "grind") { p.state = "air"; p.vy = -720; p.vx = Math.max(p.vx, baseSpeedAt(p.x)); p.airJumps = AIRJ; p.airDash = 1; p.diving = false; p.jumpCut = true; }
+      FX.sparks(b.x - 40, b.y, -1, -0.4, 16);
+      bossHit(b, b.x, b.y, "hit");
+    } else if (p.vy < 0) p.vy = 240; // bumped its belly from below: knocked back down
+  },
+  down(b) { b.vx = 140; b.vy = -120; b.rot = 0; b.marks.length = 0; b.dipT = 0; return [b.x, b.y]; },
+  leave(b) { b.dipT = 0; },
+  emp(b) { b.marks.length = 0; b.dipT = 0; },
+  bot(b, p, ready, ground, air) {
+    for (const m of b.marks) { // a rocket circle where you will be when it hits: be in the air then
+      const tl = m.T - m.t;
+      if (tl < 0.08 || tl > 0.45 || Math.abs(p.x + p.vx * tl - m.x) > BLAST + PW / 2 + 12) continue;
+      if (ground) return "jump";
+      if (air && p.airJumps > 0 && p.y + HALF_H > m.y - 90 && p.vy > -150) return "jump";
     }
-  }
+    if (b.st === "fight" && b.dipT > 0.25 && b.hitT <= 0) { // it came down: go for it
+      const dx = b.x - p.x;
+      if (ground && ready && dx > 140 && dx < 330) return "jump";
+      if (air && ready && dx > 0 && dx < 270 && Math.abs(b.y - p.y) < 36) return "dash";
+    }
+    return null;
+  },
+  ground(b, time) {
+    for (const m of b.marks) {
+      const k = clamp(m.t / m.T, 0, 1), r = lerp(BLAST * 1.9, BLAST, k), fl = Math.sin(time * (14 + k * 30)) > -0.2;
+      glowAt("#ff2e63", m.x, m.y - 4, BLAST * 3, 30, 0.35 + 0.4 * k);
+      ctx.strokeStyle = rgba("#ff2e63", fl ? 0.95 : 0.5); ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(m.x, m.y - 1, r, r * 0.22, 0, 0, TAU); ctx.stroke();
+      ctx.strokeStyle = rgba("#ffd23f", 0.8); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(m.x, m.y - 1, BLAST, BLAST * 0.22, 0, 0, TAU); ctx.stroke();
+      ctx.strokeStyle = rgba("#ff2e63", 0.7); ctx.lineWidth = 1.5; line(m.x - BLAST - 10, m.y - 1, m.x + BLAST + 10, m.y - 1); line(m.x, m.y - 14, m.x, m.y + 8);
+      if (m.t < m.L + 0.35) { ctx.globalCompositeOperation = "lighter"; ctx.strokeStyle = rgba("#ff2e63", 0.35 * (1 - m.t / (m.L + 0.35))); ctx.lineWidth = 2; line(b.x - 30, b.y + 20, m.x, m.y); ctx.globalCompositeOperation = "source-over"; } // Zielstrahl
+      if (m.sx && m.t < m.T) { // the rocket on its arc
+        const u = clamp((m.t - m.L) / (m.T - m.L), 0, 1), cx = lerp(m.sx, m.x, 0.45), cy = Math.min(m.sy, m.y) - 140;
+        const x = (1 - u) * (1 - u) * m.sx + 2 * (1 - u) * u * cx + u * u * m.x, y = (1 - u) * (1 - u) * m.sy + 2 * (1 - u) * u * cy + u * u * m.y;
+        const dx = 2 * (1 - u) * (cx - m.sx) + 2 * u * (m.x - cx), dy = 2 * (1 - u) * (cy - m.sy) + 2 * u * (m.y - cy), a = Math.atan2(dy, dx);
+        glowAt("#ff8a3d", x - Math.cos(a) * 10, y - Math.sin(a) * 10, 30, 30, 0.9);
+        ctx.save(); ctx.translate(x, y); ctx.rotate(a); ctx.fillStyle = "#1a1230"; ctx.fillRect(-9, -2.5, 16, 5); ctx.fillStyle = "#ff2e63"; ctx.fillRect(5, -2.5, 3, 5); ctx.restore();
+      }
+    }
+  },
+  draw(b, time) {
+    const dip = b.dipT > 0 && b.st === "fight", hit = b.hitT > 0.4;
+    if (b.st === "fight" || b.st === "intro") { // its search light finds you
+      const sx = b.x - 58, sy = b.y + 6, px = player.x, py = player.y + HALF_H, d = Math.hypot(px - sx, py - sy) || 1, nx = -(py - sy) / d, ny = (px - sx) / d;
+      const lg = ctx.createLinearGradient(sx, sy, px, py); lg.addColorStop(0, rgba("#dff3ff", 0.2)); lg.addColorStop(1, rgba("#dff3ff", 0.03));
+      ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = lg; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(px + nx * 40, py + ny * 40); ctx.lineTo(px - nx * 40, py - ny * 40); ctx.closePath(); ctx.fill(); ctx.globalCompositeOperation = "source-over";
+    }
+    if (dip) { // it came down: hit it now
+      const pr = 92 + Math.sin(time * 10) * 5;
+      ctx.strokeStyle = rgba("#ffd23f", 0.75); ctx.lineWidth = 2.5; ctx.setLineDash([10, 8]); ctx.lineDashOffset = -time * 60;
+      ctx.beginPath(); ctx.ellipse(b.x, b.y, pr, pr * 0.5, 0, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+    }
+    ctx.save(); ctx.translate(b.x, b.y); if (b.st === "down") ctx.rotate(b.rot);
+    const rot = Math.abs(Math.sin(time * 40));
+    for (const fx of [26, 64]) { // ducted fans on top with blurred blades and downwash light
+      glowAt("#4ff3ff", fx, 4, 70, 24, b.st === "down" ? 0.2 : 0.55);
+      ctx.fillStyle = "#120c26"; ctx.beginPath(); ctx.ellipse(fx, -16, 24, 7, 0, 0, TAU); ctx.fill();
+      ctx.strokeStyle = "#3a2f70"; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.strokeStyle = rgba("#e6ecff", 0.5); ctx.lineWidth = 1.4; line(fx - 20 * rot, -17, fx + 20 * rot, -17);
+    }
+    ctx.fillStyle = "#0c0820"; ctx.beginPath(); ctx.moveTo(52, -6); ctx.lineTo(98, -26); ctx.lineTo(104, -22); ctx.lineTo(84, 0); ctx.closePath(); ctx.fill(); // Heckausleger
+    const body = ctx.createLinearGradient(0, -14, 0, 20); body.addColorStop(0, "#2b2252"); body.addColorStop(0.5, "#151030"); body.addColorStop(1, "#07050e");
+    ctx.fillStyle = body; ctx.beginPath(); ctx.moveTo(-74, 6); ctx.lineTo(-56, -10); ctx.lineTo(-20, -14); ctx.lineTo(58, -12); ctx.lineTo(78, -2); ctx.lineTo(70, 14); ctx.lineTo(-40, 18); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = "#3a2f70"; ctx.lineWidth = 1.8; ctx.stroke();
+    if (b.st !== "down") { ctx.strokeStyle = rgba("#ff2e63", 0.8); ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(-74, 6); ctx.lineTo(-56, -10); ctx.lineTo(-20, -14); ctx.lineTo(58, -12); ctx.stroke(); }
+    ctx.fillStyle = "#05030a"; ctx.beginPath(); ctx.moveTo(-66, 4); ctx.lineTo(-52, -7); ctx.lineTo(-28, -9); ctx.lineTo(-30, 4); ctx.closePath(); ctx.fill();  // Cockpit
+    if (b.st !== "down") { glowAt("#ff2e63", -44, -1, 40, 20, 0.8); ctx.fillStyle = "#ff2e63"; ctx.fillRect(-50, -3, 14, 2); }
+    ctx.fillStyle = "#e8b123"; for (let i = 0; i < 4; i++) ctx.fillRect(4 + i * 7, 3, 4, 8);                                                   // Warnstreifen
+    ctx.fillStyle = "#0a0716"; ctx.fillRect(-16, 14, 54, 6); ctx.fillRect(-12, 20, 18, 7); ctx.fillRect(14, 20, 18, 7);                     // Stummelflügel + Raketenkapseln
+    ctx.fillStyle = "#ff2e63"; for (let i = 0; i < 3; i++) { ctx.fillRect(-11 + i * 6, 25, 3, 2); ctx.fillRect(15 + i * 6, 25, 3, 2); }
+    ctx.fillStyle = "#120c26"; ctx.beginPath(); ctx.arc(-58, 14, 6, 0, TAU); ctx.fill(); ctx.fillStyle = "#05030a"; ctx.fillRect(-74, 13, 16, 3);        // Kinnkanone
+    if (Math.sin(time * 4) > 0.3) { glowAt("#ff2e63", -72, 6, 18, 18); glowAt("#5dff9a", 100, -24, 18, 18); }
+    if (Math.sin(time * 9) > 0.92) glowAt("#ffffff", 20, -14, 40, 40);
+    if (hit) { ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 0.6; ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.moveTo(-74, 6); ctx.lineTo(-56, -10); ctx.lineTo(58, -12); ctx.lineTo(78, -2); ctx.lineTo(70, 14); ctx.lineTo(-40, 18); ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over"; }
+    ctx.restore();
+  },
+};
+
+// ---------- KRABBLER: Spinnen-Panzer auf den Dächern ----------
+const MECH_LEGS = [ // hip on the body, resting foot (both relative to its middle), gait phase; the far legs are darker and stand narrower
+  { hx: -52, rx: -130, far: false, ph: 0 }, { hx: 52, rx: 130, far: false, ph: Math.PI },
+  { hx: -31, rx: -91, far: true, ph: Math.PI }, { hx: 31, rx: 91, far: true, ph: 0 },
+];
+function mechLeap(b, x1, r, T, hop) {
+  b.leap = { x0: b.x, g0: b.gy, x1, g1: r.top, t: 0, T, hop };
+  FX.dust(b.x - 70, b.gy, 5); FX.dust(b.x + 70, b.gy, 5); Sound.fx.whoosh();
 }
-function drawGunship(time) {
-  const g = run.gun;
-  if (!g || g.st === "off" || g.st === "wait") return;
-  const dip = g.dipT > 0 && g.st === "attack", hit = g.hitT > 0.4;
-  if (g.st === "attack" || g.st === "warn") { // its search light finds you
-    const sx = g.x - 58, sy = g.y + 6, px = player.x, py = player.y + HALF_H, d = Math.hypot(px - sx, py - sy) || 1, nx = -(py - sy) / d, ny = (px - sx) / d;
-    const lg = ctx.createLinearGradient(sx, sy, px, py); lg.addColorStop(0, rgba("#dff3ff", 0.2)); lg.addColorStop(1, rgba("#dff3ff", 0.03));
-    ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = lg; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(px + nx * 40, py + ny * 40); ctx.lineTo(px - nx * 40, py - ny * 40); ctx.closePath(); ctx.fill(); ctx.globalCompositeOperation = "source-over";
-  }
-  if (dip) { // it came down: hit it now
-    const pr = 92 + Math.sin(time * 10) * 5;
-    ctx.strokeStyle = rgba("#ffd23f", 0.75); ctx.lineWidth = 2.5; ctx.setLineDash([10, 8]); ctx.lineDashOffset = -time * 60;
-    ctx.beginPath(); ctx.ellipse(g.x, g.y, pr, pr * 0.5, 0, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
-  }
-  ctx.save(); ctx.translate(g.x, g.y); if (g.st === "down") ctx.rotate(g.rot);
-  const rot = Math.abs(Math.sin(time * 40));
-  for (const fx of [26, 64]) { // ducted fans on top with blurred blades and downwash light
-    glowAt("#4ff3ff", fx, 4, 70, 24, g.st === "down" ? 0.2 : 0.55);
-    ctx.fillStyle = "#120c26"; ctx.beginPath(); ctx.ellipse(fx, -16, 24, 7, 0, 0, TAU); ctx.fill();
-    ctx.strokeStyle = "#3a2f70"; ctx.lineWidth = 1.5; ctx.stroke();
-    ctx.strokeStyle = rgba("#e6ecff", 0.5); ctx.lineWidth = 1.4; line(fx - 20 * rot, -17, fx + 20 * rot, -17);
-  }
-  ctx.fillStyle = "#0c0820"; ctx.beginPath(); ctx.moveTo(52, -6); ctx.lineTo(98, -26); ctx.lineTo(104, -22); ctx.lineTo(84, 0); ctx.closePath(); ctx.fill(); // Heckausleger
-  const body = ctx.createLinearGradient(0, -14, 0, 20); body.addColorStop(0, "#2b2252"); body.addColorStop(0.5, "#151030"); body.addColorStop(1, "#07050e");
-  ctx.fillStyle = body; ctx.beginPath(); ctx.moveTo(-74, 6); ctx.lineTo(-56, -10); ctx.lineTo(-20, -14); ctx.lineTo(58, -12); ctx.lineTo(78, -2); ctx.lineTo(70, 14); ctx.lineTo(-40, 18); ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = "#3a2f70"; ctx.lineWidth = 1.8; ctx.stroke();
-  if (g.st !== "down") { ctx.strokeStyle = rgba("#ff2e63", 0.8); ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(-74, 6); ctx.lineTo(-56, -10); ctx.lineTo(-20, -14); ctx.lineTo(58, -12); ctx.stroke(); }
-  ctx.fillStyle = "#05030a"; ctx.beginPath(); ctx.moveTo(-66, 4); ctx.lineTo(-52, -7); ctx.lineTo(-28, -9); ctx.lineTo(-30, 4); ctx.closePath(); ctx.fill();  // Cockpit
-  if (g.st !== "down") { glowAt("#ff2e63", -44, -1, 40, 20, 0.8); ctx.fillStyle = "#ff2e63"; ctx.fillRect(-50, -3, 14, 2); }
-  ctx.fillStyle = "#e8b123"; for (let i = 0; i < 4; i++) ctx.fillRect(4 + i * 7, 3, 4, 8);                                                   // Warnstreifen
-  ctx.fillStyle = "#0a0716"; ctx.fillRect(-16, 14, 54, 6); ctx.fillRect(-12, 20, 18, 7); ctx.fillRect(14, 20, 18, 7);                     // Stummelflügel + Raketenkapseln
-  ctx.fillStyle = "#ff2e63"; for (let i = 0; i < 3; i++) { ctx.fillRect(-11 + i * 6, 25, 3, 2); ctx.fillRect(15 + i * 6, 25, 3, 2); }
-  ctx.fillStyle = "#120c26"; ctx.beginPath(); ctx.arc(-58, 14, 6, 0, TAU); ctx.fill(); ctx.fillStyle = "#05030a"; ctx.fillRect(-74, 13, 16, 3);        // Kinnkanone
-  if (Math.sin(time * 4) > 0.3) { glowAt("#ff2e63", -72, 6, 18, 18); glowAt("#5dff9a", 100, -24, 18, 18); }
-  if (Math.sin(time * 9) > 0.92) glowAt("#ffffff", 20, -14, 40, 40);
-  if (hit) { ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 0.6; ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.moveTo(-74, 6); ctx.lineTo(-56, -10); ctx.lineTo(58, -12); ctx.lineTo(78, -2); ctx.lineTo(70, 14); ctx.lineTo(-40, 18); ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over"; }
-  ctx.restore();
+function mechLanding(b) {
+  FX.dust(b.x - 110, b.gy, 8); FX.dust(b.x + 110, b.gy, 8); FX.ring(b.x, b.gy, "#ff8a3d", 170, 0.3); FX.shake(9); Sound.fx.thud();
+  b.crouch = Math.max(b.crouch, 0.75);
+  const p = player, r = roofAt(b.x);
+  if (b.lvl > 1 && b.st === "fight" && r && r === roofAt(p.x) && b.x - p.x > 220) world.waves.push({ x: b.x - 120, y: r.top, vx: -560, life: 1.5, hit: false, over: false }); // STUFE 2: the landing sends a shock wave
 }
+function mechLeapStep(b, dt) {
+  const L = b.leap; L.t += dt;
+  const k = Math.min(1, L.t / L.T);
+  b.x = lerp(L.x0, L.x1, k); b.gy = lerp(L.g0, L.g1, k) - Math.sin(k * Math.PI) * L.hop;
+  if (k >= 1) { b.leap = null; b.gy = L.g1; mechLanding(b); }
+}
+// a gap or a different roof ahead: jump across onto it
+function mechLeapOn(b, from, vb) {
+  const here = roofAt(b.x), next = roofAt(from);
+  let t = next && next !== here ? next : null;
+  if (!t) for (const o of world.buildings) if (o.x > b.x + 10 && o.x + o.w > from && (!t || o.x < t.x)) t = o;
+  if (!t) return false;
+  const x1 = clamp(Math.max(from + 40, t.x + 110), t.x + 60, t.x + t.w - 60);
+  mechLeap(b, x1, t, clamp((x1 - b.x) / (vb * 1.3), 0.38, 0.95), 60 + Math.max(0, b.gy - t.top) * 0.8);
+  return true;
+}
+// over your head and ahead of you again (after a hit, or when you got past it)
+function mechLeapAhead(b, vb) {
+  const p = player, T = 0.75, aim = p.x + vb * T + MECH.AHEAD;
+  let t = roofAt(aim);
+  if (!t) for (const o of world.buildings) if (o.x > aim - 40 && (!t || o.x < t.x)) t = o;
+  if (!t) return false;
+  mechLeap(b, clamp(aim, t.x + 60, t.x + t.w - 60), t, T, 190);
+  return true;
+}
+// keeps ahead of you on the roofs; a gap or a step ahead means a leap
+function mechWalk(b, dt, vb, tx, hold) {
+  let v = clamp(vb + (tx - b.x) * 2.2, 0, vb * 1.8), nx = b.x + v * dt;
+  const here = roofAt(b.x), next = roofAt(nx + 86);
+  if (!here || next !== here) {
+    if (hold && here) { nx = Math.max(b.x, Math.min(nx, here.x + here.w - 86)); v = (nx - b.x) / dt; } // charging: it plants itself at the edge to fire
+    else if (mechLeapOn(b, nx + 86, vb)) return;
+  }
+  b.gait += ((nx - b.x) / 118) * Math.PI; b.walk = Math.min(1, v / 300);
+  b.x = nx;
+  const r = roofAt(b.x); if (r) b.gy += (r.top - b.gy) * Math.min(1, dt * 14);
+}
+function mechVent(b) { // overheated: it stops, crouches and opens the hatch over its core
+  b.ph = "vent"; b.pt = MECH.VENT * b.sp; b.las = null;
+  FX.smoke(b.x + 76, b.y - 44, 6, "#c9c2ff", 60, 80); Sound.fx.release();
+}
+function mechMine(b) { // drops a mine from its belly onto the roof
+  const r = roofAt(b.x - 44);
+  if (!r || b.x - 44 < r.x + 16) return;
+  b.mines.push({ x: b.x - 44, y: r.top, y0: b.y + 24, t: 0, st: "fall", blink: Math.random() * 6, passed: false });
+  Sound.fx.shot();
+}
+function mechMineY(m) { return m.st === "fall" ? lerp(m.y0, m.y, Math.min(1, (m.t / 0.25) ** 2)) : m.y; }
+function mechDown(b, dt) {
+  b.dead += dt;
+  if (b.leap) mechLeapStep(b, dt);
+  b.crouch = Math.min(1.5, b.crouch + dt * 3);
+  b.y = b.gy - lerp(MECH.H, MECH.LOW, b.crouch);
+  if (b.dead < 1.3 && Math.random() < dt * 7) { const x = b.x + rand(-80, 80), y = b.y + rand(-32, 12); FX.burst(x, y, 10, "#ff8a3d", 260); FX.smoke(x, y, 3, "#3a3448", 80, 40); FX.shake(5); Sound.fx.boom(); }
+  if (Math.random() < 0.3) FX.smoke(b.x + rand(-40, 40), b.y - 20, 1, "#2a2436", 30, 50);
+  if (b.dead > 3.2) b.st = "gone";
+}
+BOSS.mech = {
+  start(b) {
+    const p = player;
+    b.x = p.x + 660; const r = roofAt(b.x); b.gy = r ? r.top : b.ground;
+    b.dropY = -620; b.vy = 0; b.ph = "drop"; b.pt = 0; b.gait = 0; b.walk = 0; b.crouch = 0; b.hatch = 0; b.eye = 0;
+    b.mines = []; b.leap = null; b.k = 0; b.las = null; b.y = b.gy - MECH.H + b.dropY;
+  },
+  pos: (b) => [b.x, b.y],
+  update(b, dt, live) {
+    const p = player, vb = b.pv;
+    b.pt -= dt;
+    for (const m of b.mines) {
+      m.t += dt;
+      if (m.st === "fall" && m.t >= 0.25) { m.st = "armed"; m.t = 0; FX.sparks(m.x, m.y, 0, -1, 3); }
+      else if (m.st === "boom" && m.t > 0.4) m.st = "gone";
+      if (m.st === "armed" && !m.passed && p.x > m.x + 24) { m.passed = true; if (live && Math.abs(p.y - m.y) < 170) { award(25); addFlow(3); } }
+    }
+    if (b.mines.length) b.mines = b.mines.filter((m) => m.st !== "gone" && m.x > p.x - 700);
+    if (b.st === "down") { mechDown(b, dt); return; }
+    // ---- moving ----
+    if (b.ph === "drop") { // falls out of the sky onto the roof in front of you
+      b.x += vb * dt; b.vy += 2600 * dt; b.dropY = Math.min(0, b.dropY + b.vy * dt);
+      const r = roofAt(b.x); if (r) b.gy = r.top;
+      if (b.dropY >= 0) { b.ph = "roar"; b.pt = 0.8; b.crouch = 1; mechLanding(b); FX.shake(14); }
+    } else if (b.leap) { mechLeapStep(b, dt); if (b.las && (b.ph === "charge" || b.ph === "fire")) mechVent(b); }
+    else if (b.st === "leave") { mechWalk(b, dt, vb, p.x + 2400); if (b.t > 2.4) b.st = "gone"; }
+    else if (b.ph !== "vent" && b.ph !== "hurt") {
+      const aiming = b.ph === "charge" || b.ph === "fire";
+      if (b.st === "fight" && b.x < p.x + (aiming ? 0 : 150)) mechLeapAhead(b, vb);                 // you got past it: over your head and ahead again
+      else mechWalk(b, dt, vb, p.x + (b.ph === "mines" ? MECH.MINE_AHEAD : MECH.AHEAD) + Math.sin(b.t * 0.8) * 36, aiming);
+    }
+    if (b.ph === "vent" || b.ph === "hurt" || b.leap) b.walk = Math.max(0, b.walk - dt * 4);
+    // ---- the attack cycle: mines, floor laser, overheating ----
+    if (b.ph === "roar" && b.pt <= 0) { if (b.st === "intro") { b.st = "fight"; b.t = 0; } b.ph = "walk"; b.pt = 0.5; }
+    if (b.st === "fight" && !b.leap) {
+      if (b.ph === "walk") { if (b.pt <= 0) { b.ph = "mines"; b.k = 0; b.pt = 0.3; } }
+      else if (b.ph === "mines") { // it pulls ahead and lays a short line of mines on the roof
+        if (b.pt <= 0 && b.x - p.x > 540) { if (b.k < (b.lvl > 1 ? 3 : 2)) { mechMine(b); b.k++; b.pt = 0.3; } else { b.ph = "aim"; b.pt = 1.6; } }
+        else if (b.pt < -2.2) { b.ph = "aim"; b.pt = 1.6; }
+      } else if (b.ph === "aim") { // waits until you are on its roof, then charges the floor laser
+        const r = roofAt(b.x);
+        if (live && r && roofAt(p.x) === r && b.x - p.x > 260 && r.x + r.w - b.x > vb * (MECH.CHARGE * b.sp + MECH.FIRE) + 90) { b.ph = "charge"; b.pt = MECH.CHARGE * b.sp; b.las = { roof: r, shots: b.lvl > 1 ? 2 : 1, hit: false, T: MECH.CHARGE * b.sp }; Sound.fx.charge(); }
+        else if (b.pt <= 0) mechVent(b);
+      } else if (b.ph === "charge") { if (b.pt <= 0) { b.ph = "fire"; b.pt = MECH.FIRE; b.las.hit = false; Sound.fx.laser(); FX.shake(5); } }
+      else if (b.ph === "fire") { if (b.pt <= 0) { if (--b.las.shots > 0) { b.ph = "charge"; b.pt = b.las.T = 0.45; } else mechVent(b); } }
+      else if (b.ph === "vent") {
+        if (Math.random() < 0.4) FX.smoke(b.x + rand(55, 92), b.y - 44, 1, "#c9c2ff", 30, 70);
+        if (p.x > b.x + 70) b.pt = Math.min(b.pt, 0.15);                                         // you ran past it: it recovers at once
+        if (b.pt <= 0) { b.ph = "walk"; b.pt = 1.0 * b.sp; if (p.x > b.x - 130) mechLeapAhead(b, vb); }
+      } else if (b.ph === "hurt") { if (b.pt <= 0) { b.ph = "walk"; b.pt = 0.9 * b.sp; mechLeapAhead(b, vb); } }
+    }
+    const ct = b.ph === "vent" ? 1 : b.ph === "hurt" ? 0.5 : 0;
+    b.crouch += (ct - b.crouch) * Math.min(1, dt * (ct > b.crouch ? 9 : 4));
+    b.hatch += ((b.ph === "vent" ? 1 : 0) - b.hatch) * Math.min(1, dt * 8);
+    b.eye = b.ph === "charge" && b.las ? clamp(1 - b.pt / b.las.T, 0, 1) : b.ph === "fire" ? 1 : Math.max(0, b.eye - dt * 3);
+    b.y = b.gy - lerp(MECH.H, MECH.LOW, b.crouch) + (b.ph === "drop" ? b.dropY : 0) + Math.sin(b.gait * 2) * 2 * b.walk;
+  },
+  contacts(b, p) {
+    const dash = p.dashT > 0;
+    for (const m of b.mines) { // mines: the blade cuts the fuse, anything else sets them off
+      if (m.st !== "armed" && m.st !== "fall") continue;
+      const my = mechMineY(m);
+      if (Math.abs(p.x - m.x) > 12 + PW / 2 || p.y + HALF_H < my - 12 || p.y - HALF_H > my + 2) continue;
+      if (dash || p.diving || run.od > 0) {
+        m.st = "gone";
+        if (dash) { dashRefill(); FX.slash(m.x, my - 6, -0.5, currentSkin.trail, 70); }
+        award(60); addFlow(6); addChain(); FX.burst(m.x, my - 6, 8, "#ffd23f", 200);
+        FX.popup(m.x, my - 40, "ENTSCHÄRFT!", "#4ff3ff", 0.9, false); Sound.fx.slice(1);
+      } else {
+        m.st = "boom"; m.t = 0;
+        FX.burst(m.x, my - 8, 18, "#ff8a3d", 380); FX.smoke(m.x, my - 10, 6, "#3a3448", 160, 50); FX.ring(m.x, my, "#ff8a3d", 80, 0.3); FX.shake(8); Sound.fx.boom();
+        if (crash(m.x, my - 20, "MINE!") && (p.state === "run" || p.state === "air")) { p.state = "air"; p.vy = Math.min(p.vy, -460); p.jumpCut = true; }
+      }
+    }
+    if (b.st !== "fight") return;
+    if (b.ph === "fire" && b.las && !b.las.hit && p.state !== "grapple" && p.state !== "mantle") { // the floor laser sweeps its roof
+      const r = b.las.roof, feet = p.y + HALF_H;
+      if (p.x > r.x - PW / 2 && p.x < b.x - MECH.EMIT && feet > r.top - 18 && feet < r.top + 6) {
+        b.las.hit = true;
+        if (crash(p.x, r.top - 12, "LASER!", "PHASE!")) Sound.fx.zap();
+      }
+    }
+    if (b.leap || b.hitT > 0) return;
+    const top = b.y - 39, bot = b.y + 29;
+    if (p.x + PW / 2 < b.x - MECH.HW - 40 || p.x - PW / 2 > b.x + MECH.HW || p.y + HALF_H < top || p.y - HALF_H > bot) return;
+    const fromAbove = p.vy > 0 && p.prevY + HALF_H <= top + 12, base = b.pv;
+    const attack = dash || p.diving || fromAbove || run.od > 0;
+    if (b.ph === "vent" && attack) { // the core is open: that one counts
+      if (dash) dashRefill();
+      if (p.state !== "swing" && p.state !== "grind") { p.state = "air"; p.vy = -760; p.vx = Math.max(p.vx, base); p.airJumps = AIRJ; p.airDash = 1; p.diving = false; p.jumpCut = true; }
+      b.ph = "hurt"; b.pt = 0.35;
+      bossHit(b, b.x, b.y - 36, "hit");
+    } else if (attack) { // the armour holds: you bounce off it
+      b.hitT = 0.35;
+      if (dash) { endDash(false); p.dashCombo = 0; }
+      p.state = "air"; p.diving = false; p.flipT = 0; p.jumpCut = true;
+      if (fromAbove) { p.vy = -760; p.vx = Math.max(p.vx, base * 0.8); } else { p.x = Math.min(p.x, b.x - MECH.HW - 40 - PW / 2); p.vx = -220; p.vy = -560; p.kickT = 0.18; }
+      FX.sparks(p.x + 10, p.y, -1, -0.6, 12); FX.ring(p.x + 14, p.y, "#ff8a3d", 70); FX.shake(8); FX.hitstop(0.05);
+      FX.popup(b.x, b.y - 80, "PANZER!", "#ff8a3d", 1, false); Sound.fx.block(); haptic(22);
+    } else { // ran into it
+      b.hitT = 0.6;
+      crash(b.x - MECH.HW - 30, p.y, "PANZER!");
+      if (b.ph === "vent") { b.ph = "walk"; b.pt = 0.8; mechLeapAhead(b, base); }   // bumped instead of hit: it springs away
+    }
+  },
+  down(b) { b.ph = "dead"; b.las = null; b.hatch = 1; for (const m of b.mines) if (m.st === "armed" || m.st === "fall") { m.st = "boom"; m.t = 0; FX.burst(m.x, m.y - 8, 10, "#ff8a3d", 260); } return [b.x, b.y]; },
+  leave(b) { b.las = null; b.ph = "walk"; },
+  emp(b) { for (const m of b.mines) if (m.st !== "gone") { m.st = "gone"; FX.sparks(m.x, m.y - 6, 0, -1, 5); } if (b.ph === "charge" || b.ph === "fire" || b.ph === "aim") mechVent(b); },
+  bot(b, p, ready, ground, air) {
+    const vent = b.st === "fight" && b.ph === "vent" && b.hitT <= 0 && !b.leap, dx = b.x - p.x;
+    if (p.dashT > 0 && (vent || b.mines.length)) return "wait";            // mid-dash: a jump would end it, and the dash cuts mines anyway
+    if (vent) { // the core is open: go for it
+      if (air && dx > -60 && dx < 100 && p.y + HALF_H < b.y - 44 && p.vy > -300) return "dive";   // right over its back: slam down
+      if (ready && dx > 30 && dx < 280 && Math.abs(b.y - p.y) < 56) return "dash";
+    }
+    for (const m of b.mines) { // a mine ahead: dash through it (defused, the dash comes back) or hop over it
+      if (m.st !== "armed" && m.st !== "fall") continue;
+      const mx = m.x - p.x;
+      if (mx < 0 || mx > 260) continue;
+      const tc = mx / Math.max(200, p.vx);
+      if (ground && ready && tc < 0.2 && (vent || b.x - m.x > 330)) return "dash";
+      if (ground && tc < 0.17) return "jump";
+    }
+    if (b.st !== "fight") return null;
+    if (ground && b.las && (b.ph === "charge" || b.ph === "fire") && roofAt(p.x) === b.las.roof && (b.ph === "fire" || b.pt < 0.13)) return "jump"; // be in the air when the laser fires
+    if (vent && ground && !ready && dx > 60 && dx < 210) return "jump";
+    if (ground && b.ph !== "vent" && !b.leap && b.x - p.x < 160 && b.x > p.x) return "wait";   // never run into the armour
+    return null;
+  },
+  ground(b, time, L) {
+    for (const m of b.mines) { // mines: a puck with spikes, a blinking beacon and a red ring on the roof
+      if (m.st !== "armed" && m.st !== "fall") continue;
+      const y = mechMineY(m), on = Math.sin(time * 12 + m.blink) > 0;
+      if (m.st === "armed") {
+        glowAt("#ff2e63", m.x, m.y - 8, 84, 34, on ? 0.85 : 0.4);
+        ctx.strokeStyle = rgba("#ff2e63", on ? 0.9 : 0.45); ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(m.x, m.y - 1, 30, 6, 0, 0, TAU); ctx.stroke();
+      }
+      ctx.fillStyle = "#0a0716"; for (const sx of [-1, 1]) { ctx.beginPath(); ctx.moveTo(m.x + sx * 20, y - 5); ctx.lineTo(m.x + sx * 12, y - 10); ctx.lineTo(m.x + sx * 12, y - 1); ctx.fill(); }
+      ctx.fillStyle = "#1c1538"; ctx.beginPath(); ctx.ellipse(m.x, y - 6, 15, 7.5, 0, 0, TAU); ctx.fill();
+      ctx.strokeStyle = "#5a4bb0"; ctx.lineWidth = 1.6; ctx.stroke();
+      ctx.fillStyle = "#e8b123"; for (let i = -1; i <= 1; i++) ctx.fillRect(m.x + i * 7 - 1.8, y - 8, 3.6, 3.6);
+      ctx.fillStyle = on ? "#ffe1e8" : "#7a1030"; ctx.fillRect(m.x - 2.5, y - 16, 5, 4);
+      if (on) glowAt("#ff2e63", m.x, y - 15, 40, 40, 0.95);
+    }
+    if (b.las && (b.ph === "charge" || b.ph === "fire")) { // the floor laser: aim line with arrows (jump!), then the beam
+      const r = b.las.roof, x0 = Math.max(r.x, L), x1 = b.x - MECH.EMIT - 18, y = r.top - 9, ex = b.x - MECH.EMIT, ey = b.y + 14;
+      if (x1 > x0) {
+        ctx.globalCompositeOperation = "lighter";
+        if (b.ph === "charge") {
+          const k = b.eye, on = Math.sin(time * 18) > 0;
+          ctx.strokeStyle = rgba("#ff2e63", 0.35 + 0.55 * k); ctx.lineWidth = 1.5 + k * 1.5; ctx.setLineDash([12, 9]); ctx.lineDashOffset = time * 160;
+          ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(x1, y); ctx.lineTo(x0, y); ctx.stroke(); ctx.setLineDash([]);
+          for (let x = x1 - 60; x > x0 + 10; x -= 120) chevron(x, y - 28, true, 8, "#ffd23f", on ? 0.95 : 0.35);
+        } else {
+          glowAt("#ff2e63", (x0 + x1) / 2, y, x1 - x0 + 90, 64, 0.9);
+          ctx.strokeStyle = rgba("#ff2e63", 0.9); ctx.lineWidth = 10; ctx.lineCap = "round"; ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(x1, y); ctx.lineTo(x0, y); ctx.stroke();
+          ctx.strokeStyle = "#ffe1e8"; ctx.lineWidth = 3.5; ctx.stroke(); ctx.lineCap = "butt";
+          for (let x = x0 + ((time * 900) % 60); x < x1; x += 60) glowAt("#ffd0dc", x, y, 26, 14, 0.7);
+        }
+        ctx.globalCompositeOperation = "source-over";
+      }
+    }
+  },
+  draw(b, time) {
+    const down = b.st === "down", lit = !down, vent = b.ph === "vent" && b.st === "fight", dk = down ? Math.min(1, b.dead / 0.7) : 0, S = MECH.S;
+    const legs = MECH_LEGS.map((Lg) => {
+      const hip = [b.x + Lg.hx * (1 - dk * 0.15), b.y + 8];
+      let fx, fy;
+      if (b.leap || b.ph === "drop") { fx = b.x + Lg.rx * 0.62; fy = b.y + 60; }                     // tucked in the air
+      else {
+        const ph = b.gait + Lg.ph, w = b.walk;
+        fx = b.x + Lg.rx * (1 + dk * 0.25) + Math.sin(ph) * 39 * w;
+        const r = roofAt(fx), gy = r && Math.abs(r.top - b.gy) < 70 ? r.top : b.gy;
+        fy = gy - Math.max(0, Math.cos(ph)) * 28 * w;
+      }
+      const L1 = 80, L2 = 91; let dx = fx - hip[0], dy = fy - hip[1], d = Math.hypot(dx, dy) || 1;
+      if (d > L1 + L2 - 2) { const k = (L1 + L2 - 2) / d; dx *= k; dy *= k; d = L1 + L2 - 2; fx = hip[0] + dx; fy = hip[1] + dy; }
+      const a = Math.acos(clamp((L1 * L1 + d * d - L2 * L2) / (2 * L1 * d), -1, 1)), ba = Math.atan2(dy, dx);
+      const k1 = [hip[0] + Math.cos(ba - a) * L1, hip[1] + Math.sin(ba - a) * L1], k2 = [hip[0] + Math.cos(ba + a) * L1, hip[1] + Math.sin(ba + a) * L1];
+      return { hip, knee: k1[1] < k2[1] ? k1 : k2, foot: [fx, fy], far: Lg.far, side: Math.sign(Lg.rx) };
+    });
+    const leg = (Lg) => { // armoured thigh up to the knee, a thinner shin down to a claw
+      const [hx, hy] = Lg.hip, [kx, ky] = Lg.knee, [fx, fy] = Lg.foot, far = Lg.far;
+      ctx.lineCap = "round"; ctx.lineJoin = "round";
+      ctx.strokeStyle = far ? "#07050d" : "#120c26"; ctx.lineWidth = far ? 12 : 16; line(hx, hy, kx, ky);
+      ctx.strokeStyle = far ? "#151030" : "#2e2560"; ctx.lineWidth = far ? 7 : 10; line(hx, hy, kx, ky);
+      if (!far && lit) { ctx.strokeStyle = rgba("#ff8a3d", 0.8); ctx.lineWidth = 1.6; line(hx, hy - 5, kx, ky - 5); }
+      ctx.strokeStyle = far ? "#07050d" : "#120c26"; ctx.lineWidth = far ? 6 : 8.5; line(kx, ky, fx, fy - 5);
+      ctx.strokeStyle = far ? "#1a1430" : "#4a3d8f"; ctx.lineWidth = far ? 2.4 : 3.4; line(kx, ky, fx, fy - 5);
+      ctx.fillStyle = far ? "#07050d" : "#120c26"; ctx.beginPath(); ctx.moveTo(fx - 10 * Lg.side, fy); ctx.lineTo(fx + 8 * Lg.side, fy); ctx.lineTo(fx + 1, fy - 12); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = far ? "#231b4a" : "#5a4bb0"; ctx.beginPath(); ctx.arc(kx, ky, far ? 6 : 8.5, 0, TAU); ctx.fill();
+      if (lit) { ctx.fillStyle = far ? "#a3501f" : "#ff8a3d"; ctx.beginPath(); ctx.arc(kx, ky, far ? 2 : 3, 0, TAU); ctx.fill(); glowAt("#ff8a3d", kx, ky, far ? 18 : 30, far ? 18 : 30, far ? 0.4 : 0.85); }
+    };
+    if (lit && !b.leap && b.ph !== "drop") glowAt("#ff8a3d", b.x, b.gy - 6, 300, 46, 0.32);                   // its lights on the roof under it
+    if (lit && b.st === "fight" && !vent && !b.leap) { // the sensor eyes sweep the roof in front of it
+      const ex = b.x - 125, ey = b.y + 2, gx = b.x - 300 + Math.sin(time * 1.6) * 60, gy = b.gy;
+      const cg = ctx.createLinearGradient(ex, ey, gx, gy); cg.addColorStop(0, rgba("#ff2e63", 0.28)); cg.addColorStop(1, rgba("#ff2e63", 0.04));
+      ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = cg; ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(gx - 70, gy); ctx.lineTo(gx + 70, gy); ctx.closePath(); ctx.fill(); ctx.globalCompositeOperation = "source-over";
+    }
+    for (const Lg of legs) if (Lg.far) leg(Lg);
+    if (vent) { // it came down and opened up: hit the core now
+      const pr = 84 + Math.sin(time * 10) * 5;
+      ctx.strokeStyle = rgba("#ffd23f", 0.85); ctx.lineWidth = 3; ctx.setLineDash([12, 9]); ctx.lineDashOffset = -time * 60;
+      ctx.beginPath(); ctx.ellipse(b.x, b.y - 34, pr, pr * 0.55, 0, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+    }
+    ctx.save(); ctx.translate(b.x, b.y); if (down) ctx.rotate(dk * 0.16); ctx.scale(S, S);
+    const poly = (pts) => { ctx.beginPath(); ctx.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]); ctx.closePath(); };
+    for (const [ex, ey] of [[50, -22], [63, -16]]) { // exhaust stacks on the back, red hot while it vents
+      ctx.fillStyle = "#120c26"; ctx.save(); ctx.translate(ex, ey); ctx.rotate(0.35); ctx.fillRect(-4, -16, 8, 18); ctx.fillStyle = "#2e2560"; ctx.fillRect(-4, -16, 8, 3); ctx.restore();
+      if (lit && b.hatch > 0.05) glowAt("#ff8a3d", ex + 5, ey - 16, 30, 30, b.hatch * 0.9);
+    }
+    const SHELL = [-80, 2, -68, -14, -40, -26, 0, -31, 42, -28, 70, -16, 80, 0, 72, 14, 40, 22, -30, 22, -64, 16];
+    const g = ctx.createLinearGradient(0, -31, 0, 22); g.addColorStop(0, "#463a8a"); g.addColorStop(0.42, "#241c4c"); g.addColorStop(1, "#0a0716");
+    ctx.fillStyle = g; poly(SHELL); ctx.fill(); ctx.strokeStyle = "#5a4bb0"; ctx.lineWidth = 1.6; ctx.stroke();
+    ctx.fillStyle = "#0a0716"; poly([-64, 16, -30, 22, 40, 22, 72, 14, 66, 8, -58, 9]); ctx.fill();                      // belly in shadow
+    ctx.strokeStyle = "#120c26"; ctx.lineWidth = 2; line(-40, -25, -34, 20); line(42, -27, 38, 20);                        // armour plates
+    ctx.fillStyle = rgba("#ffffff", 0.07); poly([-66, -13, -40, -24, 0, -29, 40, -26, 66, -15, 40, -18, 0, -21, -40, -17]); ctx.fill(); // sheen on the shell
+    hazard(-24, 1, 52, 7, 4);
+    if (lit) { // neon along its back
+      ctx.strokeStyle = rgba("#ff8a3d", 0.95); ctx.lineWidth = 1.8; ctx.beginPath(); ctx.moveTo(-68, -14); ctx.lineTo(-40, -26); ctx.lineTo(-22, -29.5); ctx.moveTo(22, -29.5); ctx.lineTo(42, -28); ctx.lineTo(70, -16); ctx.stroke();
+      glowAt("#ff8a3d", -44, -24, 60, 18, 0.5); glowAt("#ff8a3d", 46, -26, 60, 18, 0.5);
+      for (let i = 0; i < 3; i++) { ctx.fillStyle = Math.floor(time * 6 + i) % 3 === 0 ? "#ffd23f" : "#7a4a1a"; ctx.fillRect(-12 + i * 9, 12, 5, 3); } // status lights on the flank
+    }
+    const h = b.hatch; // the hatch over the core: two plates slide apart while it vents
+    if (h > 0.03) {
+      glowAt("#ffd23f", 0, -34, 120, 90, 0.9 * h);
+      const cg = ctx.createRadialGradient(0, -33, 1, 0, -31, 14); cg.addColorStop(0, "#ffffff"); cg.addColorStop(0.4, "#ffe27a"); cg.addColorStop(1, "#ff8a3d");
+      ctx.fillStyle = cg; ctx.beginPath(); ctx.arc(0, -30, 12, Math.PI, TAU); ctx.fill();
+    }
+    ctx.fillStyle = "#3a2f70";
+    ctx.fillRect(-23 - 17 * h, -34, 22, 6); ctx.fillRect(1 + 17 * h, -34, 22, 6);
+    ctx.strokeStyle = "#6a5bc0"; ctx.lineWidth = 1; ctx.strokeRect(-23 - 17 * h, -34, 22, 6); ctx.strokeRect(1 + 17 * h, -34, 22, 6);
+    // the head: a wedge at the front with three eyes and the laser under it
+    ctx.fillStyle = "#1c1538"; poly([-70, -12, -96, -6, -104, 6, -94, 17, -66, 15]); ctx.fill(); ctx.strokeStyle = "#5a4bb0"; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = "#0a0716"; ctx.fillRect(-114, 8, 22, 6); ctx.fillStyle = "#4a3d8f"; ctx.fillRect(-114, 8, 22, 1.5);
+    if (lit) {
+      for (const [ex, ey, r] of [[-96, 0, 3.6], [-88, -5.5, 2.8], [-88, 6, 2.8]]) { ctx.fillStyle = "#ff2e63"; ctx.beginPath(); ctx.arc(ex, ey, r, 0, TAU); ctx.fill(); ctx.fillStyle = "#ffe1e8"; ctx.beginPath(); ctx.arc(ex - 0.8, ey - 0.8, r * 0.35, 0, TAU); ctx.fill(); }
+      glowAt("#ff2e63", -92, 0, 50, 40, 0.85);
+      const e = b.eye;
+      if (e > 0.02) { glowAt("#ff2e63", -116, 11, 24 + e * 60, 24 + e * 60, 0.95); ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(-115, 11, 1.5 + e * 3.4, 0, TAU); ctx.fill(); }
+      else { ctx.fillStyle = "#ff2e63"; ctx.fillRect(-116, 9, 2, 4); }
+    }
+    if (b.hitT > 0.4 && lit) { ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 0.55; ctx.fillStyle = "#ffffff"; poly(SHELL); ctx.fill(); ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over"; }
+    ctx.restore();
+    for (const Lg of legs) if (!Lg.far) leg(Lg);
+    if (b.st === "fight" && b.hp < b.hpMax && Math.random() < 0.25) FX.smoke(b.x + 40, b.y - 40, 1, "#3a3448", 30, 40);
+  },
+};
+
+// ---------- SCHWARM-TRÄGER: setzt Drohnen-Staffeln aus ----------
+// the drones are ordinary world drones (everything you know works on them), they fly from its bay to their places
+function carrierDeploy(b, kind, x0, sp, ys, spikes) {
+  const f = { kind, drones: [], x1: x0 + sp * (ys.length - 1), done: false, emp: false };
+  for (let i = 0; i < ys.length; i++) {
+    const d = { x: b.x, tx: x0 + i * sp, y0: ys[i], y: b.y + 30, amp: 3, ph: Math.random() * TAU, alive: true, dead: 0, vx: 0, vy: 0, rot: 0, spike: spikes.includes(i),
+      fly: { x0: b.x, y0: b.y + 30, t: -i * 0.08, T: 0.5 } };
+    world.drones.push(d); f.drones.push(d);
+  }
+  b.forms.push(f); b.deployT = 0.5 + ys.length * 0.08;
+  FX.burst(b.x, b.y + 30, 10, "#4ff3ff", 220); Sound.fx.missile();
+}
+function carrierForm(b) { // a squadron on a roof ahead: a row, a high row or a staircase
+  const p = player, kinds = ["row", "high", "stairs"], kind = kinds[b.k % kinds.length];
+  const n = b.lvl > 1 ? 4 : 3, sp = kind === "stairs" ? 180 : 195, span = (n - 1) * sp;
+  const lead = clamp(b.pv * 1.45, 700, 2200);                         // far enough ahead that they are in place before you get there
+  for (let fx = p.x + lead; fx < p.x + lead + 600; fx += 50) {
+    const r = roofAt(fx);
+    if (!r || fx < r.x + 50 || fx + span > r.x + r.w - 70) continue;
+    const ys = [];
+    for (let i = 0; i < n; i++) ys.push(r.top - (kind === "row" ? 30 : kind === "high" ? 100 : 30 + i * 46));
+    carrierDeploy(b, kind, fx, sp, ys, b.lvl > 1 ? [n >> 1] : []);
+    b.k++;
+    return true;
+  }
+  return false;
+}
+BOSS.carrier = {
+  start(b) { b.x = player.x + 1150; b.y = b.ground - CARR.HIGH - 300; b.forms = []; b.formT = 1.5; b.k = 0; b.bay = 0; b.deployT = 0; b.tilt = 0; },
+  pos: (b) => [b.x, b.y],
+  update(b, dt, live) {
+    const p = player, vb = b.pv;
+    bossGround(b, dt, 1.2);
+    for (const f of b.forms) for (const d of f.drones) if (d.fly && d.fly.t < 0) { d.fly.x0 = d.x = b.x; d.fly.y0 = b.y + 30; } // still in the bay
+    if (b.st === "down") { // it tips over and goes down behind the roofs, burning
+      b.vy += 520 * dt; b.x += b.vx * dt; b.y += b.vy * dt; b.rot += 0.5 * dt; b.dead += dt;
+      if (Math.random() < 0.7) FX.smoke(b.x + rand(-90, 90), b.y, 1, "#2a2436", 70, 30);
+      if (b.dead < 1.6 && Math.random() < dt * 6) { const x = b.x + rand(-110, 110); FX.burst(x, b.y + rand(-20, 20), 12, "#ff8a3d", 300); Sound.fx.boom(); }
+      if (b.dead > 3) b.st = "gone";
+      return;
+    }
+    let tx = p.x + CARR.AHEAD + Math.sin(b.t * 0.5) * 50, ty = b.ground - CARR.HIGH + Math.sin(b.t * 1.3) * 8;
+    if (b.st === "intro") { tx = p.x + lerp(1150, CARR.AHEAD, smoothT(Math.min(1, b.t / 2))); if (b.t > 2) { b.st = "fight"; b.t = 0; } }
+    if (b.st === "leave") { tx = b.x + 700; ty = b.y - 420; if (b.t > 2.6) b.st = "gone"; }
+    if (b.st === "leave") b.x += (tx - b.x) * Math.min(1, dt * 1.1);
+    else b.x += vb * dt + (tx - b.x) * Math.min(1, dt * 2.2);
+    b.y += (ty - b.y) * Math.min(1, dt * 1.8);
+    b.deployT = Math.max(0, b.deployT - dt);
+    b.bay += ((b.deployT > 0 ? 1 : 0) - b.bay) * Math.min(1, dt * 7);
+    b.tilt += ((b.hitT > 0 ? 0.13 : b.st === "leave" ? -0.08 : 0) - b.tilt) * Math.min(1, dt * 5);
+    if (b.hp < b.hpMax && Math.random() < ((b.hpMax - b.hp) / b.hpMax) * 0.8) FX.smoke(b.x + 86, b.y + 26, 1, b.hp === 1 ? "#5a2a2a" : "#3a3448", 40, 30);
+    if (b.st === "fight") {
+      b.formT -= dt;
+      const br = b.arena.bridges.find((q) => !q.used && q.x - p.x > Math.max(620, vb * 1.1) && q.x - p.x < Math.max(1500, vb * 2.2)); // a wide gap ahead: it lays a bridge of drones over it
+      if (br && live) {
+        br.used = true;
+        const ys = []; for (let i = 0; i < br.n; i++) ys.push(br.top - 30);
+        carrierDeploy(b, "bridge", br.x + 120, br.sp, ys, []);
+      } else if (b.formT <= 0 && live && !b.forms.some((f) => f.kind !== "bridge")) b.formT = carrierForm(b) ? CARR.EVERY * b.sp : 0.3;
+    }
+    for (const f of b.forms) { // a whole squadron down: the feedback hits the carrier. One got past you (or you crashed into one): missed
+      if (f.done) continue;
+      if (f.drones.every((d) => !d.alive)) {
+        f.done = true;
+        if (f.emp || b.st !== "fight") continue;
+        if (f.drones.some((d) => d.crashed)) { FX.popup(p.x, p.y - 64, "VERFEHLT", "#9a93c9", 0.8, false); continue; }
+        const last = f.drones.reduce((a, d) => (d.x > a.x ? d : a));
+        b.arcs.push({ x: last.x, y: last.y, t: 0 });
+        bossHit(b, b.x, b.y + 10, "chain");
+      } else if (p.x > f.x1 + 60) { f.done = true; if (b.st === "fight" && live) FX.popup(p.x, p.y - 64, "VERFEHLT", "#9a93c9", 0.8, false); }
+    }
+    b.forms = b.forms.filter((f) => !f.done);
+  },
+  contacts(b, p) { // its hull is shielded: you only bump off it
+    if (b.st !== "fight" || Math.abs(p.x - b.x) > CARR.HW || Math.abs(p.y - b.y) > 40) return;
+    if (p.vy < 0) { p.vy = 260; FX.sparks(p.x, p.y - HALF_H, 0, 1, 6); Sound.fx.block(); }
+  },
+  down(b) { b.vx = 160; b.vy = -60; b.rot = 0; for (const f of b.forms) f.emp = true; return [b.x, b.y]; },
+  leave(b) { for (const f of b.forms) f.emp = true; },
+  emp(b) { for (const f of b.forms) f.emp = true; b.formT = Math.max(b.formT, 1.2); },
+  bot(b, p, ready, ground, air) {
+    if (b.st !== "fight") return null;
+    for (const f of b.forms) for (const d of f.drones) { // cut the whole squadron: level ones with the dash, higher ones after a jump
+      if (!d.alive || d.fly) continue;
+      const dx = d.x - p.x, dy = d.y - p.y;
+      if (dx < 10 || dx > Math.max(320, p.vx * 0.45)) continue;
+      if (Math.abs(dy) < 32) {                                             // level with it: never hop over it, dash through
+        if (ready && dx < Math.max(170, p.vx * 0.17)) return "dash";
+        if (ready || p.dashCD < 0.25) return "wait";
+        continue;
+      }
+      if (ground && dy < -40 && dy > -170 && dx > p.vx * 0.1 + 30 && dx < p.vx * 0.1 + 200) return "jump";   // rise to its line, then dash
+      if (air && dy < -36 && dy > -150 && p.airJumps > 0 && p.vy > -150 && dx < 230) return "jump";        // the next step up
+      if (ground && dy < -40) return "wait";
+    }
+    return null;
+  },
+  ground(b, time) { // where the squadron is heading: faint markers until the drones are in place
+    for (const f of b.forms) for (const d of f.drones) {
+      if (!d.fly || !d.alive) continue;
+      const k = clamp(d.fly.t / d.fly.T, 0, 1);
+      ctx.strokeStyle = rgba("#4ff3ff", 0.5 * (1 - k * 0.5)); ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.arc(d.tx, d.y0, 20, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+    }
+  },
+  draw(b, time) {
+    const lit = b.st !== "down", hit = b.hitT > 0.4;
+    ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.st === "down" ? b.rot : b.tilt);
+    const poly = (pts) => { ctx.beginPath(); ctx.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]); ctx.closePath(); };
+    if (lit) for (const ex of [-86, 86]) { // thrust from the engine pods, straight down
+      const tg = ctx.createLinearGradient(0, 28, 0, 110); tg.addColorStop(0, rgba("#4ff3ff", 0.32)); tg.addColorStop(1, rgba("#4ff3ff", 0));
+      ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = tg; ctx.beginPath(); ctx.moveTo(ex - 14, 28); ctx.lineTo(ex + 14, 28); ctx.lineTo(ex + 30, 110); ctx.lineTo(ex - 30, 110); ctx.closePath(); ctx.fill(); ctx.globalCompositeOperation = "source-over";
+      glowAt("#4ff3ff", ex, 30, 60, 26, 0.9);
+    }
+    ctx.fillStyle = "#0c0820"; ctx.fillRect(28, -66, 3, 16); if (lit && Math.sin(time * 5) > 0) glowAt("#ff2e63", 29.5, -67, 24, 24);   // antenna
+    ctx.fillStyle = "#151030"; poly([-62, -22, -46, -38, 30, -40, 52, -24]); ctx.fill(); ctx.strokeStyle = "#3a2f70"; ctx.lineWidth = 1.5; ctx.stroke();   // upper deck
+    ctx.fillStyle = "#1c1538"; ctx.fillRect(10, -54, 34, 16); ctx.strokeRect(10, -54, 34, 16);                                  // bridge
+    if (lit) { ctx.fillStyle = "#4ff3ff"; ctx.fillRect(14, -49, 26, 3); glowAt("#4ff3ff", 27, -48, 50, 18, 0.6); }
+    const HULL = [-136, 4, -118, -14, -70, -24, 60, -26, 112, -16, 136, 0, 120, 18, -110, 18];
+    const g = ctx.createLinearGradient(0, -26, 0, 18); g.addColorStop(0, "#2b2252"); g.addColorStop(0.5, "#151030"); g.addColorStop(1, "#07050e");
+    ctx.fillStyle = g; poly(HULL); ctx.fill(); ctx.strokeStyle = "#3a2f70"; ctx.lineWidth = 2; ctx.stroke();
+    if (lit) { ctx.strokeStyle = rgba("#4ff3ff", 0.8); ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(-136, 4); ctx.lineTo(-118, -14); ctx.lineTo(-70, -24); ctx.lineTo(60, -26); ctx.lineTo(112, -16); ctx.stroke(); }
+    ctx.strokeStyle = "#0a0716"; ctx.lineWidth = 2; for (const x of [-70, -20, 30, 80]) line(x, -22, x, 16);                       // hull plates
+    for (let i = 0; i < 7; i++) { const x = -96 + i * 32, on = lit && (Math.floor(time * 8) % 7) === i; ctx.fillStyle = on ? "#ffffff" : lit ? "#4ff3ff" : "#1a2a3a"; ctx.fillRect(x - 2, 2, 4, 3); if (on) glowAt("#4ff3ff", x, 3, 26, 16); } // running lights
+    for (const ex of [-86, 86]) { ctx.fillStyle = "#120c26"; roundBox(ex - 24, 14, 48, 16, 6); ctx.fill(); ctx.strokeStyle = "#3a2f70"; ctx.lineWidth = 1.5; ctx.stroke(); } // engine pods
+    // the drone bay: doors swing open while it launches
+    const bay = b.bay;
+    if (bay > 0.05) { glowAt("#4ff3ff", 0, 26, 110, 50, 0.8 * bay); ctx.fillStyle = rgba("#bffbff", 0.85 * bay); ctx.fillRect(-28, 17, 56, 5); }
+    for (const s of [-1, 1]) { ctx.save(); ctx.translate(s * 34, 18); ctx.rotate(s * bay * 1.2); hazard(s < 0 ? 0 : -34, 0, 34, 6, 5); ctx.restore(); }
+    ctx.fillStyle = "#0a0716"; ctx.fillRect(-46, 12, 8, 8); ctx.fillRect(38, 12, 8, 8);
+    if (hit) { ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 0.55; ctx.fillStyle = "#ffffff"; poly(HULL); ctx.fill(); ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over"; }
+    for (let i = 0; i < b.hpMax - b.hp; i++) { ctx.strokeStyle = rgba("#ff8a3d", 0.8); ctx.lineWidth = 1.4; const cx = -60 + i * 48; line(cx, -18, cx + 9, -6); line(cx + 9, -6, cx + 3, 8); } // damage cracks
+    ctx.restore();
+  },
+};
+
+// ---------- DIE KI: ein Auge über der Stadt, Laser und Generatoren ----------
+function coreGen(b) { // beams a generator onto a roof ahead
+  const p = player, lead = clamp(b.pv * 1.45, 640, 2000);
+  for (let x = p.x + lead; x < p.x + lead + 500; x += 40) {
+    const r = roofAt(x);
+    if (!r || x < r.x + 70 || x > r.x + r.w - 70 || b.gens.some((g) => Math.abs(g.x - x) < 260)) continue;
+    b.gens.push({ x, y: r.top, st: "beam", t: 0, zap: false });
+    Sound.fx.beam(); return true;
+  }
+  return false;
+}
+function coreLaser(b) { // floor or ceiling, in turn; the ceiling only when you can stay down on a roof that goes on long enough
+  const p = player, r = roofAt(p.x), v = Math.max(p.vx, baseSpeedAt(p.x)), T = CORE.TELE * b.sp, F = CORE.FIRE;
+  let kind = b.k % 2 === 0 ? "floor" : "ceil";
+  if (kind === "ceil" && (!r || p.state !== "run" || r.x + r.w < p.x + v * (T + F + 0.1) + 80)) {
+    if (b.wait < 1.1) { b.wait += 0.2; return false; }                // you are in the air or near an edge: wait a moment
+    kind = "floor";
+  } else b.k++;
+  b.wait = 0;
+  b.las = { kind, t: 0, T, F, hit: false, top: r ? r.top : b.ground };
+  Sound.fx.charge();
+  return true;
+}
+const coreLasOn = (L) => L && L.t >= L.T && L.t < L.T + L.F;
+BOSS.core = {
+  start(b) { b.x = player.x + 600; b.y = b.ground - CORE.HIGH; b.open = 0; b.gens = []; b.genT = 1.0; b.lasT = 2.4; b.las = null; b.k = 0; b.wait = 0; b.shards = null; b.spin = 0; },
+  pos: (b) => [b.x, b.y],
+  update(b, dt, live) {
+    const p = player;
+    bossGround(b, dt, 1.2);
+    for (const g of b.gens) {
+      g.t += dt;
+      if (g.st === "beam" && g.t > 0.55) { g.st = "on"; g.t = 0; FX.ring(g.x, g.y, "#ff2e63", 70, 0.3); }
+      if ((g.st === "on" || g.st === "beam") && p.x > g.x + 60) { g.st = "off"; g.t = 0; }   // you ran past it: it powers down
+    }
+    b.gens = b.gens.filter((g) => !((g.st === "off" && g.t > 0.6) || (g.st === "dead" && g.t > 0.1)));
+    if (b.st === "down") { // shattered: the shards rain down
+      b.dead += dt;
+      for (const s of b.shards) { s.vy += 1400 * dt; s.x += s.vx * dt; s.y += s.vy * dt; s.r += s.vr * dt; }
+      if (b.dead < 0.9 && Math.random() < dt * 8) FX.burst(b.x + rand(-40, 40), b.y + rand(-40, 40), 10, "#ff2e63", 280);
+      if (b.dead > 2.6) b.st = "gone";
+      return;
+    }
+    b.spin += dt * (b.las && b.las.t < b.las.T + b.las.F ? 3 : 0.6);
+    let tx = p.x + CORE.AHEAD + Math.sin(b.t * 0.45) * 40, ty = b.ground - CORE.HIGH + Math.sin(b.t * 1.1) * 7;
+    if (b.st === "intro") { b.open = smoothT(clamp((b.t - 0.5) / 1.1, 0, 1)); if (b.t > 1.7) { b.st = "fight"; b.t = 0; } }
+    else if (b.st === "leave") { b.open = Math.max(0, b.open - dt * 1.5); ty -= b.t * 160; if (b.t > 1.6) b.st = "gone"; }
+    else b.open += ((b.hitT > 0.3 ? 0.35 : 1) - b.open) * Math.min(1, dt * 8);
+    b.x += b.pv * dt + (tx - b.x) * Math.min(1, dt * 2); b.y += (ty - b.y) * Math.min(1, dt * 2);
+    if (b.st === "fight") {
+      b.genT -= dt; b.lasT -= dt;
+      if (b.genT <= 0 && live) b.genT = b.gens.filter((g) => g.st === "on" || g.st === "beam").length < 2 && coreGen(b) ? CORE.GEN_EVERY * b.sp : 0.4;
+      if (b.lasT <= 0 && !b.las && live) b.lasT = coreLaser(b) ? CORE.LAS_EVERY * b.sp : 0.2;
+    }
+    if (b.las) {
+      const L = b.las, was = L.t; L.t += dt;
+      if (was < L.T && L.t >= L.T) { Sound.fx.laser(); FX.shake(6); }
+      if (L.t > L.T + L.F || b.st !== "fight") b.las = null;
+    }
+  },
+  contacts(b, p) {
+    if (b.st !== "fight") return;
+    if (Math.hypot(p.x - b.x, p.y - b.y) < 62 && b.hitT <= 0) { // its shell is shielded: you bounce off
+      p.vy = Math.max(p.vy, 320); p.vx = Math.min(p.vx, b.pv * 0.8); if (p.dashT > 0) endDash(false);
+      b.hitT = 0.25; FX.sparks(p.x + 10, p.y - 10, -1, 0.4, 10); FX.ring(b.x, b.y, "#ff2e63", 90); Sound.fx.block();
+    }
+    for (const g of b.gens) { // a generator: dash, slam or stomp it; running into it is a shock
+      if (g.st !== "on") continue;
+      const top = g.y - CORE.GEN_H;
+      if (Math.abs(p.x - g.x) > 16 + PW / 2 || p.y + HALF_H < top || p.y - HALF_H > g.y) continue;
+      const fromAbove = p.vy > 0 && p.prevY + HALF_H <= top + 10;
+      if (p.dashT > 0 || p.diving || fromAbove || run.od > 0) {
+        g.st = "dead"; g.t = 0;
+        if (p.dashT > 0) { dashRefill(); FX.slash(g.x, g.y - 34, -0.5, currentSkin.trail, 90); }
+        else if (fromAbove && !p.diving && p.state !== "swing" && p.state !== "grind") { p.state = "air"; p.vy = -820; p.airJumps = AIRJ; p.airDash = 1; p.jumpCut = true; }
+        FX.debris(g.x, g.y - 34, "#ff2e63", 16); FX.burst(g.x, g.y - 44, 12, "#ffd23f", 280);
+        b.arcs.push({ x: g.x, y: g.y - 76, t: 0 });
+        bossHit(b, b.x, b.y, "gen");
+        if (b.st !== "fight") return;
+      } else if (!g.zap) { g.zap = true; FX.sparks(g.x, g.y - 30, -1, -0.4, 12); crash(g.x, g.y - 30, "STROMSCHLAG!"); Sound.fx.zap(); }
+    }
+    const L = b.las;
+    if (coreLasOn(L) && !L.hit && p.state !== "grapple" && p.state !== "mantle" && p.x < b.x - 20) {
+      const r = roofAt(p.x), top = r ? r.top : L.top;
+      if (L.kind === "floor" && r && p.y + HALF_H > top - 16 && p.y + HALF_H < top + 6) { L.hit = true; if (crash(p.x, top - 10, "BODENLASER!", "PHASE!")) Sound.fx.zap(); }
+      if (L.kind === "ceil" && p.y - HALF_H < top - CORE.CEIL) { L.hit = true; if (crash(p.x, p.y, "LASERDECKE!", "PHASE!")) Sound.fx.zap(); }
+    }
+  },
+  down(b) {
+    b.las = null; b.shards = [];
+    for (let i = 0; i < 12; i++) { const a = (i / 12) * TAU; b.shards.push({ x: b.x + Math.cos(a) * 46, y: b.y + Math.sin(a) * 46, vx: Math.cos(a) * rand(160, 420), vy: Math.sin(a) * rand(160, 420) - 260, r: a, vr: rand(-8, 8) }); }
+    for (const g of b.gens) if (g.st === "on" || g.st === "beam") { g.st = "off"; g.t = 0; }
+    return [b.x, b.y];
+  },
+  leave(b) { b.las = null; for (const g of b.gens) if (g.st === "on" || g.st === "beam") { g.st = "off"; g.t = 0; } },
+  emp(b) { b.las = null; b.lasT = Math.max(b.lasT, 1.4); for (const g of b.gens) if (g.st === "on" || g.st === "beam") { g.st = "dead"; g.t = 0; FX.debris(g.x, g.y - 34, "#ff2e63", 10); } },
+  bot(b, p, ready, ground, air) {
+    if (b.st !== "fight") return null;
+    const L = b.las, gen = b.gens.find((g) => g.st === "on" && g.x - p.x > 16 && g.x - p.x < 210);
+    if (L && L.kind === "ceil" && L.t < L.T + L.F) { // stay down: come down fast, no jumping; a generator right ahead still gets the dash
+      if (air) return p.vy > -500 ? "dive" : "wait";
+      return gen && ready ? "dash" : "wait";
+    }
+    if (L && L.kind === "floor" && ground && L.t > L.T - 0.14 && L.t < L.T + L.F) return "jump";  // be in the air when it fires
+    if (gen) {
+      if (ready && (ground || Math.abs(gen.y - 34 - p.y) < 40)) return "dash";
+      if (ground && gen.x - p.x < Math.max(90, p.vx * 0.16)) return "jump";
+    }
+    return null;
+  },
+  ground(b, time, L, R) {
+    for (const g of b.gens) { // generators on the roofs, linked to the eye
+      const k = g.st === "beam" ? clamp(g.t / 0.55, 0, 1) : g.st === "off" ? 1 - clamp(g.t / 0.6, 0, 1) : 1;
+      if (g.st === "beam") { // beamed down: a column of light
+        const a = Math.sin(k * Math.PI);
+        const cg = ctx.createLinearGradient(0, g.y - 420, 0, g.y); cg.addColorStop(0, rgba("#ff2e63", 0)); cg.addColorStop(1, rgba("#ff2e63", 0.5 * a));
+        ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = cg; ctx.fillRect(g.x - 18, g.y - 420, 36, 420); ctx.globalCompositeOperation = "source-over";
+        glowAt("#ff6f91", g.x, g.y - 6, 90, 30, a);
+      }
+      if (g.st === "dead") continue;
+      ctx.globalAlpha = k;
+      const on = g.st === "on", pulse = 0.6 + 0.4 * Math.sin(time * 8 + g.x * 0.01);
+      if (on) { // the power line up to the eye
+        ctx.globalCompositeOperation = "lighter"; ctx.strokeStyle = rgba("#ff2e63", 0.22); ctx.lineWidth = 6; line(g.x, g.y - CORE.GEN_H, b.x, b.y + 40);
+        ctx.strokeStyle = rgba("#ff6f91", 0.55 + 0.35 * pulse); ctx.lineWidth = 2; ctx.setLineDash([8, 6]); ctx.lineDashOffset = -time * 120; line(g.x, g.y - CORE.GEN_H, b.x, b.y + 40); ctx.setLineDash([]); ctx.globalCompositeOperation = "source-over";
+      }
+      glowAt("#ff2e63", g.x, g.y - 4, 70, 18, on ? 0.6 : 0.2);
+      ctx.fillStyle = "#120c26"; ctx.beginPath(); ctx.moveTo(g.x - 20, g.y); ctx.lineTo(g.x + 20, g.y); ctx.lineTo(g.x + 13, g.y - 11); ctx.lineTo(g.x - 13, g.y - 11); ctx.closePath(); ctx.fill();
+      hazard(g.x - 14, g.y - 15, 28, 5, 3);
+      ctx.fillStyle = "#231b4a"; ctx.fillRect(g.x - 8.5, g.y - 70, 17, 56); ctx.strokeStyle = "#5a4bb0"; ctx.lineWidth = 1.5; ctx.strokeRect(g.x - 8.5, g.y - 70, 17, 56);
+      ctx.fillStyle = rgba("#ffffff", 0.08); ctx.fillRect(g.x - 8.5, g.y - 70, 5, 56);
+      for (const cy of [-26, -42, -58]) { ctx.strokeStyle = rgba("#ff2e63", on ? 0.65 + 0.35 * pulse : 0.3); ctx.lineWidth = 2.6; ctx.beginPath(); ctx.ellipse(g.x, g.y + cy, 14, 4.5, 0, 0, TAU); ctx.stroke(); }
+      glowAt("#ff2e63", g.x, g.y - 42, 64, 90, on ? 0.45 * pulse : 0.1);
+      ctx.fillStyle = on ? "#ffe1e8" : "#5a1020"; ctx.beginPath(); ctx.arc(g.x, g.y - CORE.GEN_H + 2, 8, 0, TAU); ctx.fill();
+      if (on) glowAt("#ff2e63", g.x, g.y - CORE.GEN_H + 2, 56, 56, 0.95);
+      ctx.globalAlpha = 1;
+    }
+    const Ls = b.las;
+    if (!Ls) return;
+    const fire = Ls.t >= Ls.T, k = clamp(Ls.t / Ls.T, 0, 1), on = Math.sin(time * 18) > 0, xr = Math.min(R, b.x - 20);
+    const segs = []; // the roofs in view, each band runs on to the next roof so the gaps are covered too
+    const bs = world.buildings.filter((o) => o.x + o.w > L && o.x < xr).sort((a, c) => a.x - c.x);
+    for (let i = 0; i < bs.length; i++) segs.push([Math.max(L, bs[i].x), Math.min(xr, i + 1 < bs.length ? bs[i + 1].x : bs[i].x + bs[i].w), bs[i].top, bs[i].x + bs[i].w]);
+    ctx.globalCompositeOperation = "lighter";
+    for (const [x0, x1, top, edge] of segs) {
+      if (x1 <= x0) continue;
+      if (Ls.kind === "floor") { // along the roofs: jump!
+        const e = Math.min(x1, edge);
+        if (e <= x0) continue;
+        if (!fire) {
+          ctx.strokeStyle = rgba("#ff2e63", 0.3 + 0.5 * k); ctx.lineWidth = 1.5 + k; ctx.setLineDash([12, 9]); ctx.lineDashOffset = time * 160; line(x0, top - 8, e, top - 8); ctx.setLineDash([]);
+          for (let x = x0 + 50; x < e - 20; x += 120) chevron(x, top - 30, true, 7, "#ffd23f", on ? 0.9 : 0.35);
+        } else {
+          glowAt("#ff2e63", (x0 + e) / 2, top - 8, e - x0 + 60, 54, 0.85);
+          ctx.fillStyle = rgba("#ff2e63", 0.9); ctx.fillRect(x0, top - 12.5, e - x0, 9); ctx.fillStyle = "#ffe1e8"; ctx.fillRect(x0, top - 9.5, e - x0, 3);
+        }
+      } else { // a ceiling of laser over head height: stay down!
+        const yb = top - CORE.CEIL, h = 380;
+        const cg = ctx.createLinearGradient(0, yb - h, 0, yb);
+        cg.addColorStop(0, rgba("#ff2e63", 0)); cg.addColorStop(0.55, rgba("#ff2e63", fire ? 0.2 : 0.05 + 0.08 * k)); cg.addColorStop(1, rgba("#ff2e63", fire ? 0.5 : 0.16 + 0.2 * k));
+        ctx.fillStyle = cg; ctx.fillRect(x0, yb - h, x1 - x0, h);
+        if (!fire) {
+          ctx.strokeStyle = rgba("#ff2e63", 0.25 + 0.3 * k); ctx.lineWidth = 1; for (let y = yb - 34; y > yb - 200; y -= 34) line(x0, y, x1, y);  // scan lines in the band
+          ctx.strokeStyle = rgba("#ff2e63", 0.45 + 0.5 * k); ctx.lineWidth = 2 + k * 1.5; ctx.setLineDash([12, 9]); ctx.lineDashOffset = -time * 160; line(x0, yb, x1, yb); ctx.setLineDash([]);
+          for (let x = x0 + 50; x < x1 - 20; x += 120) chevron(x, yb + 15, false, 8, "#ffd23f", on ? 0.95 : 0.35);
+        } else {
+          glowAt("#ff2e63", (x0 + x1) / 2, yb, x1 - x0 + 60, 60, 0.9);
+          ctx.fillStyle = rgba("#ff2e63", 0.95); ctx.fillRect(x0, yb - 5, x1 - x0, 7); ctx.fillStyle = "#ffe1e8"; ctx.fillRect(x0, yb - 2.5, x1 - x0, 2.5);
+        }
+      }
+    }
+    if (fire) { ctx.strokeStyle = rgba("#ff6f91", 0.8); ctx.lineWidth = 5; const ty = Ls.kind === "floor" ? Ls.top - 8 : Ls.top - CORE.CEIL; line(b.x - 10, b.y + 10, xr, ty); ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.6; line(b.x - 10, b.y + 10, xr, ty); }
+    ctx.globalCompositeOperation = "source-over";
+  },
+  draw(b, time) {
+    if (b.st === "down") { // the shards of its shell
+      ctx.globalAlpha = Math.max(0, 1 - b.dead / 2.6);
+      for (const s of b.shards) { ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.r); ctx.fillStyle = "#151030"; ctx.fillRect(-9, -5, 18, 10); ctx.fillStyle = "#ff2e63"; ctx.fillRect(-9, -5, 18, 2); ctx.restore(); }
+      ctx.globalAlpha = 1;
+      return;
+    }
+    const x = b.x, y = b.y, open = b.open, hit = b.hitT > 0.4, L = b.las, charge = L ? (L.t < L.T ? L.t / L.T : 1) : 0;
+    const p = player, la = Math.atan2(p.y - y, p.x - x), lx = Math.cos(la) * 9 * open, ly = Math.sin(la) * 9 * open;
+    glowAt("#ff2e63", x, y, 220, 220, 0.18 + 0.25 * charge);
+    ctx.lineWidth = 2; // two halo rings, turning against each other (faster while it aims)
+    ctx.strokeStyle = rgba("#ff2e63", 0.45); ctx.setLineDash([16, 10]); ctx.lineDashOffset = b.spin * 40; ctx.beginPath(); ctx.arc(x, y, 76, 0, TAU); ctx.stroke();
+    ctx.strokeStyle = rgba("#ff6f91", 0.3); ctx.setLineDash([3, 9]); ctx.lineDashOffset = -b.spin * 60; ctx.beginPath(); ctx.arc(x, y, 86, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+    for (let i = 0; i < 8; i++) { // armoured shell segments
+      const a0 = (i / 8) * TAU + b.spin * 0.15 + 0.07, a1 = a0 + TAU / 8 - 0.14;
+      ctx.fillStyle = "#120c26"; ctx.beginPath(); ctx.arc(x, y, 58, a0, a1); ctx.arc(x, y, 47, a1, a0, true); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = "#3a2f70"; ctx.lineWidth = 1.4; ctx.stroke();
+      const am = (a0 + a1) / 2; ctx.fillStyle = i < b.hpMax - b.hp ? "#3a1020" : "#ff2e63"; ctx.fillRect(x + Math.cos(am) * 53 - 2, y + Math.sin(am) * 53 - 2, 4, 4);
+    }
+    ctx.save(); ctx.beginPath(); ctx.arc(x, y, 45, 0, TAU); ctx.clip();
+    const sg = ctx.createRadialGradient(x - 14, y - 16, 4, x, y, 46); sg.addColorStop(0, "#3a2f70"); sg.addColorStop(0.5, "#120c26"); sg.addColorStop(1, "#05030a");
+    ctx.fillStyle = sg; ctx.fillRect(x - 46, y - 46, 92, 92);
+    const ix = x + lx, iy = y + ly, ir = 19 + charge * 3;
+    const ig = ctx.createRadialGradient(ix, iy, 1, ix, iy, ir); ig.addColorStop(0, "#ffe1e8"); ig.addColorStop(0.3, "#ff2e63"); ig.addColorStop(1, "#5a0820");
+    ctx.fillStyle = ig; ctx.beginPath(); ctx.arc(ix, iy, ir, 0, TAU); ctx.fill();
+    ctx.fillStyle = "#05030a"; ctx.beginPath(); ctx.ellipse(ix, iy, Math.max(1.4, 4 - charge * 2.6), 13, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = rgba("#ffffff", 0.7); ctx.beginPath(); ctx.arc(ix - 6, iy - 7, 2.6, 0, TAU); ctx.fill();
+    const lh = 31 * open; // eyelids: shutters from above and below leave an almond-shaped opening
+    ctx.fillStyle = "#0c0820";
+    ctx.beginPath(); ctx.moveTo(x - 47, y - 50); ctx.lineTo(x + 47, y - 50); ctx.lineTo(x + 47, y); ctx.quadraticCurveTo(x, y - 2 * lh, x - 47, y); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x - 47, y + 50); ctx.lineTo(x + 47, y + 50); ctx.lineTo(x + 47, y); ctx.quadraticCurveTo(x, y + 2 * lh, x - 47, y); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = rgba("#ff2e63", 0.75); ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.moveTo(x + 47, y); ctx.quadraticCurveTo(x, y - 2 * lh, x - 47, y); ctx.quadraticCurveTo(x, y + 2 * lh, x + 47, y); ctx.stroke();
+    ctx.restore();
+    ctx.strokeStyle = rgba("#ff2e63", 0.8); ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(x, y, 45, 0, TAU); ctx.stroke();
+    glowAt("#ff2e63", ix, iy, 70 + charge * 70, 70 + charge * 70, 0.35 + 0.6 * charge * open);
+    if (hit) { ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 0.6; ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(x, y, 58, 0, TAU); ctx.fill(); ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over"; }
+  },
+};
 
 // ---------- drawing ----------
 function drawEnemies(time, L, R, T, B) {
-  drawGunMarks(time);
+  drawBossGround(time, L, R);
   for (const s of world.spotters) if (s.x > L - 260 && s.x < R + 260) drawSpotter(s, time);
   for (const b of world.balls) if (b.cx > L - 400 && b.cx < R + 400) drawBall(b);
-  for (const d of world.drones) { if (d.x < L || d.x > R) continue; if (d.spike) drawSpikeDrone(d, time); else drawDrone(d, time); }
+  for (const d of world.drones) { if (d.x < L || d.x > R || (d.fly && d.fly.t < 0)) continue; if (d.spike) drawSpikeDrone(d, time); else drawDrone(d, time); }
   for (const g of world.guards) { if (g.x < L - 40 || g.x > R + 40) continue; if (g.shield) drawShieldGuard(g, time); else drawGuard(g, time); }
   drawWaves();
   drawBolts(L, R);
   for (const h of world.hunters) if (h.st === "warn" || (h.x > L - 80 && h.x < R + 120)) drawHunter(h, time, R, T, B);
-  drawGunship(time);
+  drawBoss(time, L, R);
 }
 
 // ---------- die neuen Gegner zeichnen ----------
@@ -4186,6 +5068,7 @@ function drawWorld(time, pulse, L, R, T, B) {
     if (b.prop && b.w >= 300) drawRoofProp(b, time, pulse);
   }
   for (const b of world.balls) if (b.cx + 330 > L && b.cx - 60 < R) drawBallRig(b, time); // demolition cranes stand on their roofs
+  drawArenaGates(time, L, R, T, B);                                                            // the gates of the boss arenas
   // ---- towers over arcades, then the back yards of the light wells ----
   for (const k of world.blocks) { if (k.x > R || k.x + k.w < L || k.top > B || k.floor < T) continue; drawBlock(k, time, pulse, T, B); }
   for (const b of world.buildings) if (b.well != null && b.x + 40 > L && b.well - 40 < R) drawWell(b, time, pulse);
@@ -6139,6 +7022,7 @@ const ui = {
   hud: $("hud"), dist: $("dist"), score: $("score"), mult: $("mult"), flowfill: $("flowfill"), flowbar: $("flowbar"),
   chain: $("chain"), speed: $("speed"), hint: $("hint"), zone: $("zone"), touch: $("touchHints"),
   dashbar: $("dashbar"), dashfill: $("dashfill"),
+  bossbar: $("bossbar"), bossName: $("bossName"), bossHp: $("bossHp"), bossLeft: $("bossLeft").firstElementChild,
   start: $("screenStart"), pause: $("screenPause"), over: $("screenOver"), skills: $("screenSkills"),
 };
 const ghostLine = document.createElement("div");
@@ -6147,7 +7031,7 @@ document.querySelector(".hud-left").appendChild(ghostLine);
 const fmt = (n) => Math.round(n).toLocaleString("de-DE");
 
 // ---------- best + ghost (this browser only) ----------
-const bestKey = "best_" + SEED, ghostKey = "ghost4_" + SEED; // ghost4: the level layout changed again with the new enemies
+const bestKey = "best_" + SEED, ghostKey = "ghost5_" + SEED; // ghost5: the level layout changed again with the boss arenas
 let bestToday = store.get(bestKey, { dist: 0, score: 0 });
 let ghost = store.get(ghostKey, null);   // { d: [x,y,st,ang, ...], step }
 const ST_CODE = { run: 0, air: 1, swing: 2, grind: 3, wall: 4, dead: 1, grapple: 2, mantle: 4 }, ST_NAME = ["run", "air", "swing", "grind", "wall", "dash"];
@@ -6309,6 +7193,9 @@ const HINTS = IS_TOUCH ? {
   shield: "Schild-Wächter blockt den Dash · von oben <kbd>draufspringen</kbd>!",
   ball: "Abrissbirne: Timing! · drunter durch oder <kbd>drüber springen</kbd>",
   gun: "Rote Kreise = Raketen · <kbd>drüberspringen</kbd> · kommt er runter: hoch und <kbd>wischen</kbd> = Treffer",
+  bmech: "Krabbler: Minen + Laser = <kbd>springen</kbd> · dampft er = <kbd>wischen</kbd>",
+  bcarrier: "Schwarm-Träger: ganze Staffel <kbd>wischen</kbd> = Treffer",
+  bcore: "KI: <kbd>▲</kbd> springen · <kbd>▼</kbd> unten bleiben · Generator <kbd>wischen</kbd>",
 } : {
   jump: "<kbd>LEER</kbd> springen · nochmal in der Luft = Doppelsprung",
   swing: "<kbd>J</kbd> oder <kbd>MAUS</kbd> halten = Seil an den Haken",
@@ -6324,12 +7211,16 @@ const HINTS = IS_TOUCH ? {
   shield: "Schild-Wächter blockt den <kbd>DASH</kbd> · von oben draufspringen!",
   ball: "Abrissbirne: Timing! · drunter durch oder <kbd>drüber springen</kbd>",
   gun: "Rote Kreise = Raketen · <kbd>drüberspringen</kbd> · kommt er runter: hoch und <kbd>DASH</kbd> = Treffer",
+  bmech: "Krabbler: Minen + Laser = <kbd>springen</kbd> · dampft er: drauf oder <kbd>DASH</kbd>",
+  bcarrier: "Schwarm-Träger: ganze Staffel mit <kbd>DASH</kbd> zerlegen = Treffer",
+  bcore: "Die KI: <kbd>▲</kbd> springen · <kbd>▼</kbd> unten bleiben · Generatoren mit <kbd>DASH</kbd>",
 };
 let hintShown = {}, hintT = 0, zoneShownIdx = 0, zoneT = 0;
 const tutDone = () => store.get("tut", false);
 let pumpTutDone = store.get("pumpTut", false);
 let dashTutDone = store.get("dashTut", false), spikeTutDone = store.get("spikeTut", false), wallTutDone = store.get("wallTut", false);
-const newTut = { spot: store.get("tutSpot", false), hunt: store.get("tutHunt", false), shield: store.get("tutShield", false), ball: store.get("tutBall", false), gun: store.get("tutGun", false) };
+const newTut = { spot: store.get("tutSpot", false), hunt: store.get("tutHunt", false), shield: store.get("tutShield", false), ball: store.get("tutBall", false), gun: store.get("tutGun", false),
+  bmech: store.get("tutMech", false), bcarrier: store.get("tutCarrier", false), bcore: store.get("tutCore", false) };
 function showHint(key, dur = 3.2, force = false) {
   if (hintShown[key] || (tutDone() && !force)) return;
   hintShown[key] = true; ui.hint.innerHTML = HINTS[key]; ui.hint.classList.remove("fade"); hintT = dur;
@@ -6449,6 +7340,8 @@ function botBallPlan(p, b, ready) {
 function botNewFoes(p, ready) {
   const ground = p.state === "run", air = p.state === "air";
   if (!ground && !air) return null;
+  const bb = botBoss(p, ready, ground, air);                       // a boss first
+  if (bb) return bb;
   for (const h of world.hunters) { // a hunter coming in at your height: cut it (dash) or get out of its line
     if (h.st !== "fly" || h.x < p.x - 20 || Math.abs(h.y - p.y) > 42) continue;
     const tc = (h.x - p.x) / Math.max(200, p.vx + HUNT_V);
@@ -6475,18 +7368,6 @@ function botNewFoes(p, ready) {
     }
   }
   for (const b of world.balls) if (Math.abs(b.cx - p.x) < 650) { const a = botBallPlan(p, b, ready); if (a) return a; }
-  const g = run.gun;
-  if (g && g.marks.length) for (const m of g.marks) { // a rocket circle where you will be when it hits: be in the air then
-    const tl = m.T - m.t;
-    if (tl < 0.08 || tl > 0.45 || Math.abs(p.x + p.vx * tl - m.x) > GUN.BLAST + PW / 2 + 12) continue;
-    if (ground) return "jump";
-    if (air && p.airJumps > 0 && p.y + HALF_H > m.y - 90 && p.vy > -150) return "jump";
-  }
-  if (g && g.st === "attack" && g.dipT > 0.25 && g.hitT <= 0) { // it came down: go for it
-    const dx = g.x - p.x;
-    if (ground && ready && dx > 140 && dx < 330) return "jump";
-    if (air && ready && dx > 0 && dx < 270 && Math.abs(g.y - p.y) < 36) return "dash";
-  }
   return null;
 }
 function botThink() {
@@ -6602,6 +7483,17 @@ function hudUpdate(rdt, gp) {
     else if (run.dist < bestToday.dist) gtxt = ""; else gtxt = "GEIST GESCHLAGEN";
   }
   setText(ghostLine, "ghost", gtxt);
+  { // the boss bar: its name, the hits it can still take, and how much of its arena is left
+    const b = run.boss, show = (state === "play" || state === "pause") && bossOn();
+    if (hudCache.bb !== show) { hudCache.bb = show; ui.bossbar.hidden = !show; document.body.classList.toggle("boss", show); }
+    if (show) {
+      setText(ui.bossName, "bn", BOSS_NAME[b.type] + ["", "", " II", " III", " IV"][Math.min(4, b.lvl)]);
+      const hk = b.hp + "/" + b.hpMax;
+      if (hudCache.bh !== hk) { hudCache.bh = hk; let h = ""; for (let i = 0; i < b.hpMax; i++) h += i < b.hp ? "<i></i>" : '<i class="off"></i>'; ui.bossHp.innerHTML = h; }
+      const a = b.arena, left = Math.round(clamp(1 - (player.x - a.x0) / Math.max(1, a.x1 - 250 - a.x0), 0, 1) * 80) / 80;
+      if (hudCache.bl !== left) { hudCache.bl = left; ui.bossLeft.style.transform = "scaleX(" + left + ")"; }
+    }
+  }
   jokerHud();
   if (toastT > 0) { toastT -= rdt; if (toastT <= 0) $("toast").classList.add("fade"); }
   // hints
@@ -6625,7 +7517,10 @@ function hudUpdate(rdt, gp) {
     tutNew("hunt", "tutHunt", () => world.hunters.some((h) => h.st === "warn" && h.t >= 0));
     tutNew("shield", "tutShield", () => world.guards.some((g) => g.alive && g.shield && g.x > player.x && g.x - player.x < 720));
     tutNew("ball", "tutBall", () => world.balls.some((b) => b.cx > player.x - 150 && b.cx - player.x < 820));
-    tutNew("gun", "tutGun", () => run.gun && run.gun.st === "attack" && run.gun.salvos > 0);
+    tutNew("gun", "tutGun", () => bossIs("gunship") && run.boss.salvos > 0);
+    tutNew("bmech", "tutMech", () => bossIs("mech") && run.boss.st === "fight");
+    tutNew("bcarrier", "tutCarrier", () => bossIs("carrier") && run.boss.st === "fight");
+    tutNew("bcore", "tutCore", () => bossIs("core") && run.boss.st === "fight");
     if (hintShown.swing && run.firstSwing && hintT > 50) { hintT = 0.01; }
   }
   // zone banner
@@ -6651,7 +7546,7 @@ function frame(now) {
     if (n >= 10) acc = 0;
     if (state === "menu" && run.dead && run.deadT > 0.8) newWorld();
     if (state === "play" && run.dead && run.deadT > 1.5) gameOver();
-    if (state === "play" && !run.dead) Sound.setIntensity(run.od > 0 ? 3 : mult() >= 3 ? 2 : 1);
+    if (state === "play" && !run.dead) Sound.setIntensity(run.od > 0 ? 3 : mult() >= 3 || bossOn() ? 2 : 1);
   }
   // draw the runner between the last two physics steps: smooth on 60/120/144 Hz screens
   const ia = clamp(acc / DT, 0, 1), rx = player.x, ry = player.y;
