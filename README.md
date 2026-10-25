@@ -22,6 +22,13 @@ Läuft als installierbare Web-App (PWA): Vollbild, eigenes Icon, funktioniert of
 | Walljump zur Gegenwand | an der Wand Leertaste | an der Wand links tippen |
 | Joker (Greifhaken / EMP) | G oder Q | nach oben wischen oder Joker-Knopf oben rechts |
 
+## Regeln
+
+- **3 Leben** (mit dem Schutzschild 4). Jeder Treffer kostet eins, danach blinkst du kurz und bist geschützt. Alle 500 m und für jeden besiegten Boss gibt es ein Leben zurück.
+- **Dash gegen Gegner, Sprung gegen Fallen.** Der Dash zerlegt Drohnen, Wächter, Späher und Raketen und schlägt Schüsse zurück. Fallen (Laser, Kisten, Stacheln, Stoßwellen, Abrissbirne, Einschläge) treffen dich auch im Dash: drüberspringen.
+- **Overdrive** füllt sich nur durch sauberes Spielen (Perfekt-Absprünge, Zerlegen, Loopings, Ringe). Ein Treffer leert die Leiste. Im Overdrive bist du 5 Sekunden schneller und unverwundbar.
+- Hinter dir frisst der **Blackout** die Stadt: Wer zu langsam wird, wird eingeholt.
+
 ## Figuren
 
 Vier Figuren in Echtzeit-3D, jede mit eigenem Bewegungsstil und eigenem Doppelsprung und Dash: **Kage-X** (Cyber-Ninja: Rauchbomben-Korkenzieher mit Schattendoppelgänger, Katana-Blitzschnitt), **Vektor** (Daten-Avatar: Absprung von einer Hologramm-Plattform, Dash als Pixel-Datenstrom), **Titan** (Exo-Anzug: Raketenschub aus Rucksack und Stiefeln, aufrechter Düsen-Dash) und **Aero** (City-Runner: Butterfly-Twist mit Lichtsohlen, Superman-Hechtsprung durch den Windkanal). Auswahl im Startmenü unter „Charakter“.
@@ -44,16 +51,16 @@ Ab 1.100 m kommt alle 1.200 m ein Boss, jedes Mal ein anderer. Jeder bekommt sei
 - **Drohne:** draufspringen, Slam oder Dash.
 - **Stachel-Drohne:** nicht draufspringen, Dash oder Slam.
 - **Wächter:** schießt übers Dach. Drüberspringen oder Dash, der Dash schießt den Schuss zurück.
-- **Schild-Wächter** (ab ca. 270 m): blockt den Dash mit einem Energieschild und schickt Stoßwellen übers Dach. Drüberspringen und von oben draufspringen.
-- **Späher-Drohne** (ab ca. 360 m): streicht mit einem Suchscheinwerfer übers Dach. Wer im Lichtfleck erwischt wird, löst Alarm aus und bekommt zwei Jäger-Raketen. Über das Licht springen, durchdashen oder die Drohne von oben zerlegen.
-- **Abrissbirne** (ab ca. 470 m): pendelt an einem Raupenkran übers Dach. Timing: drunter durch oder drüber springen. Auch der Dash prallt an ihr ab.
-- **Jäger-Rakete** (ab ca. 600 m): ein rotes ! am rechten Rand folgt deiner Höhe und rastet ein, dann kommt die Rakete. Ausweichen oder mit dem Dash kontern.
+- **Schild-Wächter** (ab ca. 300 m): blockt den Dash mit einem Energieschild und schickt Stoßwellen übers Dach. Drüberspringen und von oben draufspringen.
+- **Späher-Drohne** (ab ca. 520 m): streicht mit einem Suchscheinwerfer übers Dach. Wer im Lichtfleck erwischt wird, löst Alarm aus und bekommt zwei Jäger-Raketen. Über das Licht springen, durchdashen oder die Drohne von oben zerlegen.
+- **Abrissbirne** (ab ca. 760 m): pendelt an einem Raupenkran übers Dach. Timing: drunter durch oder drüber springen. Auch der Dash prallt an ihr ab.
+- **Jäger-Rakete** (ab ca. 960 m): ein rotes ! am rechten Rand folgt deiner Höhe und rastet ein, dann kommt die Rakete. Ausweichen oder mit dem Dash kontern.
 
 ## Skillpunkte und Skills
 
-Alle 50 gesammelten Münzen gibt es einen Skillpunkt, dazu einmalig für Meilensteine (z. B. 1.000 m, 5× Perfekt, 3 Loopings, 3 Walljumps am Stück, 4 Grind-Stellen, einen Boss besiegen). Im Menü unter **Skills** schaltest du damit frei:
+Alle 35 gesammelten Münzen gibt es einen Skillpunkt, dazu einmalig für Meilensteine (z. B. 1.000 m, 5× Perfekt, 3 Loopings, 3 Walljumps am Stück, 4 Grind-Stellen, einen Boss besiegen). Im Menü unter **Skills** schaltest du damit frei:
 
 - **Joker** (einer ist ausgerüstet): **Greifhaken** zieht dich zur nächsten Dachkante hoch (1× pro Lauf, Stufe 2: 2×), **EMP-Schlag** zerlegt alle Gegner vor dir, schaltet Laser ab, holt Raketen vom Himmel und trifft einen Boss doppelt (1× pro Lauf).
-- **Fähigkeiten** (wirken immer): Münzmagnet, Schutzschild (fängt einen Treffer ab), Dreifachsprung, Turbo-Overdrive (+3 s).
+- **Fähigkeiten** (wirken immer): Münzmagnet, Schutzschild (ein Leben mehr), Dreifachsprung, Turbo-Overdrive (+2 s).
 
 Der Fortschritt wird im Browser gespeichert.
