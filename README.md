@@ -18,16 +18,17 @@ Läuft als installierbare Web-App (PWA): Vollbild, eigenes Icon, funktioniert of
 | Schwung holen am Seil | Leertaste | links tippen |
 | Abspringen | Seiltaste loslassen (im goldenen Bogen = PERFEKT) | rechts loslassen |
 | Dash (zerlegt Gegner) | D, →, Shift | nach rechts wischen |
-| Rutschen (am Boden) / Slam (in der Luft) | S, ↓ | nach unten wischen |
+| Rutschen (am Boden) / Slam (in der Luft, landet direkt im Rutschen) | S, ↓ | nach unten wischen |
 | Walljump zur Gegenwand | an der Wand Leertaste | an der Wand links tippen |
 | Joker (Greifhaken / EMP) | G oder Q | nach oben wischen oder Joker-Knopf oben rechts |
-| Schießen (wenn die Waffe freigeschaltet ist) | F | Feuer-Knopf am rechten Rand |
+| Schießen (wenn die Waffe freigeschaltet ist) | markiertes Ziel anklicken, F fürs nächste Ziel | markiertes Ziel antippen |
 
 ## Regeln
 
 - **3 Leben** (mit dem Schutzschild 4). Jeder Treffer kostet eins, danach blinkst du kurz und bist geschützt. Alle 500 m und für jeden besiegten Boss gibt es ein Leben zurück.
 - **Dash gegen Gegner, Sprung gegen Fallen.** Der Dash zerlegt Drohnen, Wächter, Späher und Raketen und schlägt Schüsse zurück. Fallen (Laser, Kisten, Stacheln, Stoßwellen, Abrissbirne, Einschläge) treffen dich auch im Dash: drüberspringen.
 - **Rutschen unter tiefen Hindernissen.** Am Boden nach unten wischen (S / ↓): du rutschst mit den Füßen voran und bist nur noch halb so hoch. Unter einem Hindernis bleibst du automatisch unten, bis wieder Platz ist; springen geht erst danach. Wischst du kurz vor der Landung nach unten, rutschst du direkt los. Wer stehend hineinläuft, wird umgerissen und verliert ein Leben. Im Rutschen fliegen Wächter-Schüsse und schwebende Drohnen über dich hinweg, und ein normaler Wächter wird umgemäht.
+- **Rutschen macht schneller.** Jede Rutschpartie gibt einen Schub und beschleunigt dich auf das 1,45-fache Tempo, danach läuft der Schwung langsam aus. Wer immer wieder rutscht, bleibt schnell. Ein Slam aus der Luft geht bei der Landung direkt ins Rutschen über.
 - **Overdrive** füllt sich nur durch sauberes Spielen (Perfekt-Absprünge, Zerlegen, Loopings, Ringe). Ein Treffer leert die Leiste. Im Overdrive bist du 5 Sekunden schneller und unverwundbar.
 - Hinter dir frisst der **Blackout** die Stadt: Wer zu langsam wird, wird eingeholt.
 
@@ -88,10 +89,10 @@ Alle 35 gesammelten Münzen gibt es einen Skillpunkt, dazu einmalig für Meilens
 
 - **Joker** (einer ist ausgerüstet): **Greifhaken** zieht dich zur nächsten Dachkante hoch (1× pro Lauf, Stufe 2: 2×), **EMP-Schlag** zerlegt alle Gegner vor dir, schaltet Laser ab, holt Raketen vom Himmel und trifft einen Boss doppelt (1× pro Lauf).
 - **Fähigkeiten** (wirken immer): Münzmagnet, Schutzschild (ein Leben mehr), Dreifachsprung, Turbo-Overdrive (+2 s).
-- **Waffen:** Jeder Charakter hat seine eigene. Freischalten kostet 3 SP, danach gibt es vier weitere Stufen (2, 3, 4 und 5 SP). Die Waffe zielt selbst auf das nächste Ziel vor dir (Drohnen, Wächter, Späher, Raketen, Schwachstellen der Bosse). Das Magazin ist klein und lädt Schuss für Schuss von selbst nach. Bossen setzen Schüsse nur stückweise zu: mehrere Treffer ergeben einen ganzen.
+- **Waffen:** Jeder Charakter hat seine eigene. Freischalten kostet 3 SP, danach gibt es vier weitere Stufen (2, 3, 4 und 5 SP). Alles, was du gerade treffen kannst, trägt eine Zielmarkierung (drehende Klammern in der Farbe der Waffe): Drohnen, Wächter, Späher, Raketen, Schwachstellen der Bosse. **Antippen** (am PC anklicken) schießt genau auf dieses Ziel, der Schuss biegt sich darauf zu. Mit F geht der Schuss aufs nächste Ziel. Das Magazin steht unter den Herzen, ist klein und lädt Schuss für Schuss von selbst nach. Bossen setzen Schüsse nur stückweise zu: mehrere Treffer ergeben einen ganzen.
   - **Kage-X – Shuriken-Werfer:** schnelle Plasma-Shuriken, ab Stufe 3 durchschlagen sie zwei, auf Stufe 5 drei Gegner.
   - **Vektor – Glitch-Railgun:** ein Strahl, der sofort alles in seiner Linie trifft, auch durch Schilde. Wenig Schuss, lädt langsam.
-  - **Titan – Granatwerfer:** Granaten im Bogen, die über Schilde fliegen und im Umkreis alles erwischen. Die Explosion wächst mit jeder Stufe.
+  - **Titan – Granatwerfer:** Granaten im Bogen, die über Schilde fliegen und mit Feuerball, Druckwelle und Rauchwolke explodieren. Sie erwischen alles im Umkreis, die Explosion wächst mit jeder Stufe.
   - **Aero – Puls-Blaster:** großes Magazin, lädt schnell nach, ab Stufe 4 zwei Pulse pro Schuss.
   - Schild-Wächter blocken Shuriken und Pulse von vorn. Der Panzer des Krabblers, der Rumpf des Schwarm-Trägers und das Auge der KI halten Schüsse ab. Treffen kannst du den offenen Kern, die Drohnen und die Generatoren. Minen kann man wegschießen.
 

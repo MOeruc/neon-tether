@@ -232,25 +232,15 @@ html:not(.touch) .keys .kt, html.touch .keys .kd { display: none; } /* phones se
 .stars-big span.in { transform: scale(1); opacity: 1; }
 .stars-big span.on { color: var(--volt); text-shadow: 0 0 18px color-mix(in srgb, var(--volt) 70%, transparent), 3px 3px 0 var(--hot); }
 
-/* ---------- the fire button (right edge, a little below the middle): crosshair, rounds as pips under it ---------- */
-.fire-btn {
-  --wc: var(--tether);
-  position: fixed; z-index: 6; right: max(14px, env(safe-area-inset-right, 0px)); top: 54%; transform: translateY(-50%);
-  width: 64px; height: 64px; border-radius: 50%; padding: 0; display: grid; place-items: center; cursor: pointer;
-  touch-action: none; pointer-events: auto; color: var(--wc);
-  background: color-mix(in srgb, var(--ink) 58%, transparent); border: 2px solid color-mix(in srgb, var(--wc) 75%, transparent);
-  box-shadow: 0 0 16px color-mix(in srgb, var(--wc) 30%, transparent); transition: opacity 0.15s, transform 0.08s;
-}
-.fire-btn svg { width: 30px; height: 30px; }
-.fire-btn:active, .fire-btn.kick { transform: translateY(-50%) scale(0.9); }
-.fire-btn.dry { opacity: 0.5; }
-.fire-btn .ammo { position: absolute; left: 50%; bottom: -12px; transform: translateX(-50%); display: flex; gap: 3px; }
-.fire-btn .ammo i { width: 7px; height: 4px; transform: skewX(-20deg); background: color-mix(in srgb, var(--paper) 18%, transparent); }
-.fire-btn .ammo i.on { background: var(--wc); box-shadow: 0 0 6px var(--wc); }
-.fire-btn .ammo i.part { background: linear-gradient(90deg, var(--wc) calc(var(--f) * 100%), color-mix(in srgb, var(--paper) 18%, transparent) 0); }
-.fire-btn kbd { position: absolute; top: -7px; right: -5px; font: 700 10px var(--font-ui); background: var(--paper); color: var(--ink); padding: 1px 5px; border-radius: 3px; }
-html.touch .fire-btn kbd { display: none; }
-@media (max-height: 460px) { .fire-btn { width: 58px; height: 58px; } }
+/* ---------- the rounds of the weapon, under the hearts (shooting = tap the target) ---------- */
+#ammoBar { --wc: var(--tether); display: flex; align-items: center; gap: 6px; margin-top: 5px; color: var(--wc); transition: opacity 0.15s; }
+#ammoBar[hidden] { display: none; }
+#ammoBar svg { width: 14px; height: 14px; filter: drop-shadow(0 0 4px var(--wc)); }
+#ammoBar .ammo { display: flex; gap: 3px; }
+#ammoBar .ammo i { width: 9px; height: 5px; transform: skewX(-20deg); background: color-mix(in srgb, var(--paper) 18%, transparent); }
+#ammoBar .ammo i.on { background: var(--wc); box-shadow: 0 0 6px var(--wc); }
+#ammoBar .ammo i.part { background: linear-gradient(90deg, var(--wc) calc(var(--f) * 100%), color-mix(in srgb, var(--paper) 18%, transparent) 0); }
+#ammoBar.dry { opacity: 0.55; }
 .wp-stats { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: var(--step--1); letter-spacing: 0.06em; color: var(--paper); font-weight: 600; }
 .wp-stats span { color: var(--mute); font-weight: 600; }
 .wp-pips { display: flex; gap: 3px; }
@@ -330,6 +320,7 @@ html.touch .fire-btn kbd { display: none; }
     <div id="dist">0<small>m</small></div>
     <div id="score">0</div>
     <div id="hearts" role="img" aria-label="Leben"></div>
+    <div id="ammoBar" role="img" aria-label="Munition" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/></svg><span class="ammo" id="ammo"></span></div>
     <div id="lvline" hidden><span id="lvTag">LEVEL 1</span><span class="lvbar"><span id="lvFill"></span><i></i></span></div>
   </div>
   <div class="hud-center">
@@ -348,10 +339,6 @@ html.touch .fire-btn kbd { display: none; }
 <div id="hint" class="fade" aria-live="polite"></div>
 <div id="zone" class="fade"></div>
 <div id="toast" class="fade" aria-live="polite"></div>
-<button class="fire-btn" id="btnFire" aria-label="Schießen" hidden>
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/></svg>
-  <span class="ammo" id="ammo"></span><kbd>F</kbd>
-</button>
 <div id="touchHints" class="fade" hidden>
   <div><span><b>TIPPEN</b>SPRINGEN · AM SEIL SCHWUNG</span></div>
   <div><span><b>HALTEN</b><span id="touchRight">SCHWINGEN · WISCHEN → DASH · ↓ RUTSCHEN</span></span></div>
@@ -395,8 +382,8 @@ html.touch .fire-btn kbd { display: none; }
           <kbd class="kt">NACH OBEN WISCHEN</kbd><span class="t kt"><em>Joker</em>: Greifhaken oder EMP (im Menü unter Skills freischalten)</span>
           <kbd class="kd">S / ↓</kbd><span class="t kd"><em>Rutschen</em> am Boden: unter Kanälen und Lasern durch · in der Luft Slam</span>
           <kbd class="kt">WISCHEN ↓</kbd><span class="t kt"><em>Rutschen</em> am Boden: unter Kanälen und Lasern durch · in der Luft Slam</span>
-          <kbd class="kd">F</kbd><span class="t kd"><em>Waffe</em> deines Charakters (unter Skills freischalten): zielt selbst, das Magazin lädt nach</span>
-          <kbd class="kt">FEUER-KNOPF</kbd><span class="t kt"><em>Waffe</em> deines Charakters (unter Skills freischalten): zielt selbst, das Magazin lädt nach</span>
+          <kbd class="kd">KLICK / F</kbd><span class="t kd"><em>Waffe</em> deines Charakters (unter Skills freischalten): markiertes Ziel anklicken oder F fürs nächste, das Magazin lädt nach</span>
+          <kbd class="kt">GEGNER ANTIPPEN</kbd><span class="t kt"><em>Waffe</em> deines Charakters (unter Skills freischalten): alles, was du treffen kannst, ist markiert. Antippen = Schuss, das Magazin lädt nach</span>
           <kbd style="color:#ff2e63">♥ ♥ ♥</kbd><span class="t"><em>3 Leben</em>: jeder Treffer kostet eins, alle 500 m gibt es eins zurück</span>
         </div>
       </div>
@@ -420,7 +407,7 @@ html.touch .fire-btn kbd { display: none; }
     </div>
     <h3 class="sk-h">JOKER · EINEN AUSRÜSTEN, IM LAUF MIT G / Q ODER NACH OBEN WISCHEN</h3>
     <div class="sk-grid" id="gridJoker"></div>
-    <h3 class="sk-h">WAFFEN · JEDER CHARAKTER HAT SEINE EIGENE · SCHIESSEN MIT F ODER DEM FEUER-KNOPF</h3>
+    <h3 class="sk-h">WAFFEN · JEDER CHARAKTER HAT SEINE EIGENE · SCHIESSEN: MARKIERTES ZIEL ANTIPPEN (ODER F)</h3>
     <div class="sk-grid" id="gridWeapons"></div>
     <h3 class="sk-h">FÄHIGKEITEN · WIRKEN IMMER</h3>
     <div class="sk-grid" id="gridPassive"></div>
@@ -592,8 +579,8 @@ const prog = (() => {
   return { sp: d.sp | 0, earned: d.earned | 0, bank: d.bank | 0, ms: d.ms || {}, sk: d.sk || {}, joker: d.joker || null, wp: d.wp || {} };
 })();
 // ---------- Waffen: jeder Charakter hat seine eigene, mit Skillpunkten freischalten und in 5 Stufen ausbauen ----------
-// Schießen mit F oder dem Feuer-Knopf. Das Magazin ist klein und lädt von selbst nach (ein Schuss nach dem anderen),
-// die Waffe zielt selbst auf das nächste Ziel vor dir. Bossen setzt sie nur Stück für Stück zu (chip: Anteil eines Treffers).
+// Schießen: ein markiertes Ziel antippen (oder anklicken), der Schuss biegt sich darauf zu; F schießt aufs nächste Ziel vor dir.
+// Das Magazin ist klein und lädt von selbst nach (ein Schuss nach dem anderen). Bossen setzt sie nur Stück für Stück zu (chip: Anteil eines Treffers).
 const WEAPONS = {
   kage: { name: "Shuriken-Werfer", col: "#29c9ff", kind: "shuriken", range: 900, chip: 0.25, speed: 1500,
     desc: "Plasma-Shuriken vom Handgelenk: schnell und gerade.", mag: [3, 3, 4, 4, 5], reload: [1.1, 0.95, 0.85, 0.75, 0.65], pierce: [1, 1, 2, 2, 3],
@@ -639,7 +626,7 @@ document.documentElement.classList.toggle("touch", IS_TOUCH);
 // ================= INPUT =================
 const input = {
   jumpSrc: new Set(), swingSrc: new Set(),
-  jumpPressed: false, divePressed: false, swingPressed: false, dashPressed: false, jokerPressed: false, firePressed: false,
+  jumpPressed: false, divePressed: false, swingPressed: false, dashPressed: false, jokerPressed: false, firePressed: false, fireAt: null,
   get jumpHeld() { return this.jumpSrc.size > 0; },
   get swingHeld() { return this.swingSrc.size > 0; },
   clear() { this.jumpSrc.clear(); this.swingSrc.clear(); this.jumpPressed = this.divePressed = this.swingPressed = this.dashPressed = this.jokerPressed = this.firePressed = false; },
@@ -687,9 +674,13 @@ canvas.addEventListener("pointerdown", (e) => {
   let role;
   if (e.pointerType === "mouse") role = e.button === 2 ? "jump" : "swing";
   else role = e.clientX < window.innerWidth * 0.45 ? "jump" : "swing";
+  if (role === "swing") { // a tap (or click) on a marked target fires at it; a swipe that starts there still works
+    const t = tapTarget(e.clientX, e.clientY);
+    if (t) { role = "fire"; input.fireAt = t; input.firePressed = true; }
+  }
   pointers.set(e.pointerId, { role, x: e.clientX, y: e.clientY, t: performance.now(), swiped: false });
   if (role === "jump") { input.jumpSrc.add(id); input.jumpPressed = true; }
-  else { input.swingSrc.add(id); input.swingPressed = true; input.touchSwing = e.pointerType !== "mouse"; input.swingT0 = performance.now(); }
+  else if (role === "swing") { input.swingSrc.add(id); input.swingPressed = true; input.touchSwing = e.pointerType !== "mouse"; input.swingT0 = performance.now(); }
 });
 canvas.addEventListener("pointermove", (e) => {
   const p = pointers.get(e.pointerId);
@@ -959,6 +950,12 @@ const Sound = (() => {
       noise(t, 0.6, "bandpass", 500, 0.32, sfxBus, 1.1, 2600); osc("sawtooth", 160, t, 0.45, 0.06, sfxBus, 420);
     },
     boom() { if (!ok()) return; const t = now(); kick(t, 1.1, sfxBus); noise(t, 0.5, "lowpass", 1400, 0.5, sfxBus, 1, 110); },
+    explode(R = 90) { // a grenade: a deep thump, a rolling rumble, crackle as it burns out
+      if (!ok()) return; const t = now(), k = clamp(R / 100, 0.6, 1.3);
+      kick(t, 1.2 * k, sfxBus); osc("sine", 96, t, 0.75, 0.45 * k, sfxBus, 30, 0.004);
+      noise(t, 1.15, "lowpass", 2600, 0.55 * k, sfxBus, 0.8, 130); noise(t, 0.18, "bandpass", 1800, 0.35, sfxBus, 0.9, 600);
+      for (let i = 0; i < 6; i++) noise(t + 0.08 + i * 0.07 + Math.random() * 0.05, 0.045, "highpass", 3200, 0.1, sfxBus, 1);
+    },
     laser() { // a heavy beam firing: a falling saw over a hiss
       if (!ok()) return; const t = now();
       osc("sawtooth", 1500, t, 0.42, 0.09, sfxBus, 110); osc("square", 760, t, 0.2, 0.04, sfxBus, 90); noise(t, 0.4, "bandpass", 2600, 0.3, sfxBus, 2, 500);
@@ -1701,6 +1698,8 @@ const LIVES = 3, HEAL_M = 500;      // three lives per run (the shield skill mak
 // Rutschen: am Boden nach unten wischen (S / ↓). Der Körper ist dann nur 20 px hoch: unter Lüftungskanälen, Betonplatten und
 // Laser-Vorhängen durch, die 30 px über dem Dach frei lassen. Unter einer Decke bleibt man unten, bis wieder Platz ist.
 const SLIDE_T = 0.62, SLIDE_H = 20, LOW_GAP = 30;
+const SLIDE_KICK = 1.2, SLIDE_MAX = 1.45, SLIDE_ACC = 320;   // a slide kicks you to 1.2× the pace and speeds up to 1.45× while it lasts
+const V_SOFT = 1.75;                                          // above 1.75× the pace any extra speed (slides, slams, dash carry) bleeds off fast
 const player = {};
 const run = {};
 
@@ -1814,7 +1813,7 @@ function startSlide(forced) {
   p.slideT = Math.max(p.slideT, forced ? 0.4 : SLIDE_T); p.rollT = 0; p.vaultT = 0; p.slideBuf = 0;
   if (!fresh) return;
   p.slideAge = 0; p.slideN++;
-  if (!forced) p.vx = Math.max(p.vx, baseSpeedAt(p.x) * (run.od > 0 ? 1.3 : 1) + 110);   // a little burst into the slide
+  if (!forced) p.vx = Math.max(p.vx, baseSpeedAt(p.x) * (run.od > 0 ? 1.3 : 1) * SLIDE_KICK + 30);   // a burst into the slide
   FX.dust(p.x + 6, p.y + HALF_H, 8); FX.sparks(p.x - 4, p.y + HALF_H, -1, -0.3, 4);
   Sound.fx.slide(); haptic(8);
   if (!slideTutDone) { slideTutDone = true; store.set("slideTut", true); }
@@ -1983,7 +1982,7 @@ function land(top, b) {
   }
   if (impact > 900) FX.dust(p.x - 10, top, 6);
   Sound.fx.land(p.landK); if (impact > 1100) haptic(14);
-  if (p.slideBuf > 0 && !wasDiving) startSlide(false);                 // swiped down just before touching down: straight into the slide
+  if (wasDiving || p.slideBuf > 0) startSlide(false);                   // a slam (or a swipe down just before touching down): straight into the slide
 }
 function killDrone(d, bounce) { destroyEnemy(d, "drone", bounce ? "stomp" : "slam"); }
 
@@ -2119,14 +2118,14 @@ function playerUpdate(dt) {
   p.dashBuf -= dt; p.dashCD -= dt; p.dashEndT += dt;
   if (p.dashBuf > 0 && dashReady(p)) { p.dashBuf = 0; startDash(); }
   if (input.jokerPressed) { input.jokerPressed = false; useJoker(); }
-  if (input.firePressed) { input.firePressed = false; p.fireBuf = 0.12; }
+  if (input.firePressed) { input.firePressed = false; p.fireBuf = 0.12; p.fireAt = input.fireAt || null; input.fireAt = null; }
   p.fireBuf -= dt; p.aimT = Math.max(0, p.aimT - dt); run.dry -= dt;
   if (run.wp) { // the magazine refills one round after the other; a shot needs a whole round
     run.wpCD -= dt;
     if (run.ammo < run.wp.mag) run.ammo = Math.min(run.wp.mag, run.ammo + dt / run.wp.reload);
     if (p.fireBuf > 0 && run.wpCD <= 0 && (p.state === "run" || p.state === "air" || p.state === "swing" || p.state === "grind")) {
-      if (run.ammo >= 1) { p.fireBuf = 0; fireWeapon(); }
-      else if (run.dry <= 0) { run.dry = 0.35; p.fireBuf = 0; Sound.fx.dry(); }
+      if (run.ammo >= 1) { p.fireBuf = 0; fireWeapon(p.fireAt); p.fireAt = null; }
+      else if (run.dry <= 0) { run.dry = 0.35; p.fireBuf = 0; p.fireAt = null; Sound.fx.dry(); FX.popup(p.x, p.y - 62, "NACHLADEN", "#9a91c4", 0.6, false, true); }
     }
   } else if (p.fireBuf > 0 && run.dry <= 0 && state === "play") { run.dry = 2; p.fireBuf = 0; FX.popup(p.x, p.y - 60, "KEINE WAFFE", "#9a91c4", 0.7, false, true); } // not unlocked yet
   for (const a of world.anchors) { a.cool -= dt; if (a.kind === "drone") droneUpdate(a, dt); }
@@ -2138,8 +2137,13 @@ function playerUpdate(dt) {
     if (dive) startSlide(false);                                     // on the ground the swipe down is a slide
     if (p.slideT > 0) { p.slideAge += dt; p.slideT -= dt; if (p.slideT <= 0 && (lowAbove(p) || eyeLaserHigh())) p.slideT = 0.04; } // stays down while something is overhead
     if (p.dashT > 0) p.vx = p.dashV;
+    else if (p.slideT > 0 && p.stumbleT <= 0 && !run.won) { // sliding: you pick up speed (and keep it for a moment afterwards)
+      const cap = base * SLIDE_MAX;
+      if (p.vx < cap) p.vx = Math.min(cap, p.vx + SLIDE_ACC * dt);
+      if (p.vx > base * 1.12 && Math.random() < dt * 40) { FX.sparks(p.x - 10, p.y + HALF_H - 2, -1, -0.12, 1); if (Math.random() < 0.35) FX.wind(p.x + 30, p.y + 6, 1); }
+    }
     else if (p.vx < base) p.vx = Math.min(base, p.vx + (p.stumbleT > 0 ? 500 : 1300) * dt);
-    else p.vx = Math.max(base, p.vx - (run.won ? 520 : 150) * dt);
+    else p.vx = Math.max(base, p.vx - (run.won ? 520 : p.vx > base * V_SOFT ? 700 : 150) * dt);
     p.runPhase += p.vx * dt * 0.03;
     p.x += p.vx * dt;
     collideX(prevFeet);
@@ -2188,7 +2192,7 @@ function playerUpdate(dt) {
       p.vy += G * (p.diving ? 1.8 : 1) * dt;
       p.vy = Math.min(p.vy, p.diving ? 2300 : 1700);
       if (p.kickT > 0) p.kickT -= dt;              // a wall kick keeps its line for a moment
-      else p.vx += (base - p.vx) * (p.vx < 0 ? 1.6 : 0.12) * dt;
+      else p.vx += (base - p.vx) * (p.vx < 0 ? 1.6 : p.vx > base * V_SOFT ? 1.4 : 0.12) * dt;
     }
     if (input.swingHeld && p.target) attach(p.target);
     else {
@@ -2639,12 +2643,15 @@ function lineClear(x0, y0, x1, y1) {
   for (let i = 1; i < n; i++) { const t = i / n; if (solidAt(lerp(x0, x1, t), lerp(y0, y1, t))) return false; }
   return true;
 }
+// a target: where it is now (pos) and whether it is still there (live); boss points without them stay where they are
+const tPos = (t) => (t.pos ? t.pos() : [t.x, t.y]), tLive = (t) => (t.live ? t.live() : true);
 function aimTargets() {
   const T = [];
-  for (const d of world.drones) if (d.alive && !(d.fly && d.fly.t < d.fly.T)) T.push({ x: d.x, y: d.y });
-  for (const g of world.guards) if (g.alive) T.push({ x: g.x, y: g.top - 24 });
-  for (const s of world.spotters) if (s.alive) T.push({ x: s.x, y: s.y });
-  for (const h of world.hunters) if (h.st === "fly") T.push({ x: h.x, y: h.y, vx: h.vx, pri: 1 });
+  for (const d of world.drones) if (d.alive && !(d.fly && d.fly.t < d.fly.T)) T.push({ x: d.x, y: d.y, pos: () => [d.x, d.y], live: () => d.alive });
+  const blocked = run.wp && (run.wp.def.kind === "shuriken" || run.wp.def.kind === "pulse");   // a shield stops those from the front
+  for (const g of world.guards) if (g.alive && !(g.shield && blocked)) T.push({ x: g.x, y: g.top - 24, pos: () => [g.x, g.top - 24], live: () => g.alive });
+  for (const s of world.spotters) if (s.alive) T.push({ x: s.x, y: s.y, pos: () => [s.x, s.y], live: () => s.alive });
+  for (const h of world.hunters) if (h.st === "fly") T.push({ x: h.x, y: h.y, vx: h.vx, pri: 1, pos: () => [h.x, h.y], live: () => h.st === "fly" });
   const b = run.boss;
   if (b && bossOn() && BOSS[b.type].aim) for (const a of BOSS[b.type].aim(b)) T.push(a);
   return T;
@@ -2663,16 +2670,55 @@ function aimTarget(ox, oy, face, range) {
   }
   return best;
 }
-function muzzle(p) { const f = p.face || 1; return sliding(p) ? [p.x + f * 18, p.y + HALF_H - 13] : [p.x + f * 20, p.y - 14]; }
-function fireWeapon() {
-  const p = player, W = run.wp, d = W.def, face = p.face || 1, [ox, oy] = muzzle(p);
-  const tgt = aimTarget(ox, oy, face, d.range);
-  let tx = tgt ? tgt.x : 0, ty = tgt ? tgt.y : 0;
-  if (tgt && (tgt.vx || tgt.vy) && d.kind !== "rail") { // lead a moving target: where it will be when the shot gets there
-    const sp = d.kind === "grenade" ? 900 : d.speed + Math.max(0, p.vx) * 0.5;
-    for (let k = 0; k < 3; k++) { const tt = Math.abs(tx - ox) / sp; tx = tgt.x + (tgt.vx || 0) * tt; ty = tgt.y + (tgt.vy || 0) * tt; }
+// what the weapon can hit right now: ahead, in range, on screen, nothing solid in between (a grenade flies over it)
+let marks = [];
+function updateMarks() {
+  marks = [];
+  const Wp = run.wp, p = player;
+  if (!Wp || state !== "play" || run.dead || run.won) return;
+  const [ox, oy] = muzzle(p), face = p.face || 1, range = Wp.def.range, lob = Wp.def.kind === "grenade";
+  const hw = W / 2 / cam.zoom - 12, hh = H / 2 / cam.zoom - 12;
+  for (const t of aimTargets()) {
+    const [x, y] = tPos(t), dx = (x - ox) * face;
+    if (dx < 24 || dx > range || Math.abs(x - cam.x) > hw || Math.abs(y - cam.y) > hh) continue;
+    if (!lob && !lineClear(ox, oy, x, y)) continue;
+    marks.push(t);
   }
-  const ang = tgt ? clamp(Math.atan2(ty - oy, (tx - ox) * face), -0.78, 0.6) : 0;
+}
+// the mark under a finger (screen px); generous on a phone
+function tapTarget(sx, sy) {
+  if (state !== "play" || !run.wp || !marks.length) return null;
+  let best = null, bd = IS_TOUCH ? 80 : 50;
+  for (const t of marks) { const [x, y] = tPos(t), d = Math.hypot(toScreenX(x) - sx, toScreenY(y) - sy); if (d < bd) { bd = d; best = t; } }
+  return best;
+}
+// rotating brackets round each target in the weapon colour; grey while the magazine is empty
+function drawMarks(time) {
+  if (!marks.length) return;
+  const col = run.wp.def.col, ready = run.ammo >= 1, z = 1 / Math.max(0.35, cam.zoom);
+  ctx.lineCap = "round";
+  for (const t of marks) {
+    const [x, y] = tPos(t), k = 17 + Math.sin(time * 6 + x * 0.013) * 2, sz = k * z;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(time * 1.3);
+    ctx.strokeStyle = rgba(ready ? col : "#9a91c4", ready ? 0.95 : 0.4); ctx.lineWidth = 2.4 * z;
+    for (let i = 0; i < 4; i++) { ctx.rotate(TAU / 4); ctx.beginPath(); ctx.moveTo(sz, sz * 0.4); ctx.lineTo(sz, sz); ctx.lineTo(sz * 0.4, sz); ctx.stroke(); }
+    ctx.restore();
+    if (ready) { glowAt(col, x, y, 34 * z, 34 * z, 0.35); ctx.fillStyle = "#ffffff"; ctx.fillRect(x - 1.5 * z, y - 1.5 * z, 3 * z, 3 * z); }
+  }
+  ctx.lineCap = "butt";
+}
+function muzzle(p) { const f = p.face || 1; return sliding(p) ? [p.x + f * 18, p.y + HALF_H - 13] : [p.x + f * 20, p.y - 14]; }
+function fireWeapon(pick) {
+  const p = player, W = run.wp, d = W.def, face = p.face || 1, [ox, oy] = muzzle(p);
+  const picked = pick && tLive(pick) ? pick : null;                               // tapped on it: that one
+  const tgt = picked || aimTarget(ox, oy, face, d.range);                         // F (and the autopilot): the nearest one ahead
+  let [tx, ty] = tgt ? tPos(tgt) : [0, 0];
+  if (tgt && (tgt.vx || tgt.vy) && d.kind !== "rail") { // lead a moving target: where it will be when the shot gets there
+    const sp = d.kind === "grenade" ? 900 : d.speed + Math.max(0, p.vx) * 0.5, x0 = tx, y0 = ty;
+    for (let k = 0; k < 3; k++) { const tt = Math.abs(tx - ox) / sp; tx = x0 + (tgt.vx || 0) * tt; ty = y0 + (tgt.vy || 0) * tt; }
+  }
+  const ang = tgt ? clamp(Math.atan2(ty - oy, (tx - ox) * face), picked ? -1.2 : -0.78, picked ? 0.95 : 0.6) : 0;
+  if (picked) { FX.ring(tx, ty, d.col, 46); }
   run.ammo -= 1; run.wpCD = d.kind === "pulse" ? 0.1 : d.kind === "rail" ? 0.3 : 0.18; run.shotsFired++;
   p.aimT = 0.42; p.aimAng = ang;
   const c = Math.cos(ang) * face, s = Math.sin(ang);
@@ -2686,12 +2732,12 @@ function fireWeapon() {
     for (let i = 0; i < n; i++) {
       const a2 = ang + (n > 1 ? (i - 0.5) * 0.08 : 0);
       world.shots.push({ kind: d.kind, x: ox, y: oy, vx: Math.cos(a2) * face * sp, vy: Math.sin(a2) * sp, life: d.range / sp + 0.05, t: 0, r: d.kind === "pulse" ? 6 : 9,
-        col: d.col, chip: d.chip, hit: new Set(), pierce: d.kind === "shuriken" ? d.pierce[W.i] : 1, rot: 0 });
+        col: d.col, chip: d.chip, hit: new Set(), pierce: d.kind === "shuriken" ? d.pierce[W.i] : 1, rot: 0, home: picked && picked.pos ? picked : null });
     }
   }
   FX.burst(ox, oy, 6, d.col, 220); FX.sparks(ox, oy, face, -0.1, 3);
   Sound.fx["wp_" + d.kind](); haptic(8);
-  if (!fireTutDone) { fireTutDone = true; store.set("fireTut", true); }
+  if (!fireTutDone) { fireTutDone = true; store.set("fireTut2", true); }
 }
 // the railgun: one beam, at once, through everything in its line until it hits a wall
 function railShot(ox, oy, c, s, W) {
@@ -2726,6 +2772,11 @@ function shotsUpdate(dt) {
     s.life -= dt; s.t += dt;
     const px = s.x, py = s.y;
     if (s.kind === "grenade") s.vy += 1500 * dt;
+    else if (s.home && s.t < 0.9 && tLive(s.home)) { // a picked target: the shot bends onto it
+      const [hx, hy] = tPos(s.home), a = Math.atan2(s.vy, s.vx), sp = Math.hypot(s.vx, s.vy);
+      let da = Math.atan2(hy - s.y, hx - s.x) - a; while (da > Math.PI) da -= TAU; while (da < -Math.PI) da += TAU;
+      const na = a + clamp(da, -9 * dt, 9 * dt); s.vx = Math.cos(na) * sp; s.vy = Math.sin(na) * sp;
+    }
     s.x += s.vx * dt; s.y += s.vy * dt; s.rot = (s.rot || 0) + dt * 26;
     const n = Math.max(1, Math.ceil(Math.hypot(s.x - px, s.y - py) / 10));      // sub-steps: a fast shot must not skip through a thin target
     for (let i = 1; i <= n && s.life > 0; i++) {
@@ -2764,8 +2815,8 @@ function shotHitAt(s, x, y) {
 function grenadeBoom(s, x, y, bossDone) {
   if (s.boomed) return;
   s.boomed = true; s.life = 0;
-  const R = s.blast;
-  FX.burst(x, y, 22, "#ff8a3d", 420); FX.burst(x, y, 10, "#fff3c4", 260); FX.smoke(x, y, 8, "#3a3448", 180, 50); FX.ring(x, y, "#ffb347", R * 1.3); FX.shake(8); Sound.fx.boom();
+  const R = s.blast, r = roofAt(x), ground = r && y > r.top - R * 0.7 && y < r.top + 20 ? r.top : null;
+  FX.explode(x, ground != null ? Math.min(y, ground - 8) : y, R, ground); Sound.fx.explode(R); haptic([12, 20, 30]);
   for (const d of world.drones) if (d.alive && Math.hypot(d.x - x, d.y - y) < R + 18) shotKill(s, d, "drone");
   for (const g of world.guards) if (g.alive && Math.hypot(g.x - x, g.top - 22 - y) < R + 20) shotKill(s, g, "guard");
   for (const sp of world.spotters) if (sp.alive && Math.hypot(sp.x - x, sp.y - y) < R + 24) shotKill(s, sp, "spot");
@@ -4219,9 +4270,10 @@ BOSS.koloss = {
   aim(b) {
     const T = [];
     if (b.st !== "fight") return T;
-    if (b.fist && b.fist.st === "stuck") T.push({ x: b.fist.x - 26, y: b.fist.y - 34, pri: 1 });
-    if (b.vent > 0.6) { const [x, y] = kolWorld(b, -8, -122); T.push({ x, y, pri: 1 }); }
-    for (const m of b.mis) if (m.st === "fly" && m.t - m.L > 0.15) T.push({ x: m.px, y: m.py, pri: 1 });
+    const f = b.fist;
+    if (f && f.st === "stuck") T.push({ x: f.x - 26, y: f.y - 34, pri: 1, live: () => b.fist === f && f.st === "stuck" });
+    if (b.vent > 0.6) { const [x, y] = kolWorld(b, -8, -122); T.push({ x, y, pri: 1, pos: () => kolWorld(b, -8, -122), live: () => b.vent > 0.6 }); }
+    for (const m of b.mis) if (m.st === "fly" && m.t - m.L > 0.15) T.push({ x: m.px, y: m.py, pri: 1, pos: () => [m.px, m.py], live: () => m.st === "fly" });
     return T;
   },
   shot(b, s) {
@@ -4438,15 +4490,15 @@ function genShot(b, g, amt) {
   b.arcs.push({ x: g.x, y: g.y - 76, t: 0 }); bossHit(b, b.x, b.y, "gen");
 }
 Object.assign(BOSS.gunship, {
-  aim: (b) => (b.st === "fight" ? [{ x: b.x, y: b.y, vx: b.dipT > 0 ? b.pv * 0.5 : b.pv, pri: 1 }] : []),
+  aim: (b) => (b.st === "fight" ? [{ x: b.x, y: b.y, vx: b.dipT > 0 ? b.pv * 0.5 : b.pv, pri: 1, pos: () => [b.x, b.y], live: () => b.st === "fight" }] : []),
   shot(b, s) { if (b.st !== "fight" || Math.abs(s.x - b.x) > 80 || Math.abs(s.y - b.y) > 26) return false; bossChip(b, s.x, s.y, s.chip); return true; },
   blast(b, x, y, R, s) { if (b.st === "fight" && Math.abs(b.x - x) < R + 70 && Math.abs(b.y - y) < R + 26) bossChip(b, b.x, b.y, s.chip); },
 });
 Object.assign(BOSS.mech, {
   aim(b) {
     const T = [];
-    if (b.st === "fight" && b.ph === "vent" && !b.leap) T.push({ x: b.x, y: b.y - 36, pri: 1 });
-    for (const m of b.mines) if (m.st === "armed") T.push({ x: m.x, y: m.y - 6 });
+    if (b.st === "fight" && b.ph === "vent" && !b.leap) T.push({ x: b.x, y: b.y - 36, pri: 1, pos: () => [b.x, b.y - 36], live: () => b.ph === "vent" });
+    for (const m of b.mines) if (m.st === "armed") T.push({ x: m.x, y: m.y - 6, pos: () => [m.x, m.y - 6], live: () => m.st === "armed" });
     return T;
   },
   shot(b, s) {
@@ -4466,7 +4518,7 @@ Object.assign(BOSS.carrier, {
   blast() {},
 });
 Object.assign(BOSS.core, {
-  aim: (b) => b.gens.filter((g) => g.st === "on").map((g) => ({ x: g.x, y: g.y - CORE.GEN_H * 0.5, pri: 1 })),
+  aim: (b) => b.gens.filter((g) => g.st === "on").map((g) => ({ x: g.x, y: g.y - CORE.GEN_H * 0.5, pri: 1, pos: () => [g.x, g.y - CORE.GEN_H * 0.5], live: () => g.st === "on" })),
   shot(b, s) {
     for (const g of b.gens) if (g.st === "on" && Math.abs(g.x - s.x) < 18 && s.y > g.y - CORE.GEN_H && s.y < g.y) { genShot(b, g, s.chip * 2); return true; }
     if (b.st === "fight" && Math.hypot(s.x - b.x, s.y - b.y) < 60) { bossArmour(s.x, s.y); return true; }
@@ -4855,13 +4907,15 @@ function drawShots(time) {
       ctx.drawImage(Art.glow(s.col), s.x - 16, s.y - 12, 32, 24);
       ctx.strokeStyle = rgba(s.col, 0.9); ctx.lineWidth = 5; line(s.x - ux * 16, s.y - uy * 16, s.x + ux * 4, s.y + uy * 4);
       ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; line(s.x - ux * 12, s.y - uy * 12, s.x + ux * 3, s.y + uy * 3);
-    } else if (s.kind === "grenade") { // a dark shell with a blinking fuse and a smoke trail
-      if (Math.random() < 0.5) FX.smoke(s.x, s.y, 1, "#4a4058", 12, 6);
+    } else if (s.kind === "grenade") { // a stubby shell tumbling through the air: dark body, orange band, a blinking light, a smoke trail
+      if (Math.random() < 0.6) FX.smoke(s.x, s.y, 1, "#5a5068", 14, 8);
       ctx.globalCompositeOperation = "source-over";
-      ctx.fillStyle = "#1a1424"; ctx.beginPath(); ctx.arc(s.x, s.y, 6, 0, TAU); ctx.fill();
-      ctx.strokeStyle = "#ff8a3d"; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.rot * 0.45);
+      ctx.fillStyle = "#1c1626"; roundBox(-8, -5.5, 16, 11, 5); ctx.fill(); ctx.strokeStyle = "#4a3e5e"; ctx.lineWidth = 1; ctx.stroke();
+      ctx.fillStyle = "#ff8a3d"; ctx.fillRect(-2.5, -5.5, 3, 11); ctx.fillStyle = "#3a3048"; ctx.fillRect(7, -3, 3, 6);
+      ctx.restore();
       ctx.globalCompositeOperation = "lighter";
-      if (Math.sin(time * 30) > 0) ctx.drawImage(Art.glow("#ff8a3d"), s.x - 12, s.y - 12, 24, 24);
+      if (Math.sin(time * 30) > 0) ctx.drawImage(Art.glow("#ff5a2a"), s.x - 14, s.y - 14, 28, 28);
     }
   }
   ctx.globalCompositeOperation = "source-over";
@@ -4890,12 +4944,12 @@ const mkCanvas = (w, h) => { const c = document.createElement("canvas"); c.width
 // Words on screen only for the big moments and for answers to your own inputs; everything small speaks through sound and sparks.
 const POP_SHOW = /^(PERFEKT!|LOOPING|OVERDRIVE!|DREIFACH!|KAHLSCHLAG|TREFFER \d|ENTKOMMEN!|ABSCHUSS!|VERSCHROTTET!|ABGESTÜRZT!|ABGESCHALTET!|EMP|KEIN HALT|JOKER LEER|ERFASST!|DROHNE ÜBERLASTET|ZU SCHWER!|BLOCK!|PANZER!|VERFEHLT|GEFRESSEN|SIGNAL WEG|\+1 LEBEN)/;
 const FX = (() => {
-  const parts = [], pops = [], rings = [], zips = [], slashes = [], streaks = [], glyphs = [];
+  const parts = [], pops = [], rings = [], zips = [], slashes = [], streaks = [], glyphs = [], booms = [];
   let shakeAmt = 0, flashA = 0, flashC = "#fff", impactT = 0, impactS = 0, slowT = 0, slowS = 1, ts = 1, hitT = 0;
   const MAXP = IS_TOUCH ? 260 : 520;
   function add(o) { if (parts.length >= MAXP) parts.shift(); parts.push(o); }
   const api = {
-    parts, pops, rings, zips, slashes, streaks, glyphs,
+    parts, pops, rings, zips, slashes, streaks, glyphs, booms,
     // a blade cut through a target: grows fast, then fades
     slash(x, y, ang, color, len = 90) { if (slashes.length > 10) slashes.shift(); slashes.push({ x, y, ang, color, len, life: 0.28, max: 0.28 }); },
     // the light trail of a dash: its head follows the runner until the dash ends, then it fades
@@ -4937,6 +4991,32 @@ const FX = (() => {
       for (let i = 0; i < 7; i++) add({ t: "spark", x: x + rand(-14, 14), y: y + rand(-20, 20), vx: -vx * 0.3, vy: -vy * 0.3, life: rand(0.12, 0.24), max: 0.24, size: rand(1, 2), color: "#e9f6ff", g: 0, drag: 2 });
     },
     ring(x, y, color, max, flat = 1) { rings.push({ x, y, r: 6, max, color, life: 0.4, maxLife: 0.4, flat }); }, // flat < 1 = a shockwave on the ground
+    // a real explosion: a flash, a fireball that blooms and burns out (white, yellow, orange, red), dark smoke that swells,
+    // rises and lingers, embers and debris, a shock ring (and one along the roof), a scorch mark where it hit the ground.
+    // R = blast radius in world px; ground = the roof height under it (or null in the air)
+    explode(x, y, R, ground = null) {
+      if (booms.length > 6) booms.shift();
+      const fire = [], smoke = [], nf = Math.round(7 + R / 14), ns = Math.round(7 + R / 12);
+      for (let i = 0; i < nf; i++) {
+        const a = rand(0, TAU), d = i ? rand(0.1, 0.55) * R : 0;
+        fire.push({ ox: Math.cos(a) * d, oy: Math.sin(a) * d * 0.75 - (i ? rand(0, 0.2) * R : 0), r: R * (i ? rand(0.3, 0.55) : 0.62), d: i ? rand(0, 0.08) : 0, vx: rand(-60, 60), vy: rand(-130, -30), life: rand(0.4, 0.62) });
+      }
+      for (let i = 0; i < ns; i++) {
+        const a = rand(0, TAU), d = rand(0.15, 0.7) * R;
+        smoke.push({ ox: Math.cos(a) * d, oy: Math.sin(a) * d * 0.6 - rand(0.05, 0.35) * R, r0: R * rand(0.3, 0.45), r1: R * rand(0.75, 1.2), d: rand(0.05, 0.28), vx: rand(-80, 80), vy: rand(-160, -60), life: rand(1.2, 2.1), v: Math.random() });
+      }
+      booms.push({ x, y, R, t: 0, fire, smoke, ground, life: ground != null ? 4.5 : 2.4 });
+      for (let i = 0, n = Math.round(12 + R / 7); i < n; i++) { // embers
+        const a = rand(-Math.PI * 0.95, Math.PI * 0.05) + (ground == null ? rand(0, Math.PI) : 0), sp = rand(240, 780) * (0.55 + R / 160);
+        add({ t: "spark", x: x + rand(-6, 6), y: y + rand(-6, 6), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: rand(0.35, 0.85), max: 0.85, size: rand(1.6, 3.2), color: Math.random() < 0.55 ? "#ffd23f" : Math.random() < 0.5 ? "#ff8a3d" : "#fff3c4", g: 1100, drag: 1.3 });
+      }
+      for (let i = 0, n = Math.round(4 + R / 22); i < n; i++) { // chunks
+        const a = rand(-Math.PI * 0.9, -Math.PI * 0.1), sp = rand(260, 620);
+        add({ t: "debris", x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: rand(0.6, 1.1), max: 1.1, size: rand(3, 7), color: Math.random() < 0.6 ? "#2a2234" : "#ff8a3d", g: 1600, drag: 0.5, rot: rand(0, TAU), vr: rand(-14, 14) });
+      }
+      if (ground != null) rings.push({ x, y: ground, r: 6, max: R * 2.4, color: "#ff9a3d", life: 0.4, maxLife: 0.4, flat: 0.2 });
+      api.shake(Math.min(14, 6 + R / 14)); api.flash("#ffb347", Math.min(0.32, 0.1 + R / 700));
+    },
     zip(x1, y1, x2, y2) { zips.push({ x1, y1, x2, y2, life: 0.14 }); },
     popup(x, y, text, color, scale = 1, follow = true, force = false) {
       if (!force && !POP_SHOW.test(text)) return;
@@ -4959,7 +5039,7 @@ const FX = (() => {
     flash(c, a) { flashC = c; flashA = Math.max(flashA, a * 0.6 * (settings.fx ? 1 : 0.35)); },
     impact(s) {},                                                                   // no more inverted frames: they made the screen hard to read
     slowmo(scale, dur) { slowS = Math.min(slowT > 0 ? slowS : 1, scale); slowT = Math.max(slowT, dur); },
-    clear() { parts.length = pops.length = rings.length = zips.length = slashes.length = streaks.length = glyphs.length = 0; shakeAmt = flashA = impactT = slowT = hitT = 0; ts = slowS = 1; },
+    clear() { parts.length = pops.length = rings.length = zips.length = slashes.length = streaks.length = glyphs.length = booms.length = 0; shakeAmt = flashA = impactT = slowT = hitT = 0; ts = slowS = 1; },
     // real-time step (not slowed): returns the game time scale
     tick(rdt) {
       shakeAmt *= Math.exp(-rdt * 9); flashA *= Math.exp(-rdt * 7); impactT -= rdt;
@@ -4979,6 +5059,7 @@ const FX = (() => {
       for (let i = zips.length - 1; i >= 0; i--) { zips[i].life -= dt; if (zips[i].life <= 0) zips.splice(i, 1); }
       for (let i = slashes.length - 1; i >= 0; i--) { slashes[i].life -= dt; if (slashes[i].life <= 0) slashes.splice(i, 1); }
       for (let i = glyphs.length - 1; i >= 0; i--) { glyphs[i].life -= dt; if (glyphs[i].life <= 0) glyphs.splice(i, 1); }
+      for (let i = booms.length - 1; i >= 0; i--) { booms[i].t += dt; if (booms[i].t > booms[i].life) booms.splice(i, 1); }
       for (let i = streaks.length - 1; i >= 0; i--) { const s = streaks[i]; if (!s.live) { s.life -= dt; if (s.life <= 0) streaks.splice(i, 1); } }
     },
     get shakeAmt() { return shakeAmt; }, get flashA() { return flashA; }, get flashC() { return flashC; },
@@ -5108,6 +5189,31 @@ const Art = (() => {
     g.fillStyle = gr; g.fillRect(0, 0, 64, 64); glowCache.set(color, c);
     return c;
   }
+  // a ball of fire for explosions: solid in the middle, soft at the rim (drawn additive)
+  const fireCache = new Map();
+  function fireball(color) {
+    if (fireCache.has(color)) return fireCache.get(color);
+    const c = mkCanvas(96, 96), g = c.getContext("2d"), gr = g.createRadialGradient(48, 48, 0, 48, 48, 48);
+    gr.addColorStop(0, rgba(color, 1)); gr.addColorStop(0.45, rgba(color, 0.92)); gr.addColorStop(0.72, rgba(color, 0.42)); gr.addColorStop(1, rgba(color, 0));
+    g.fillStyle = gr; g.fillRect(0, 0, 96, 96); fireCache.set(color, c);
+    return c;
+  }
+  // a lumpy puff of smoke (four shades), a little lighter on top
+  const smokeCache = [];
+  function smoke(v) {
+    const i = clamp(Math.floor(v * 4), 0, 3);
+    if (smokeCache[i]) return smokeCache[i];
+    const c = mkCanvas(128, 128), g = c.getContext("2d"), rng = mulberry32(7700 + i * 13), base = [[46, 40, 58], [58, 51, 70], [38, 33, 48], [70, 62, 82]][i];
+    const col = (k, a) => "rgba(" + Math.min(255, base[0] * k | 0) + "," + Math.min(255, base[1] * k | 0) + "," + Math.min(255, base[2] * k | 0) + "," + a + ")";
+    for (let k = 0; k < 9; k++) {
+      const a = rng() * TAU, d = rng() * 24, x = 64 + Math.cos(a) * d, y = 66 + Math.sin(a) * d * 0.8, r = 24 + rng() * 20;
+      const gr = g.createRadialGradient(x, y - r * 0.3, 0, x, y, r);
+      gr.addColorStop(0, col(1.35 + rng() * 0.2, 0.97)); gr.addColorStop(0.62, col(1, 0.86)); gr.addColorStop(1, col(0.75, 0));
+      g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
+    }
+    smokeCache[i] = c;
+    return c;
+  }
   // vignette + scanlines overlay, rebuilt on resize
   let over = null;
   function overlay(w, h) {
@@ -5119,7 +5225,7 @@ const Art = (() => {
     g.fillStyle = "rgba(0,0,0,0.12)"; for (let y = 0; y < h; y += 3) g.fillRect(0, y, w, 1);
     return over;
   }
-  return { skylineLayer, moon, facade, glow, overlay, TILE_W, FACE_H };
+  return { skylineLayer, moon, facade, glow, fireball, smoke, overlay, TILE_W, FACE_H };
 })();
 
 // ================= RAIN + STARS (screen space) =================
@@ -8071,7 +8177,55 @@ function updateSkinPreviews(dt, time) {
 }
 
 // ================= RENDER: fx, post =================
+function drawBooms() {
+  const FIRE = [ // the colour bands of the fireball from the rim inwards, as it cools down
+    [["#ff8a3d", 1], ["#ffc23a", 0.76], ["#fff3c0", 0.5], ["#ffffff", 0.24]],
+    [["#ff5a2a", 1], ["#ff9a32", 0.74], ["#ffd84a", 0.46]],
+    [["#c22a1e", 1], ["#ff5a2a", 0.7], ["#ff9a32", 0.36]],
+    [["#5a1c22", 1], ["#a8241e", 0.6]],
+  ];
+  for (const b of FX.booms) {
+    const t = b.t;
+    if (b.ground != null) { // the scorch mark on the roof, glowing at first
+      const a = clamp(t / 0.08, 0, 1) * clamp(1 - (t - 1) / (b.life - 1), 0, 1);
+      ctx.globalAlpha = 0.65 * a; ctx.fillStyle = "#07040c"; ctx.beginPath(); ctx.ellipse(b.x, b.ground + 1, b.R * 0.85, b.R * 0.13, 0, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
+      if (t < 1.4) glowAt("#ff5a2a", b.x, b.ground, b.R * 1.9, b.R * 0.34, 0.55 * (1 - t / 1.4));
+    }
+    if (t < 0.5) glowAt("#ff8a3d", b.x, b.y, b.R * 5.5, b.R * 4.4, 0.5 * (1 - t / 0.5) ** 1.5);      // its light on everything around
+    const at = (o, a) => [b.x + o.ox + o.vx * a * (1 - Math.min(1, a / (o.life || 1)) * 0.45), b.y + o.oy + o.vy * a * (1 - Math.min(1, a / (o.life || 1)) * 0.35)];
+    for (const sm of b.smoke) { // dark smoke behind the fire: swells, rises, thins out
+      const a = t - sm.d; if (a <= 0 || a > sm.life) continue;
+      const u = a / sm.life, r = lerp(sm.r0, sm.r1, easeOut(u)), [x, y] = at(sm, a);
+      ctx.globalAlpha = Math.min(1, a / 0.1) * (1 - u * u) * 0.95;
+      ctx.drawImage(Art.smoke(sm.v), x - r, y - r, r * 2, r * 2);
+    }
+    ctx.globalAlpha = 1;
+    if (t < 0.9) { // the fire lights its smoke from inside
+      ctx.globalCompositeOperation = "lighter";
+      for (const sm of b.smoke) {
+        const a = t - sm.d; if (a <= 0) continue;
+        const u = a / sm.life, r = lerp(sm.r0, sm.r1, easeOut(u)) * 0.85, [x, y] = at(sm, a);
+        ctx.globalAlpha = 0.3 * (1 - t / 0.9); ctx.drawImage(Art.glow("#ff6a2a"), x - r, y - r, r * 2, r * 2);
+      }
+      ctx.globalCompositeOperation = "source-over";
+    }
+    for (const f of b.fire) { // the fireball: balls of fire in bands (yellow-white heart, orange, red rim) that cool and burn out
+      const a = t - f.d; if (a <= 0 || a > f.life) continue;
+      const u = a / f.life, r = f.r * (u < 0.16 ? 0.4 + 0.6 * easeOut(u / 0.16) : 1 + (u - 0.16) * 0.3), [x, y] = at(f, a);
+      const bands = FIRE[u < 0.22 ? 0 : u < 0.48 ? 1 : u < 0.74 ? 2 : 3];
+      ctx.globalAlpha = u < 0.74 ? 1 : 1 - (u - 0.74) / 0.26;
+      for (const [c, k] of bands) ctx.drawImage(Art.fireball(c), x - r * k * 1.12, y - r * k * 1.12, r * k * 2.24, r * k * 2.24);
+    }
+    ctx.globalAlpha = 1;
+    if (t < 0.22) { // the shock ring, and the white-hot flash at the heart
+      const k = t / 0.22, rr = b.R * (0.5 + 1.9 * easeOut(k));
+      ctx.strokeStyle = rgba("#fff3c4", 0.7 * (1 - k)); ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(b.x, b.y, rr, 0, TAU); ctx.stroke();
+    }
+    if (t < 0.1) glowAt("#fff3c4", b.x, b.y, b.R * 2.6, b.R * 2.6, 0.9 * (1 - t / 0.1));
+  }
+}
 function drawFxWorld() {
+  drawBooms();
   ctx.globalCompositeOperation = "lighter";
   for (const p of FX.parts) {
     if (p.t !== "dot" && p.t !== "spark") continue;
@@ -8245,6 +8399,7 @@ function render(rdt, ghostPos) {
   drawRope(time);
   drawPlayerAll(time, rdt);
   drawRingsFront(time, cam.x - vw / 2 - pad, cam.x + vw / 2 + pad);
+  updateMarks(); drawMarks(time);
   drawFxWorld();
   ctx.restore();
   drawScreenFx(time, Math.hypot(player.vx, player.vy));
@@ -8259,7 +8414,7 @@ let botOn = false;            // attract-mode autopilot (also used by tests)
 const ui = {
   hud: $("hud"), dist: $("dist"), score: $("score"), mult: $("mult"), flowfill: $("flowfill"), flowbar: $("flowbar"),
   chain: $("chain"), hearts: $("hearts"), hint: $("hint"), zone: $("zone"), touch: $("touchHints"),
-  dashbar: $("dashbar"), dashfill: $("dashfill"), fire: $("btnFire"), ammo: $("ammo"),
+  dashbar: $("dashbar"), dashfill: $("dashfill"), fire: $("ammoBar"), ammo: $("ammo"),
   bossbar: $("bossbar"), bossName: $("bossName"), bossHp: $("bossHp"), bossLeft: $("bossLeft").firstElementChild,
   start: $("screenStart"), pause: $("screenPause"), over: $("screenOver"), skills: $("screenSkills"), levels: $("screenLevels"), win: $("screenWin"),
   lvline: $("lvline"), lvTag: $("lvTag"), lvFill: $("lvFill"),
@@ -8464,7 +8619,7 @@ const HINTS = IS_TOUCH ? {
   release: "Im <kbd>goldenen Bogen</kbd> loslassen = PERFEKT + Zeitlupe",
   dive: "In der Luft nach unten <kbd>wischen</kbd> = SLAM durch Drohnen",
   slide: "Am Boden nach unten <kbd>wischen</kbd> = RUTSCHEN · unter Kanälen und Lasern durch",
-  fire: "<kbd>FEUER</kbd> rechts = schießen · zielt von selbst, das Magazin lädt nach",
+  fire: "Markierte Gegner <kbd>antippen</kbd> = schießen · das Magazin lädt nach",
   pump: "Am Seil links <kbd>tippen</kbd> = Schwung holen · unten am stärksten",
   dash: "Nach rechts <kbd>wischen</kbd> = DASH · zerlegt Drohnen und Wächter",
   spike: "Stachel-Drohne: nicht draufspringen · <kbd>DASH</kbd> durch!",
@@ -8486,7 +8641,7 @@ const HINTS = IS_TOUCH ? {
   release: "Im <kbd>goldenen Bogen</kbd> loslassen = PERFEKT + Zeitlupe",
   dive: "<kbd>S</kbd> in der Luft = SLAM · von oben auf Drohnen springen",
   slide: "<kbd>S</kbd> oder <kbd>↓</kbd> am Boden = RUTSCHEN · unter Kanälen und Lasern durch",
-  fire: "<kbd>F</kbd> = schießen · zielt von selbst, das Magazin lädt nach",
+  fire: "Markierte Gegner <kbd>anklicken</kbd> oder <kbd>F</kbd> = schießen · das Magazin lädt nach",
   pump: "Am Seil <kbd>LEER</kbd> = Schwung holen · unten am stärksten",
   dash: "<kbd>D</kbd> <kbd>→</kbd> oder <kbd>SHIFT</kbd> = DASH · zerlegt Drohnen und Wächter",
   spike: "Stachel-Drohne: nicht draufspringen · <kbd>DASH</kbd> durch!",
@@ -8507,7 +8662,7 @@ let hintShown = {}, hintT = 0, zoneShownIdx = 0, zoneT = 0;
 const tutDone = () => store.get("tut", false);
 let pumpTutDone = store.get("pumpTut", false);
 let dashTutDone = store.get("dashTut", false), spikeTutDone = store.get("spikeTut", false), wallTutDone = store.get("wallTut", false), slideTutDone = store.get("slideTut", false);
-let fireTutDone = store.get("fireTut", false);
+let fireTutDone = store.get("fireTut2", false);   // the hint for tapping targets (new mechanic: shown once to everyone)
 const newTut = { spot: store.get("tutSpot", false), hunt: store.get("tutHunt", false), shield: store.get("tutShield", false), ball: store.get("tutBall", false), gun: store.get("tutGun", false),
   bmech: store.get("tutMech", false), bcarrier: store.get("tutCarrier", false), bcore: store.get("tutCore", false),
   trap: store.get("tutTrap", false), life: store.get("tutLife", false) };
@@ -8632,8 +8787,8 @@ function beginPlay() {
   state = "play"; botOn = !!window.__ntBot; Sound.setQuiet(false); input.clear(); newWorld(); showScreen("play");
   hintShown = {}; if (document.activeElement) document.activeElement.blur();
   Sound.setIntensity(1);
-  $("touchRight").textContent = "SCHWINGEN · WISCHEN → DASH · ↓ RUTSCHEN" + (jokerCharges() > 0 ? " · ↑ JOKER" : "");
-  if (IS_TOUCH && (!tutDone() || (jokerCharges() > 0 && !store.get("jokerTut", false)))) { ui.touch.hidden = false; ui.touch.classList.remove("fade"); setTimeout(() => ui.touch.classList.add("fade"), 4200); }
+  $("touchRight").textContent = "SCHWINGEN · WISCHEN → DASH · ↓ RUTSCHEN" + (jokerCharges() > 0 ? " · ↑ JOKER" : "") + (run.wp ? " · ZIEL ANTIPPEN = SCHUSS" : "");
+  if (IS_TOUCH && (!tutDone() || (jokerCharges() > 0 && !store.get("jokerTut", false)) || (run.wp && !fireTutDone))) { ui.touch.hidden = false; ui.touch.classList.remove("fade"); setTimeout(() => ui.touch.classList.add("fade"), 4200); }
   setTimeout(() => state === "play" && showHint("jump", 3.6), 400);
   if (jokerCharges() > 0 && !store.get("jokerTut", false)) setTimeout(() => { if (state === "play" && hintT <= 0) showHint("joker", 3.6, true); }, 4600);
 }
@@ -8910,16 +9065,16 @@ function hudUpdate(rdt, gp) {
     if (hudCache.df !== fq) { hudCache.df = fq; ui.dashfill.style.transform = "scaleX(" + fq + ")"; }
     if (hudCache.dc !== cls) { hudCache.dc = cls; ui.dashbar.className = cls; }
   }
-  { // the weapon: the fire button shows the rounds left, the one loading fills up
+  { // the weapon: the rounds left under the hearts, the one loading fills up
     const Wp = run.wp, show = !!Wp && (state === "play" || state === "pause");
     if (hudCache.fb !== show) { hudCache.fb = show; ui.fire.hidden = !show; }
     if (show) {
-      if (hudCache.fc !== Wp.def.col) { hudCache.fc = Wp.def.col; ui.fire.style.setProperty("--wc", Wp.def.col); ui.fire.setAttribute("aria-label", Wp.def.name + ": schießen"); }
+      if (hudCache.fc !== Wp.def.col) { hudCache.fc = Wp.def.col; ui.fire.style.setProperty("--wc", Wp.def.col); }
       const full = Math.floor(run.ammo + 1e-6), part = Math.floor((run.ammo - full) * 8) / 8, key = Wp.mag + ":" + full + ":" + part;
       if (hudCache.am !== key) {
         hudCache.am = key; let h = "";
         for (let i = 0; i < Wp.mag; i++) h += i < full ? '<i class="on"></i>' : i === full && part > 0 ? '<i class="part" style="--f:' + part + '"></i>' : "<i></i>";
-        ui.ammo.innerHTML = h; ui.fire.classList.toggle("dry", full < 1);
+        ui.ammo.innerHTML = h; ui.fire.classList.toggle("dry", full < 1); ui.fire.setAttribute("aria-label", Wp.def.name + ": " + full + " von " + Wp.mag + " Schuss");
       }
     }
   }
@@ -9065,8 +9220,6 @@ $("btnLevelsO").addEventListener("click", () => { Sound.fx.ui(); toMenu(); openL
 $("btnSkills").addEventListener("click", () => { Sound.unlock(); Sound.fx.ui(); openSkills(); });
 $("btnSkillsBack").addEventListener("click", () => { Sound.fx.ui(); showScreen("menu"); setTimeout(() => { try { $("btnStart").focus({ preventScroll: true }); } catch (e) {} }, 50); });
 $("btnJoker").addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); onAnyInput(); if (state === "play") input.jokerPressed = true; });
-$("btnFire").addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); onAnyInput(); if (state === "play") input.firePressed = true; });
-$("btnFire").addEventListener("contextmenu", (e) => e.preventDefault());
 $("btnAgain").addEventListener("click", restart);
 $("btnRestartP").addEventListener("click", restart);
 $("btnResume").addEventListener("click", resumeGame);
