@@ -203,6 +203,35 @@ html:not(.touch) .keys .kt, html.touch .keys .kd { display: none; } /* phones se
 #touchHints div + div { border-left: 1px dashed color-mix(in srgb, var(--paper) 30%, transparent); }
 #touchHints b { display: block; font-family: var(--font-display); font-weight: 400; font-size: var(--step-1); color: var(--tether); letter-spacing: 0.04em; margin-bottom: 4px; text-align: center; }
 
+/* ---------- levels: the progress line in the HUD, the level map, the stars ---------- */
+#lvline { display: flex; align-items: center; gap: 8px; margin-top: 5px; font-weight: 700; font-size: var(--step--1); letter-spacing: 0.14em; color: var(--tether); }
+#lvline[hidden] { display: none; }
+.lvbar { position: relative; width: clamp(70px, 14vw, 140px); height: 5px; transform: skewX(-20deg); background: color-mix(in srgb, var(--paper) 14%, transparent); }
+.lvbar #lvFill { position: absolute; inset: 0 auto 0 0; width: 0%; background: var(--tether); box-shadow: 0 0 8px color-mix(in srgb, var(--tether) 60%, transparent); }
+.lvbar i { position: absolute; right: -2px; top: -4px; width: 4px; height: 13px; background: var(--volt); }
+#screenLevels { align-content: start; }
+.lv-ch { margin: 10px 0 6px; font-size: var(--step--1); letter-spacing: 0.24em; color: var(--mute); font-weight: 700; }
+.lv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 96px), 1fr)); gap: 8px; }
+.lv-tile {
+  position: relative; display: grid; gap: 2px; justify-items: start; align-content: start; min-height: 74px; padding: 8px 9px; cursor: pointer; text-align: left;
+  background: color-mix(in srgb, var(--ink-2) 86%, transparent); color: var(--paper); border: 1px solid color-mix(in srgb, var(--paper) 16%, transparent);
+  border-radius: 6px; font: inherit; border-top: 3px solid var(--zc, var(--tether));
+}
+.lv-tile b { font-family: var(--font-display); font-weight: 400; font-size: var(--step-1); line-height: 1; }
+.lv-tile .nm { font-size: 11px; color: var(--mute); letter-spacing: 0.02em; line-height: 1.2; }
+.lv-tile .st { font-size: 13px; letter-spacing: 1px; color: color-mix(in srgb, var(--paper) 22%, transparent); }
+.lv-tile .st .on { color: var(--volt); text-shadow: 0 0 6px color-mix(in srgb, var(--volt) 60%, transparent); }
+.lv-tile .tag { position: absolute; top: 6px; right: 7px; font-size: 9px; font-weight: 700; letter-spacing: 0.14em; color: var(--hot); }
+.lv-tile.giant { border-color: color-mix(in srgb, var(--hot) 55%, transparent); background: linear-gradient(160deg, color-mix(in srgb, var(--hot) 22%, var(--ink-2)), var(--ink-2)); }
+.lv-tile.next { box-shadow: 0 0 0 2px var(--volt), 0 0 22px color-mix(in srgb, var(--volt) 30%, transparent); }
+.lv-tile[disabled] { opacity: 0.38; cursor: not-allowed; }
+.lv-tile:not([disabled]):hover { transform: translateY(-2px); }
+.lv-tile:focus-visible { outline: 2px solid var(--volt); outline-offset: 2px; }
+.stars-big { display: flex; gap: 10px; margin-top: 10px; font-size: clamp(30px, 6vw, 46px); line-height: 1; }
+.stars-big span { color: color-mix(in srgb, var(--paper) 18%, transparent); transform: scale(0.6); opacity: 0; transition: transform 0.35s cubic-bezier(.2,1.6,.4,1), opacity 0.2s, color 0.2s; }
+.stars-big span.in { transform: scale(1); opacity: 1; }
+.stars-big span.on { color: var(--volt); text-shadow: 0 0 18px color-mix(in srgb, var(--volt) 70%, transparent), 3px 3px 0 var(--hot); }
+
 /* ---------- the fire button (right edge, a little below the middle): crosshair, rounds as pips under it ---------- */
 .fire-btn {
   --wc: var(--tether);
@@ -284,8 +313,9 @@ html.touch .fire-btn kbd { display: none; }
 @media (max-height: 460px) and (orientation: landscape) {
   .screen { align-content: start; }
   .logo { font-size: clamp(36px, 9vh + 10px, 70px); }
-  .tag { margin-top: 10px; }
-  .actions { margin-top: 14px; }
+  .tag { margin-top: 10px; font-size: 14px; line-height: 1.35; max-width: 46ch; }
+  .actions { margin-top: 14px; gap: 10px; }
+  .actions .btn { padding: 11px 20px; font-size: var(--step-0); }
 }
 @media (prefers-reduced-motion: reduce) { .btn, #flowfill, #hint { transition: none; } }
 </style>
@@ -300,6 +330,7 @@ html.touch .fire-btn kbd { display: none; }
     <div id="dist">0<small>m</small></div>
     <div id="score">0</div>
     <div id="hearts" role="img" aria-label="Leben"></div>
+    <div id="lvline" hidden><span id="lvTag">LEVEL 1</span><span class="lvbar"><span id="lvFill"></span><i></i></span></div>
   </div>
   <div class="hud-center">
     <div class="flow-row"><span class="flow-label">FLOW</span><div id="flowbar"><div id="flowfill"></div></div><span id="mult">x1</span></div>
@@ -331,9 +362,11 @@ html.touch .fire-btn kbd { display: none; }
     <div>
       <h1 class="logo">NEON<span>TETHER</span></h1>
       <p class="tag">Sprinte über die Dächer, schwing dich an Kränen, Masten, Schildern und Lastdrohnen über die Schluchten und dash dich durch Drohnen und Wächter, schneller als der Blackout, der die Stadt hinter dir frisst.</p>
-      <div class="meta-row"><span>Tagesstrecke <b id="seedLabel">–</b></span><span>Bestweite heute <b id="bestLabel">–</b></span></div>
+      <div class="meta-row"><span>Level <b id="lvLabel">1 / 30</b></span><span>Sterne <b id="starLabel">0 / 90</b></span><span>Endlos heute <b id="bestLabel">–</b></span></div>
       <div class="actions">
-        <button class="btn" id="btnStart"><span>LOS GEHT'S</span></button>
+        <button class="btn" id="btnPlay"><span id="btnPlayTxt">LEVEL 1</span></button>
+        <button class="btn ghost" id="btnLevels"><span>LEVELS</span></button>
+        <button class="btn ghost" id="btnStart"><span>ENDLOS</span></button>
         <button class="btn ghost" id="btnSkills"><span>SKILLS<span class="sp-badge" id="spBadge"></span></span></button>
         <button class="chip" id="btnSound" aria-pressed="true">Sound an</button>
         <button class="chip" id="btnFx" aria-pressed="true">Blitze an</button>
@@ -397,6 +430,49 @@ html.touch .fire-btn kbd { display: none; }
   </div>
 </section>
 
+<section class="screen" id="screenLevels" hidden>
+  <div class="skills-wrap">
+    <div class="skills-head">
+      <h2 class="big-title">LEVEL</h2>
+      <div class="sp-box"><span class="sp-num" id="lvStarNum">0</span><span class="sp-lbl">/ 90 STERNE</span></div>
+    </div>
+    <p class="reason" style="margin:0">★ Ziel erreicht · ★★ höchstens 2 Treffer · ★★★ ohne Treffer. Bosse müssen für zwei und drei Sterne besiegt sein.</p>
+    <div id="lvChapters"></div>
+    <div class="actions"><button class="btn" id="btnLevelsBack"><span>ZURÜCK</span></button></div>
+  </div>
+</section>
+
+<section class="screen" id="screenWin" hidden>
+  <div class="panel">
+    <div>
+      <h2 class="big-title" id="winTitle">LEVEL 1 GESCHAFFT</h2>
+      <div class="stars-big" id="winStars" aria-label="Sterne"></div>
+      <p class="reason" id="winReason"></p>
+      <p class="sp-gain" id="winSp" hidden></p>
+      <dl class="stats">
+        <div class="hl"><dt>ZEIT</dt><dd id="wTime">0,0 s</dd></div>
+        <div class="hl"><dt>PUNKTE</dt><dd id="wScore">0</dd></div>
+        <div><dt>TREFFER</dt><dd id="wHits">0</dd></div>
+        <div><dt>MÜNZEN</dt><dd id="wCoins">0</dd></div>
+        <div><dt>GEGNER</dt><dd id="wKills">0</dd></div>
+        <div><dt>PERFEKT</dt><dd id="wPerfect">0</dd></div>
+      </dl>
+      <div class="actions">
+        <button class="btn" id="btnNext"><span>WEITER</span></button>
+        <button class="btn ghost" id="btnRetryW"><span>NOCHMAL</span></button>
+        <button class="chip" id="btnLevelsW">Levels</button>
+        <button class="chip" id="btnMenuW">Menü</button>
+      </div>
+    </div>
+    <aside class="side">
+      <div>
+        <h3>DEIN GEIST</h3>
+        <p class="crew empty" id="winGhost" style="margin:0"></p>
+      </div>
+    </aside>
+  </div>
+</section>
+
 <section class="screen" id="screenPause" hidden>
   <div class="solo">
     <h2 class="big-title">PAUSE</h2>
@@ -426,6 +502,7 @@ html.touch .fire-btn kbd { display: none; }
       </dl>
       <div class="actions">
         <button class="btn" id="btnAgain"><span>NOCHMAL</span></button>
+        <button class="chip" id="btnLevelsO" hidden>Levels</button>
         <button class="chip" id="btnSkillsO">Skills</button>
         <button class="chip" id="btnMenu">Menü</button>
       </div>
@@ -913,6 +990,9 @@ const Sound = (() => {
     wp_grenade() { if (!ok()) return; const t = now(); kick(t, 0.9, sfxBus); noise(t, 0.16, "lowpass", 900, 0.4, sfxBus, 1, 200); osc("sine", 300, t, 0.14, 0.06, sfxBus, 120); },
     wp_pulse() { if (!ok()) return; const t = now(); osc("square", 1500, t, 0.07, 0.06, sfxBus, 420); osc("sine", 900, t, 0.06, 0.05, sfxBus, 300); },
     dry() { if (ok()) osc("square", 240, now(), 0.04, 0.04, sfxBus, 200); },
+    // ---- der Koloss ----
+    rumble() { if (!ok()) return; const t = now(); noise(t, 1.6, "lowpass", 160, 0.55, sfxBus, 0.7, 60); osc("sine", 42, t, 1.4, 0.25, sfxBus, 30); },
+    roar() { if (!ok()) return; const t = now(); osc("sawtooth", 90, t, 1.1, 0.16, sfxBus, 55); osc("sawtooth", 135, t + 0.05, 1.0, 0.1, sfxBus, 70); noise(t, 1.0, "bandpass", 500, 0.35, sfxBus, 0.8, 200); kick(t, 1.2, sfxBus); },
     slide() { // knees down onto the roof: a short thump, then the hiss of sliding over gravel
       if (!ok()) return; const t = now();
       osc("sine", 130, t, 0.12, 0.13, sfxBus, 60); noise(t, 0.5, "bandpass", 1100, 0.3, sfxBus, 0.7, 380);
@@ -974,8 +1054,9 @@ const TOP_MIN = 250, TOP_MAX = 640;
 let LV = null;                 // the level being played (null = the endless daily run)
 const baseSpeedAt = (x) => Math.min((LV ? LV.v0 : 440) + Math.max(0, x) / PX_PER_M * 0.08, 840);
 // what the generator may put down: in the endless run by distance (as before), in a level by the level's own list
+const giantFight = () => !!(LV && LV.giant && !world.giantDown && world.genX > (KOL.AT - 20) * PX_PER_M);   // the stretch where the giant fights
 function genAllow(kind) {
-  if (LV) return LV.foes.includes(kind);
+  if (LV) return LV.foes.includes(kind) && !giantFight();          // while the giant fights, he is the only danger
   if (kind === "low") return world.genX > SLIDE_X;
   if (kind === "shield") return world.genX > NEW_FOE_X;
   return world.genX > ENEMY_FREE_X;   // guards, spike drones, drones in the set pieces
@@ -1505,7 +1586,9 @@ function genFinish(x, top, v) {
   return [b.x + b.w, b.top];
 }
 function genPatternLV() {
-  const d = LV.d, v = baseSpeedAt(world.genX), m = world.genX / PX_PER_M;
+  const m = world.genX / PX_PER_M, v = baseSpeedAt(world.genX);
+  let d = LV.d * (0.65 + 0.35 * clamp(m / Math.max(200, LV.len), 0, 1));     // each level starts a little easier than it ends
+  if (LV.giant) d = Math.min(d, 0.25 + 0.1 * LV.giant);                          // the giant is the danger: the parkour around him stays moderate
   if (world.finish) { // beyond the finish: plain roofs to run out on
     const b = addBuilding(world.genX + RR(0.3, 0.42) * v * 0.72, RR(900, 1300), clamp(world.lastTop + RR(-30, 30), TOP_MIN, TOP_MAX));
     world.genX = b.x + b.w; world.lastTop = b.top; return;
@@ -1515,9 +1598,15 @@ function genPatternLV() {
   if (LV.boss && !world.arenaDone && m >= LV.bossAt) { // the boss gets its arena, the finish comes right after it
     world.arenaDone = true; [world.genX, world.lastTop] = genArena(world.genX, world.lastTop, v, LV.boss, LV.bossLv); LV.endX = world.genX; return;
   }
-  const keys = Object.keys(LV.pats), opening = m < 60;                 // a gentle opening: plain roofs first
+  const opening = m < 80;                                                // a gentle opening: plain roofs first
+  let pats = LV.pats;
+  if (giantFight()) { // roofs and single hooks while he fights (his fist needs roofs); the more he is hurt, the wider the gaps
+    const b = run.boss, f = b && b.type === "koloss" && b.hpMax ? b.hp / b.hpMax : 1;
+    pats = { hop: 2 + (1 - f), long: 2.6 - (1 - f) * 0.6, anchor: 0.4 + 0.25 * LV.giant + (1 - f) * 0.6 };
+    d = Math.min(1, d + (1 - f) * 0.15);
+  }
   let total = 0;
-  const ws = PATTERNS.map((p) => { const w = opening ? (p.key === "hop" || p.key === "long" ? 1 : 0) : LV.pats[p.key] || 0; total += w; return w; });
+  const ws = PATTERNS.map((p) => { const w = opening ? (p.key === "hop" || p.key === "long" ? 1 : 0) : pats[p.key] || 0; total += w; return w; });
   if (total <= 0) { ws[0] = 1; total = 1; }
   let r = R() * total, idx = 0;
   while (idx < ws.length - 1 && (r > ws[idx] || ws[idx] <= 0)) { r -= ws[idx]; idx++; }
@@ -1554,7 +1643,7 @@ function genPattern() {
 
 function worldReset(seed) {
   world.rng = mulberry32(seed); world.introDone = !!LV; world.debut = {}; world.arenaN = 0; lastAerialKind = ""; lastRailKind = "";
-  world.finish = null; world.arenaDone = false; world.giantDown = false;
+  world.finish = null; world.arenaDone = false; world.giantDown = false; world.giantOn = false;
   for (const k of WORLD_KEYS) world[k] = [];
   const b = addBuilding(-900, 2200, 420);
   b.ant = -1;
@@ -1633,7 +1722,7 @@ function resetRun() {
     perfect: 0, drones: 0, coins: 0, swings: 0, topSpeed: 0, wallX: -1100, dead: false, deadT: 0, reason: "",
     coinStreak: 0, coinT: 0, firstSwing: false, loops: 0, pumps: 0,
     kills: 0, dashes: 0, dashKills: 0, reflects: 0, maxDashKills: 0,
-    kicks: 0, maxKicks: 0, grinds: 0, odN: 0, slides: 0,
+    kicks: 0, maxKicks: 0, grinds: 0, odN: 0, slides: 0, won: false, wonT: 0, stars: 0,
     spGain: 0, spWhy: [], jokerLeft: jokerCharges(), jokersUsed: 0,
     hp: LIVES + (hasSkill("shield") ? 1 : 0), hpMax: LIVES + (hasSkill("shield") ? 1 : 0), invT: 0, healAt: 0, hits: 0,
     magnet: hasSkill("magnet") ? 170 : 0, odMax: OD_TIME + (hasSkill("turbo") ? 2 : 0),
@@ -1694,7 +1783,7 @@ function heal(why) { // one life back (a new zone, a boss down)
   FX.popup(p.x, p.y - 66, "+1 LEBEN", "#ff6f91", 1, true, true); Sound.fx.ring(4);
 }
 function die(reason) {
-  if (run.dead) return;
+  if (run.dead || run.won) return;
   run.dead = true; run.deadT = 0; run.reason = reason;
   const p = player;
   endDash(false);
@@ -1711,6 +1800,7 @@ const ovX = (px, pw, ox, ow) => px + pw / 2 > ox && px - pw / 2 < ox + ow;
 const sliding = (p) => p.slideT > 0 && p.state === "run";
 const headY = (p) => (sliding(p) ? p.y + HALF_H - SLIDE_H : p.y - HALF_H);   // the top of the body: much lower in a slide
 // something low right over the runner's head: no room to stand up yet
+const eyeLaserHigh = () => { const b = run.boss, L = b && b.type === "koloss" && b.las; return !!(L && L.kind === "high" && L.t > L.T - 0.15 && L.t < L.T + L.F); };
 function lowAbove(p) {
   const feet = p.y + HALF_H;
   for (const k of world.blocks) if (k.low && ovX(p.x, PW - 4, k.x, k.w) && k.bot < feet && k.bot > feet - PH - 6) return k;
@@ -2016,13 +2106,13 @@ function railY(r, x) { return lerp(r.y1, r.y2, (x - r.x1) / (r.x2 - r.x1)); }
 function playerUpdate(dt) {
   const p = player;
   if (p.state === "dead") { if (run.reason === "wall" || run.reason === "hit") return; p.vy += G * dt; p.vx *= 0.99; p.x += p.vx * dt; p.y += p.vy * dt; return; }
-  const base = baseSpeedAt(p.x) * (run.od > 0 ? 1.3 : 1);
+  const base = baseSpeedAt(p.x) * (run.od > 0 ? 1.3 : 1) * (run.won ? 0.3 : 1);   // over the finish line: run out slowly
   p.flipT = p.state === "air" ? Math.max(0, p.flipT - dt) : 0;
   if (p.flipT > 0) { const m = SKIN_MOVES[currentSkin.id]; if (m && m.djTick) m.djTick(p, 1 - p.flipT / FLIP_T); }
   p.landT += dt; p.jumpT += dt; p.attachT += dt; p.slamT += dt;
   p.rollT = p.state === "run" ? Math.max(0, p.rollT - dt) : 0;
   p.vaultT = p.state === "run" ? Math.max(0, p.vaultT - dt) : 0;
-  p.coyote -= dt; p.jumpBuf -= dt; p.stumbleT -= dt; p.squash = Math.max(0, p.squash - dt * 3); p.slideBuf = Math.max(0, p.slideBuf - dt);
+  p.coyote -= dt; p.jumpBuf -= dt; p.stumbleT -= dt; p.squash = Math.max(0, p.squash - dt * 3); p.slideBuf = Math.max(0, p.slideBuf - dt); p.slideGrace = Math.max(0, (p.slideGrace || 0) - dt);
   if (input.jumpPressed) { input.jumpPressed = false; p.jumpBuf = 0.13; }
   const dive = input.divePressed; input.divePressed = false;
   if (input.dashPressed) { input.dashPressed = false; p.dashBuf = 0.14; }
@@ -2046,10 +2136,10 @@ function playerUpdate(dt) {
   if (p.state === "run") {
     p.groundT += dt; p.airT = 0;
     if (dive) startSlide(false);                                     // on the ground the swipe down is a slide
-    if (p.slideT > 0) { p.slideAge += dt; p.slideT -= dt; if (p.slideT <= 0 && lowAbove(p)) p.slideT = 0.04; } // stays down while something is overhead
+    if (p.slideT > 0) { p.slideAge += dt; p.slideT -= dt; if (p.slideT <= 0 && (lowAbove(p) || eyeLaserHigh())) p.slideT = 0.04; } // stays down while something is overhead
     if (p.dashT > 0) p.vx = p.dashV;
     else if (p.vx < base) p.vx = Math.min(base, p.vx + (p.stumbleT > 0 ? 500 : 1300) * dt);
-    else p.vx = Math.max(base, p.vx - 150 * dt);
+    else p.vx = Math.max(base, p.vx - (run.won ? 520 : 150) * dt);
     p.runPhase += p.vx * dt * 0.03;
     p.x += p.vx * dt;
     collideX(prevFeet);
@@ -2231,7 +2321,7 @@ function playerUpdate(dt) {
   }
 
   // ---- obstacles & pickups (all live states) ----
-  if (p.state !== "run" && p.slideT > 0) p.slideT = 0;                  // a slide lasts only as long as you are on the ground
+  if (p.state !== "run" && p.slideT > 0) { p.slideGrace = p.state === "air" && p.vy >= 0 ? 0.3 : 0; p.slideT = 0; } // a slide lasts only as long as you are on the ground (sliding off an edge still counts as one for a moment)
   const top = headY(p), bot = p.y + HALF_H;
   if (p.state !== "grapple" && p.state !== "mantle") { // the hook pulls you clear of everything, and so does climbing over an edge
     for (const L of world.lasers) {
@@ -2986,7 +3076,11 @@ function bossUpdate(dt) {
   let b = run.boss;
   if (!b) {
     if (!live) return;
-    for (const a of world.arenas) if (!a.done && p.x >= a.x0 && p.x < a.x1 - 400) { a.done = true; b = run.boss = bossStart(a); break; }
+    if (LV && LV.giant && !world.giantDown && !world.giantOn && p.x > KOL.AT * PX_PER_M) { // a giant level: he rises behind the city
+      world.giantOn = true; const r = roofAt(p.x);
+      b = run.boss = bossStart({ n: 0, type: "koloss", lvl: LV.giant, x0: p.x, x1: Infinity, gy: r ? r.top : 420, bridges: [], done: true });
+    }
+    for (const a of world.arenas) if (!b && !a.done && p.x >= a.x0 && p.x < a.x1 - 400) { a.done = true; b = run.boss = bossStart(a); break; }
     if (!b) return;
   }
   b.t += dt; b.hitT = Math.max(0, b.hitT - dt);
@@ -2994,7 +3088,7 @@ function bossUpdate(dt) {
   for (const a of b.arcs) a.t += dt;
   if (b.arcs.length) b.arcs = b.arcs.filter((a) => a.t < 0.45);
   BOSS[b.type].update(b, dt, live);
-  if (bossOn() && live && (p.x > b.arena.x1 - 250 || (b.st === "fight" && b.t > 40))) bossEscape(b); // made it to the end of its arena
+  if (bossOn() && live && b.type !== "koloss" && (p.x > b.arena.x1 - 250 || (b.st === "fight" && b.t > 40))) bossEscape(b); // made it to the end of its arena
   if (b.st === "gone") run.boss = null;
 }
 function bossContacts(p) { const b = run.boss; if (b && !run.dead && b.st !== "gone") BOSS[b.type].contacts(b, p); }
@@ -3059,6 +3153,26 @@ function drawBoss(time, L, R) {
   if (!b || b.st === "gone") return;
   BOSS[b.type].draw(b, time, L, R);
   for (const a of b.arcs) drawArc(a.x, a.y, b.x, b.y + (b.type === "carrier" ? 22 : 0), 1 - a.t / 0.45, BOSS_COL[b.type]);
+}
+// the finish of a level: two pylons, a chequered banner with ZIEL in neon, a band of light across the roof
+function drawFinish(time, L, R, T, B) {
+  const f = world.finish;
+  if (!f || f.x < L - 400 || f.x > R + 400) return;
+  const P = palAt(f.x), top = f.top, hw = 130, yb = top - 196, x0 = f.x - hw, x1 = f.x + hw, won = run.won;
+  trussV(x0, yb - 8, top, 15, P, T, B); trussV(x1, yb - 8, top, 15, P, T, B);
+  ctx.fillStyle = P.deep; ctx.fillRect(x0 - 16, yb - 66, x1 - x0 + 32, 58);
+  for (let i = 0, n = Math.ceil((x1 - x0 + 32) / 9); i < n; i++) for (const r of [0, 1]) { // chequered edges top and bottom
+    ctx.fillStyle = (i + r) % 2 ? "#f3f0ff" : "#07051a"; ctx.fillRect(x0 - 16 + i * 9, yb - 66 + r * 5, 9, 5); ctx.fillRect(x0 - 16 + i * 9, yb - 18 + r * 5, 9, 5);
+  }
+  const word = neonText("ZIEL", "#ffd23f", 30), fl = won ? 0.75 + 0.25 * Math.sin(time * 18) : 1;
+  glowAt("#ffd23f", f.x, yb - 37, word.ww + 90, 110, 0.5 * fl); drawNeon(word, f.x, yb - 37, fl);
+  for (const [x, ph] of [[x0, 0], [x1, Math.PI]]) { const on = Math.sin(time * 5 + ph) > 0; ctx.fillStyle = on ? "#ffd23f" : "#4a3a10"; ctx.fillRect(x - 4, yb - 76, 8, 8); if (on) glowAt("#ffd23f", x, yb - 72, 60, 60, 0.9); }
+  // the line: a chequered band on the roof and a curtain of light between the pylons
+  for (let c = 0; c < 4; c++) for (let r = 0; r < 2; r++) { ctx.fillStyle = (c + r) % 2 ? "#f3f0ff" : "#07051a"; ctx.fillRect(f.x - 12 + c * 6, top - 5 + r * 3, 6, 3); }
+  const cg = ctx.createLinearGradient(0, yb, 0, top); cg.addColorStop(0, rgba("#ffd23f", 0)); cg.addColorStop(1, rgba("#ffd23f", won ? 0.32 : 0.16));
+  ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = cg; ctx.fillRect(f.x - 5, yb, 10, top - yb);
+  ctx.fillStyle = rgba("#fff3c4", 0.55); ctx.fillRect(f.x - 1, yb, 2, top - yb); ctx.globalCompositeOperation = "source-over";
+  glowAt("#ffd23f", f.x, top - 4, 220, 26, 0.45);
 }
 // the gate at the start of an arena: two lattice pylons, a sign with the boss's name in neon, warning lights
 function drawArenaGates(time, L, R, T, B) {
@@ -3891,6 +4005,428 @@ BOSS.core = {
 };
 
 // ---------- drawing ----------
+// ---------- DER KOLOSS: ein Riese hinter der Stadt (Level 10, 20 und 30) ----------
+// Er steht rechts hinten über den Dächern (in Bildschirmkoordinaten zwischen den Skyline-Ebenen gemalt) und greift die Strecke an:
+//  FAUSTSCHLAG: ein roter Kreis auf einem Dach vor dir, dann kracht seine Faust hinein. Das Dach bricht ein (ein Krater bleibt),
+//     eine Stoßwelle rollt dir entgegen (springen). Die Faust steckt kurz fest: ihr glühender Kern ist die Schwachstelle
+//     (Dash, Slam, von oben, Schüsse). Wer sonst gegen die Faust läuft, prallt ab.
+//  AUGENLASER: eine rote Linie folgt den Dachkanten. ▼ = auf Kopfhöhe (rutschen!), ▲ = am Boden (springen!). Danach ist er
+//     überhitzt: die Brustklappe steht offen und der Reaktor nimmt Schüsse.
+//  RAKETENHAGEL: rote Kreise auf den Dächern, die Raketen kommen von seinen Schultern. Ausweichen; ein Dash in eine Rakete
+//     schickt sie zurück (Treffer), Schüsse holen sie herunter.
+//  STAMPFEN (Mk II, Omega): eine Stoßwelle rollt übers Dach heran.
+// Je weniger Leben er hat, desto kaputter wird die Stadt vor dir (der Generator baut dann mehr Lücken, Seile und Rutsch-Hindernisse).
+const KOL = { AT: 150, HP: [0, 4, 5, 6], SMASH_T: 1.05, STUCK: 1.9, LAS_T: 1.0, LAS_F: 0.42, LAS_FL: 0.28, VENT: 2.6, MIS_T: 1.0, MIS_GAP: 0.75, MIS_N: [0, 3, 3, 4], R: 100, PIT: 54, BLAST: 46, SAFE: 56 };
+const KOL_ORDER = [null, ["smash", "laser", "smash", "mis"], ["smash", "laser", "stomp", "smash", "mis"], ["smash", "laser", "mis", "smash", "stomp", "laser"]];
+BOSS_NAME.koloss = "KOLOSS"; BOSS_COL.koloss = "#ff8a3d"; BOSS_WIN.koloss = "ZU FALL GEBRACHT!";
+// the giant lives in screen space: where it stands, how big it is, and how a point of its body maps into the world
+function kolFrame(b) {
+  const s = clamp(H / 250, 1, 2.4), rise = b.rise ?? 1, fall = b.fall || 0;
+  const x = W * 0.79 + Math.sin(b.bob * 0.7) * 6 * s + fall * fall * 30 * s;
+  const y = H * 1.12 + (1 - smoothT(rise)) * H * 0.95 + Math.abs(Math.sin(b.bob * 1.4)) * 3 * s + fall * fall * H * 0.35;
+  return { x, y, s, tilt: -fall * 0.22 };
+}
+const kolPt = (F, lx, ly) => { const c = Math.cos(F.tilt), sn = Math.sin(F.tilt); return [F.x + (lx * c - ly * sn) * F.s, F.y + (lx * sn + ly * c) * F.s]; };
+const scrToWorld = (sx, sy) => [(sx - W / 2) / cam.zoom + cam.x, (sy - H / 2) / cam.zoom + cam.y];
+function kolWorld(b, lx, ly) { const F = kolFrame(b), [sx, sy] = kolPt(F, lx, ly); return scrToWorld(sx, sy); }
+// a roof ahead with room for the crater (no light well, no tower over it), and the spot on it
+// best: about where you will be shortly after it lands, on a roof at your own height (so the fist core is at running height)
+function kolSmashSpot(b) {
+  const p = player, v = Math.max(b.pv, baseSpeedAt(p.x)), r = KOL.R, here = roofAt(p.x) || roofAt(p.x + 80), want = p.x + v * (KOL.SMASH_T * b.sp + 0.5);
+  let best = null, bs = 1e9;
+  for (let x = want - 240; x < want + 520; x += 30) {
+    const bd = roofAt(x);
+    if (!bd || bd.rubble || bd.well != null || x - r < bd.x + 90 || x + r > bd.x + bd.w - 170) continue;
+    if (world.blocks.some((k) => k.x < x + r + 60 && k.x + k.w > x - r - 60 && k.bot <= bd.top + 2)) continue;
+    const sc = Math.abs(x - want) + (here ? Math.abs(bd.top - here.top) * 4 : 0);
+    if (sc < bs) { bs = sc; best = { x, y: bd.top, bd }; }
+  }
+  return best;
+}
+// the roof caves in where the fist hit: the house splits, a pit of rubble stays in between (jump over it, or out of it)
+function kolCrater(f) {
+  const bd = f.bd, r = KOL.R, x0 = f.x - r, x1 = f.x + r;
+  if (!world.buildings.includes(bd) || x0 < bd.x + 30 || x1 > bd.x + bd.w - 30) return;
+  const right = { x: x1, w: bd.x + bd.w - x1, top: bd.top, style: bd.style, n: bd.n, look: bd.look ?? bd.n, face: null, ant: -1, prop: 0, propX: 0.5, cutL: true, cutR: bd.cutR };
+  const pit = { x: x0, w: x1 - x0, top: bd.top + KOL.PIT, style: bd.style, n: bd.n, look: bd.look ?? bd.n, face: null, ant: -1, prop: 0, propX: 0.5, rubble: true, burn: Math.random() };
+  if (bd.ant > 0 && bd.x + bd.w * bd.ant > x0 - 20) bd.ant = -1;
+  if (bd.prop && bd.x + bd.w * bd.propX > x0 - 120) bd.prop = 0;
+  bd.w = x0 - bd.x; bd.face = null; bd.cutR = true;
+  world.buildings.push(right, pit); world.buildings.sort((a, c) => a.x - c.x);
+  const inPit = (x) => x > x0 - 10 && x < x1 + 10;
+  world.lows = world.lows.filter((o) => !inPit(o.x) && !inPit(o.x + o.w));
+  world.boxes = world.boxes.filter((o) => !inPit(o.x) && !inPit(o.x + o.w));
+  world.lasers = world.lasers.filter((o) => !inPit(o.x));
+  for (const c of world.coins) if (inPit(c.x) && c.y > bd.top - 80) c.y += KOL.PIT;            // the coins drop into the pit
+  for (const g of world.guards) if (g.alive && inPit(g.x)) destroyEnemy(g, "guard", "crash");
+}
+const kolLowNear = (x0, x1) => world.lows.some((o) => o.x < x1 && o.x + o.w > x0) || world.blocks.some((k) => k.low && k.x < x1 && k.x + k.w > x0);
+function kolNext(b) {
+  const order = KOL_ORDER[b.lvl] || KOL_ORDER[1], a = order[b.k++ % order.length], p = player;
+  if (a === "smash") {
+    const s = kolSmashSpot(b);
+    if (!s) { if ((b.hold = (b.hold || 0) + 1) < 7) b.k--; else b.hold = 0; b.ph = "idle"; b.pt = 0.25; return; } // nowhere to hit yet: try again a moment later, then the next attack
+    b.hold = 0; b.fist = { st: "aim", t: 0, x: s.x, y: s.y, bd: s.bd, T: KOL.SMASH_T * b.sp, fx: 0, fy: 0 };
+    b.ph = "smash"; Sound.fx.charge(); Sound.fx.rumble();
+  } else if (a === "laser") {
+    const r = roofAt(p.x), need = (Math.max(b.pv, baseSpeedAt(p.x), p.vx) + 150) * (KOL.LAS_T * b.sp + KOL.LAS_F) + 120;
+    if ((!r || r.rubble || r.x + r.w - p.x < need) && (b.hold = (b.hold || 0) + 1) < 10) { b.k--; b.ph = "idle"; b.pt = 0.2; return; } // waits for a roof long enough to dodge on
+    b.hold = 0;
+    let kind = b.lk % 2 === 0 ? "high" : "low";
+    if (kind === "low" && kolLowNear(p.x - 40, p.x + Math.max(b.pv, baseSpeedAt(p.x)) * (KOL.LAS_T * b.sp + KOL.LAS_FL) + 80)) kind = "high"; // a duct ahead: no room to jump, the beam goes high
+    else b.lk++;
+    b.las = { kind, t: 0, T: KOL.LAS_T * b.sp, F: kind === "low" ? KOL.LAS_FL : KOL.LAS_F, hit: false, top: r ? r.top : b.ground };
+    b.ph = "laser"; Sound.fx.charge();
+  } else if (a === "mis") {
+    const v = Math.max(b.pv, baseSpeedAt(p.x)) * (p.dashT > 0 ? 0.6 : 1), n = KOL.MIS_N[b.lvl] || 3, gap = KOL.MIS_GAP * Math.max(0.8, b.sp);
+    for (let i = 0; i < n; i++) {
+      const T = KOL.MIS_T * b.sp + 0.25 + i * gap, x = p.x + v * T + (i % 2 ? 30 : -20), r = roofAt(x);
+      if (!r || kolLowNear(x - KOL.BLAST - 50, x + KOL.BLAST + 50)) continue;                 // never where you cannot jump
+      b.mis.push({ x, y: r.top, t: 0, T, L: 0.15 + i * 0.16, st: "wait", sx: 0, sy: 0, px: 0, py: 0, bx: 0, by: 0, bt: 0 });
+    }
+    b.ph = "mis"; b.pt = 0.6; Sound.fx.lockBeep(true);
+  } else { // stomp: the ground shakes, a wave rolls along your roof towards you
+    const r = roofAt(p.x + 40) || roofAt(p.x);
+    if (!r || kolLowNear(p.x - 20, p.x + 760)) { b.ph = "idle"; b.pt = 0.2; return; }       // a duct in the way: no wave this time
+    b.ph = "stomp"; b.pt = 0.55; b.stomp = 0;
+    if (r) b.wave = { x: Math.min(r.x + r.w - 30, p.x + Math.max(560, b.pv * 1.1)), y: r.top };
+  }
+}
+function kolFistHit(b, how) { // the fist core took it
+  const f = b.fist; if (!f) return;
+  f.st = "back"; f.t = 0;
+  bossHit(b, f.x - 26, f.y - 34, how);
+}
+BOSS.koloss = {
+  start(b) {
+    b.hp = b.hpMax = KOL.HP[b.lvl] || 8; b.sp = [1, 1, 0.84, 0.72][b.lvl] || 1; b.k = 0; b.lk = 0;
+    b.ph = "rise"; b.pt = 0; b.fist = null; b.las = null; b.mis = []; b.vent = 0; b.rise = 0; b.bob = 0; b.fall = 0; b.arm = 0; b.eye = 0; b.flashT = 0; b.angry = false; b.step = 0;
+    Sound.fx.rumble(); FX.shake(10);
+  },
+  pos(b) { return kolWorld(b, -8, -122); },
+  update(b, dt, live) {
+    const p = player;
+    bossGround(b, dt);
+    b.bob += dt * (b.st === "fight" ? 1 : 0.6);
+    [b.x, b.y] = kolWorld(b, -8, -122);                                                         // its chest core in the world (for arcs and FX)
+    if (Math.floor(b.bob * 1.4 / Math.PI) !== b.step && b.st !== "down") { b.step = Math.floor(b.bob * 1.4 / Math.PI); FX.shake(6); Sound.fx.thud(); } // footfalls
+    if (b.st === "intro") { b.rise = Math.min(1, b.t / 2.6); if (Math.random() < 0.3) FX.shake(7); if (b.t > 2.8) { b.st = "fight"; b.t = 0; b.ph = "idle"; b.pt = 0.6; Sound.fx.roar(); } }
+    b.eye += ((b.las && b.las.t < b.las.T + b.las.F ? 1 : 0.35) - b.eye) * Math.min(1, dt * 6);
+    b.vent += ((b.ph === "vent" ? 1 : 0) - b.vent) * Math.min(1, dt * 5);
+    b.arm += ((b.fist && (b.fist.st === "aim") ? 1 : 0) - b.arm) * Math.min(1, dt * 5);
+    if (b.st === "down") {
+      b.fall = Math.min(1.6, b.fall + dt * 0.55);
+      if (b.fall < 1.3 && Math.random() < dt * 7) { const [x, y] = kolWorld(b, rand(-90, 90), rand(-230, -40)); FX.burst(x, y, 12, "#ff8a3d", 340); FX.smoke(x, y, 4, "#3a3448", 120, 40); FX.shake(9); Sound.fx.boom(); }
+      if (b.fall >= 1.6) b.st = "gone";
+    }
+    // ---- the fist ----
+    const f = b.fist;
+    if (f) {
+      f.t += dt;
+      if (f.st === "aim" && f.t >= f.T) { f.st = "fall"; f.t = 0; Sound.fx.whoosh(); }
+      else if (f.st === "fall" && f.t >= 0.16) { // impact
+        f.st = "stuck"; f.t = 0; kolCrater(f);
+        FX.shake(16); FX.flash("#ff8a3d", 0.18); FX.burst(f.x, f.y, 26, "#ff8a3d", 460); FX.debris(f.x, f.y - 10, "#8a7a9a", 22); FX.smoke(f.x, f.y - 10, 12, "#3a3448", 260, 60); FX.ring(f.x, f.y, "#ffb347", 230, 0.3);
+        Sound.fx.boom(); Sound.fx.slam(); haptic([30, 30, 60]);
+        const feet = p.y + HALF_H;
+        if (live && Math.abs(p.x - f.x) < KOL.R + PW / 2 && feet > f.y - 90 && feet < f.y + KOL.PIT + 10) crash(f.x, f.y - 30, "FAUSTSCHLAG!");
+      } else if (f.st === "stuck" && (f.t >= KOL.STUCK * (b.lvl > 2 ? 0.85 : 1) || b.st !== "fight")) { f.st = "back"; f.t = 0; }
+      else if (f.st === "back" && f.t >= 0.5) { b.fist = null; b.ph = "idle"; b.pt = 0.75 * b.sp; }
+      if (f.st === "fall" || f.st === "back") {                                                  // in flight: from high up (the raised arm) to the roof and back
+        const [hx, hy] = kolWorld(b, -150, -330), k = f.st === "fall" ? (f.t / 0.16) ** 2 : 1 - smoothT(clamp(f.t / 0.5, 0, 1));
+        f.fx = lerp(hx, f.x, k); f.fy = lerp(hy, f.y - 40, k);
+      } else if (f.st === "aim") { const [hx, hy] = kolWorld(b, -150, -330); f.fx = hx; f.fy = hy; }
+      else { f.fx = f.x; f.fy = f.y - 40; }
+    }
+    // ---- the eye laser ----
+    const L = b.las;
+    if (L) {
+      const was = L.t; L.t += dt;
+      if (was < L.T && L.t >= L.T) { Sound.fx.laser(); FX.shake(8); }
+      if (L.t >= L.T + L.F || b.st !== "fight") { b.las = null; if (b.st === "fight") { b.ph = "vent"; b.pt = KOL.VENT * (run.wp ? 1 : 0.45); Sound.fx.thud(); } }
+    }
+    // ---- missiles: they leave the shoulder pods, arc over and come down on their circles ----
+    for (const m of b.mis) {
+      m.t += dt;
+      if (m.st === "wait" && m.t >= m.L) { m.st = "fly"; [m.sx, m.sy] = kolWorld(b, (m.L * 97) % 2 > 1 ? 108 : -112, -196); Sound.fx.missile(); FX.burst(m.sx, m.sy, 6, "#ffd23f", 160); }
+      if (m.st === "fly") {
+        const u = clamp((m.t - m.L) / (m.T - m.L), 0, 1), cx = lerp(m.sx, m.x, 0.5), cy = Math.min(m.sy, m.y) - 260;
+        m.px = (1 - u) * (1 - u) * m.sx + 2 * (1 - u) * u * cx + u * u * m.x; m.py = (1 - u) * (1 - u) * m.sy + 2 * (1 - u) * u * cy + u * u * m.y;
+        if (u >= 1) { // impact
+          m.st = "boom"; FX.burst(m.x, m.y - 6, 18, "#ff8a3d", 380); FX.smoke(m.x, m.y - 10, 6, "#3a3448", 160, 50); FX.ring(m.x, m.y, "#ff8a3d", 90, 0.3); FX.shake(7); Sound.fx.boom();
+          const feet = p.y + HALF_H;
+          if (live && Math.abs(p.x - m.x) < KOL.BLAST + PW / 2 && feet > m.y - KOL.SAFE && feet < m.y + 30) crash(m.x, m.y - 24, "RAKETE!");
+          else if (live && Math.abs(p.x - m.x) < 160) { award(30); addFlow(3); }
+        }
+      } else if (m.st === "back") { // countered: it flies home into his chest
+        m.bt += dt; const k = clamp(m.bt / 0.45, 0, 1), [tx, ty] = kolWorld(b, -8, -122);
+        m.px = lerp(m.bx, tx, k * k); m.py = lerp(m.by, ty, k * k);
+        if (k >= 1) { m.st = "dead"; FX.burst(tx, ty, 20, "#ffd23f", 380); if (b.st === "fight") bossHit(b, tx, ty, "counter"); }
+      }
+    }
+    b.mis = b.mis.filter((m) => m.st !== "boom" && m.st !== "dead" && m.st !== "down");
+    // ---- the attack cycle ----
+    if (b.st !== "fight") return;
+    if (!b.angry && b.hp <= b.hpMax / 3) { b.angry = true; b.sp *= 0.85; Sound.fx.roar(); }  // badly hurt: faster
+    b.pt -= dt;
+    if (b.ph === "idle" && b.pt <= 0) kolNext(b);
+    else if (b.ph === "vent" && b.pt <= 0) { b.ph = "idle"; b.pt = 0.7 * b.sp; }
+    else if (b.ph === "mis" && b.pt <= 0 && !b.mis.some((m) => m.st === "wait")) { b.ph = "idle"; b.pt = 1.1 * b.sp; }
+    else if (b.ph === "stomp") {
+      b.stomp += dt;
+      if (b.wave && b.stomp >= 0.4) { world.waves.push({ x: b.wave.x, y: b.wave.y, vx: -600, life: 2.2, hit: false, over: false, big: true }); b.wave = null; FX.shake(14); Sound.fx.slam(); FX.dust(player.x + 300, b.ground, 10); }
+      if (b.pt <= 0) { b.ph = "idle"; b.pt = 0.8 * b.sp; }
+    }
+  },
+  contacts(b, p) {
+    if (b.st !== "fight") return;
+    const f = b.fist, dash = p.dashT > 0;
+    if (f && f.st === "stuck" && b.hitT <= 0) { // the fist sits in the crater: its core faces you
+      const x0 = f.x - 58, x1 = f.x + 58, top = f.y - 74, feet = p.y + HALF_H;
+      if (p.x + PW / 2 > x0 && p.x - PW / 2 < x1 && feet > top && headY(p) < f.y + 30) {
+        const fromAbove = p.vy > 0 && p.prevY + HALF_H <= top + 12;
+        if (dash || p.diving || fromAbove || run.od > 0 || sliding(p) || p.slideGrace > 0) {
+          if (dash) { dashRefill(); endDash(true); }
+          if (p.state !== "swing" && p.state !== "grind") { p.state = "air"; p.vy = -780; p.vx = Math.max(p.vx, b.pv); p.airJumps = AIRJ; p.airDash = 1; p.diving = false; p.jumpCut = true; }
+          FX.slash(f.x - 20, f.y - 36, -0.5, currentSkin.trail, 130);
+          kolFistHit(b, "fist");
+        } else { // armour plating: you bounce off it
+          b.hitT = 0.4; if (dash) endDash(false);
+          p.state = "air"; p.diving = false; p.flipT = 0; p.jumpCut = true; p.x = Math.min(p.x, x0 - PW / 2 - 1); p.vx = -200; p.vy = -560; p.kickT = 0.18;
+          FX.sparks(x0, p.y, -1, -0.6, 12); FX.shake(8); FX.hitstop(0.05); FX.popup(f.x, top - 30, "PANZER!", "#ff8a3d", 1, false); Sound.fx.block(); haptic(22);
+        }
+      }
+    }
+    const L = b.las;
+    if (L && L.t >= L.T && L.t < L.T + L.F && !L.hit && p.state !== "grapple" && p.state !== "mantle") {
+      const r = roofAt(p.x);
+      if (r) {
+        const top = headY(p), feet = p.y + HALF_H;
+        if (L.kind === "high" ? feet > r.top - 52 && top < r.top - 26 : feet > r.top - 16 && feet < r.top + 6) { L.hit = true; if (crash(p.x, L.kind === "high" ? r.top - 38 : r.top - 8, "AUGENLASER!")) Sound.fx.zap(); }
+      }
+    }
+    for (const m of b.mis) { // a dash into a missile in its last stretch sends it home
+      if (m.st !== "fly" || !dash) continue;
+      if (Math.hypot(m.px - p.x, m.py - p.y) < 40) {
+        m.st = "back"; m.bt = 0; m.bx = m.px; m.by = m.py; dashRefill(); award(80); addFlow(8); addChain();
+        FX.slash(m.px, m.py, -0.5, currentSkin.trail, 90); FX.popup(m.px, m.py - 30, "KONTER!", "#4ff3ff", 1, false); Sound.fx.reflect(); FX.hitstop(0.05);
+      }
+    }
+  },
+  down(b) { b.fist = null; b.las = null; for (const m of b.mis) if (m.st === "fly" || m.st === "wait") m.st = "down"; b.ph = "dead"; world.giantDown = true; if (LV) LV.endX = 0; return kolWorld(b, -8, -122); },
+  leave(b) {},
+  emp(b) { b.las = null; if (b.ph === "laser") { b.ph = "vent"; b.pt = KOL.VENT * (run.wp ? 1 : 0.45); } for (const m of b.mis) if (m.st === "fly" || m.st === "wait") { m.st = "down"; FX.burst(m.px || m.x, m.py || m.y, 8, "#4ff3ff", 200); } if (b.fist && b.fist.st === "aim") { b.fist = null; b.ph = "idle"; b.pt = 0.6; } },
+  aim(b) {
+    const T = [];
+    if (b.st !== "fight") return T;
+    if (b.fist && b.fist.st === "stuck") T.push({ x: b.fist.x - 26, y: b.fist.y - 34, pri: 1 });
+    if (b.vent > 0.6) { const [x, y] = kolWorld(b, -8, -122); T.push({ x, y, pri: 1 }); }
+    for (const m of b.mis) if (m.st === "fly" && m.t - m.L > 0.15) T.push({ x: m.px, y: m.py, pri: 1 });
+    return T;
+  },
+  shot(b, s) {
+    for (const m of b.mis) if (m.st === "fly" && Math.hypot(m.px - s.x, m.py - s.y) < 18 + (s.r || 6)) { m.st = "down"; FX.burst(m.px, m.py, 14, "#ff8a3d", 320); Sound.fx.boom(); award(40); return true; }
+    if (b.st !== "fight") return false;
+    const f = b.fist;
+    if (f && f.st === "stuck" && s.x > f.x - 58 && s.x < f.x + 58 && s.y > f.y - 74 && s.y < f.y + 30) { bossChip(b, s.x, s.y, s.chip * 2); if (b.chip === 0 && f.st === "stuck") { f.st = "back"; f.t = 0; } return true; }
+    if (b.vent > 0.6) { const F = kolFrame(b), [x, y] = kolWorld(b, -8, -122), r = 30 * F.s / Math.max(0.35, cam.zoom); if (Math.hypot(s.x - x, s.y - y) < r) { bossChip(b, s.x, s.y, s.chip * 2); return true; } }
+    return false;
+  },
+  blast(b, x, y, R, s) {
+    for (const m of b.mis) if (m.st === "fly" && Math.hypot(m.px - x, m.py - y) < R + 18) { m.st = "down"; FX.burst(m.px, m.py, 14, "#ff8a3d", 320); }
+    const f = b.fist;
+    if (b.st === "fight" && f && f.st === "stuck" && Math.abs(f.x - x) < R + 58 && Math.abs(f.y - 30 - y) < R + 50) bossChip(b, f.x, f.y - 30, s.chip * 2);
+  },
+  bot(b, p, ready, ground, air) {
+    if (b.st !== "fight") return null;
+    const L = b.las;
+    if (L && L.t < L.T + L.F) {
+      const tl = L.T - L.t;
+      if (L.kind === "high") { if (ground && tl < 0.5) return p.slideT < 0.25 ? "dive" : "wait"; if (air && tl < 0.45 && p.vy > -300) return "dive"; }
+      else {
+        const r = roofAt(p.x), up = r ? r.top - (p.y + HALF_H) : 999;
+        if (ground && tl < 0.2 && tl > -L.F + 0.05) return "jump";
+        if (air && p.airJumps > 0 && p.vy > 0 && up < 70 && tl < 0.3 && tl > -L.F) return "jump";
+      }
+    }
+    for (const m of b.mis) { // a missile circle where you will be when it hits: be in the air then
+      if (m.st !== "fly" && m.st !== "wait") continue;
+      const tl = m.T - m.t;
+      if (tl < 0.08 || tl > 0.5 || Math.abs(p.x + p.vx * tl - m.x) > KOL.BLAST + PW / 2 + 14) continue;
+      if (ground) return tl < 0.42 ? "jump" : "wait";
+      if (air && p.airJumps > 0 && p.y + HALF_H + p.vy * tl + 1200 * tl * tl > m.y - KOL.SAFE - 10 && p.vy > -150) return "jump";
+    }
+    if (ground) for (const w of world.waves) if (w.big && w.life > 0 && w.x > p.x && Math.abs(w.y - (p.y + HALF_H)) < 10 && (w.x - p.x) / Math.max(200, p.vx - w.vx) < 0.24) return "jump";
+    const f = b.fist;
+    if (f && f.st === "aim") { const tl = f.T - f.t + 0.16; if (Math.abs(p.x + p.vx * tl - f.x) < KOL.R + 30 && ground && tl < 0.4) return "jump"; }
+    if (f && f.st === "stuck" && air && p.y + HALF_H < f.y - 80) { // above it: slam down onto the core
+      const h = f.y - 74 - (p.y + HALF_H), lead = Math.max(0, p.vx) * (0.1 + h / 2000), dx = f.x - p.x;
+      if (dx > lead - 40 && dx < lead + 46) return "dive";
+    }
+    if (f && f.st === "stuck" && Math.abs(p.y + HALF_H - f.y) < 70) { // level with the fist: cut its core
+      const dx = f.x - 58 - p.x;
+      if (ready && dx > 10 && dx < Math.max(170, p.vx * 0.2)) return "dash";
+      if (ground && dx > 10 && dx < 150 && p.slideT < 0.1) return "dive";                     // or slide into it
+      if (dx > -20 && dx < 220) return "wait";
+    }
+    return null;
+  },
+  ground(b, time, Lx, Rx) {
+    const f = b.fist;
+    if (f && f.st === "aim") { // where the fist will come down
+      const k = clamp(f.t / f.T, 0, 1), r = lerp(KOL.R * 1.8, KOL.R, k), fl = Math.sin(time * (12 + k * 30)) > -0.2;
+      glowAt("#ff2e63", f.x, f.y - 4, KOL.R * 3.4, 40, 0.35 + 0.45 * k);
+      ctx.strokeStyle = rgba("#ff2e63", fl ? 0.95 : 0.5); ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(f.x, f.y - 1, r, r * 0.2, 0, 0, TAU); ctx.stroke();
+      ctx.strokeStyle = rgba("#ffd23f", 0.85); ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(f.x, f.y - 1, KOL.R, KOL.R * 0.2, 0, 0, TAU); ctx.stroke();
+      ctx.globalCompositeOperation = "lighter"; const sg = ctx.createLinearGradient(0, f.y - 420, 0, f.y); sg.addColorStop(0, rgba("#ff2e63", 0)); sg.addColorStop(1, rgba("#ff2e63", 0.18 + 0.2 * k));
+      ctx.fillStyle = sg; ctx.fillRect(f.x - KOL.R, f.y - 420, KOL.R * 2, 420); ctx.globalCompositeOperation = "source-over";
+    }
+    for (const m of b.mis) { // missile circles
+      if (m.st !== "wait" && m.st !== "fly") continue;
+      const k = clamp(m.t / m.T, 0, 1), r = lerp(KOL.BLAST * 1.9, KOL.BLAST, k), fl = Math.sin(time * (14 + k * 30)) > -0.2;
+      glowAt("#ff2e63", m.x, m.y - 4, KOL.BLAST * 3, 30, 0.3 + 0.4 * k);
+      ctx.strokeStyle = rgba("#ff2e63", fl ? 0.95 : 0.5); ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(m.x, m.y - 1, r, r * 0.22, 0, 0, TAU); ctx.stroke();
+      ctx.strokeStyle = rgba("#ffd23f", 0.8); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(m.x, m.y - 1, KOL.BLAST, KOL.BLAST * 0.22, 0, 0, TAU); ctx.stroke();
+    }
+    const L = b.las;
+    if (L) { // the eye laser follows the roof edges: a dashed line while it aims, a beam while it fires
+      const on = L.t >= L.T, k = on ? 1 - clamp((L.t - L.T) / L.F, 0, 1) * 0.3 : clamp(L.t / L.T, 0, 1), up = L.kind === "high" ? 39 : 8;
+      const pts = []; let seg = [];
+      for (let x = Lx; x <= Rx; x += 14) { const r = roofAt(x); if (r) seg.push([x, r.top - up]); else if (seg.length) { pts.push(seg); seg = []; } }
+      if (seg.length) pts.push(seg);
+      ctx.lineCap = "round";
+      for (const sg of pts) {
+        if (sg.length < 2) continue;
+        ctx.beginPath(); ctx.moveTo(sg[0][0], sg[0][1]); for (const q of sg) ctx.lineTo(q[0], q[1]);
+        if (on) {
+          ctx.globalCompositeOperation = "lighter";
+          ctx.strokeStyle = rgba("#ff2e63", 0.35 * k); ctx.lineWidth = 22; ctx.stroke();
+          ctx.strokeStyle = rgba("#ff6f91", 0.9 * k); ctx.lineWidth = 7; ctx.stroke();
+          ctx.strokeStyle = rgba("#ffffff", k); ctx.lineWidth = 2.5; ctx.stroke();
+          ctx.globalCompositeOperation = "source-over";
+        } else { ctx.setLineDash([12, 10]); ctx.lineDashOffset = -time * 160; ctx.strokeStyle = rgba("#ff2e63", 0.35 + 0.5 * k); ctx.lineWidth = 2; ctx.stroke(); ctx.setLineDash([]); }
+      }
+      if (!on) for (const sg of pts) for (let i = 2; i < sg.length; i += 9) chevron(sg[i][0], sg[i][1] + (L.kind === "high" ? -14 : 14), L.kind === "low", 7, "#ffd23f", 0.5 + 0.5 * k);
+      ctx.lineCap = "butt";
+    }
+  },
+  draw(b, time, Lx, Rx) {
+    const f = b.fist, F = kolFrame(b);
+    if (f) { // the arm reaches out of the background down to the fist (world space)
+      const [sx, sy] = kolWorld(b, -104, -176), fx = f.fx, fy = f.fy, dx = fx - sx, dy = fy - sy, d = Math.hypot(dx, dy) || 1;
+      const ex = sx + dx * 0.5 + (-dy / d) * d * 0.16, ey = sy + dy * 0.5 + (dx / d) * d * 0.16;          // the elbow bends up and out
+      const wS = 17 * F.s / Math.max(0.35, cam.zoom), wE = 27, wF = 21;
+      const seg = (x1, y1, x2, y2, w1, w2, c1, c2) => {
+        const L2 = Math.hypot(x2 - x1, y2 - y1) || 1, nx = -(y2 - y1) / L2, ny = (x2 - x1) / L2, g = ctx.createLinearGradient(x1, y1, x2, y2);
+        g.addColorStop(0, c1); g.addColorStop(1, c2); ctx.fillStyle = g;
+        ctx.beginPath(); ctx.moveTo(x1 + nx * w1, y1 + ny * w1); ctx.lineTo(x2 + nx * w2, y2 + ny * w2); ctx.lineTo(x2 - nx * w2, y2 - ny * w2); ctx.lineTo(x1 - nx * w1, y1 - ny * w1); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = rgba("#ff8a3d", 0.55); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x1 + nx * w1 * 0.4, y1 + ny * w1 * 0.4); ctx.lineTo(x2 + nx * w2 * 0.4, y2 + ny * w2 * 0.4); ctx.stroke();
+      };
+      seg(sx, sy, ex, ey, wS, wE, "#141022", "#221a36"); seg(ex, ey, fx, fy, wE, wF, "#221a36", "#2c2442");
+      ctx.fillStyle = "#1a1428"; ctx.beginPath(); ctx.arc(ex, ey, wE * 1.05, 0, TAU); ctx.fill(); ctx.strokeStyle = "#3a2f5a"; ctx.lineWidth = 2; ctx.stroke(); // elbow joint
+      // the fist: a heavy block of knuckles, the core glowing on its front
+      ctx.save(); ctx.translate(fx, fy + 40);
+      const stuck = f.st === "stuck", hot = stuck ? 0.6 + 0.4 * Math.sin(time * 10) : 0.25;
+      ctx.fillStyle = "#211a33"; roundBox(-60, -78, 120, 96, 14); ctx.fill(); ctx.strokeStyle = "#3d3260"; ctx.lineWidth = 2.5; ctx.stroke();
+      ctx.fillStyle = "#2c2446"; for (let i = 0; i < 4; i++) { roundBox(-56 + i * 28, -86, 24, 26, 6); ctx.fill(); }
+      ctx.fillStyle = "#17112a"; for (let i = 0; i < 3; i++) ctx.fillRect(-40 + i * 28, -64, 3, 64);
+      hazard(-60, 6, 120, 8, 6);
+      glowAt("#ff8a3d", -26, -34, 90, 90, hot); ctx.fillStyle = stuck ? "#ffe0b0" : "#ff8a3d"; ctx.beginPath(); ctx.arc(-26, -34, 11, 0, TAU); ctx.fill();
+      ctx.strokeStyle = rgba("#ffb347", 0.8); ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(-26, -34, 17 + Math.sin(time * 8) * 2, 0, TAU); ctx.stroke();
+      if (b.hitT > 0.4) { ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 0.5; ctx.fillStyle = "#fff"; roundBox(-60, -78, 120, 96, 14); ctx.fill(); ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over"; }
+      ctx.restore();
+      if (stuck) { ctx.strokeStyle = rgba("#ffd23f", 0.7); ctx.lineWidth = 2.5; ctx.setLineDash([10, 8]); ctx.lineDashOffset = -time * 60; ctx.beginPath(); ctx.arc(f.x - 26, f.y - 34, 44 + Math.sin(time * 9) * 4, 0, TAU); ctx.stroke(); ctx.setLineDash([]); }
+    }
+    for (const m of b.mis) { // missiles in the air
+      if (m.st !== "fly" && m.st !== "back") continue;
+      const a = m.st === "back" ? Math.atan2(m.py - m.by, m.px - m.bx) : Math.atan2(m.py - m.sy, m.px - m.sx) + 0.3;
+      glowAt(m.st === "back" ? currentSkin.trail : "#ff8a3d", m.px - Math.cos(a) * 12, m.py - Math.sin(a) * 12, 36, 36, 0.9);
+      ctx.save(); ctx.translate(m.px, m.py); ctx.rotate(a); ctx.fillStyle = "#1a1230"; ctx.fillRect(-11, -3, 20, 6); ctx.fillStyle = "#ff2e63"; ctx.fillRect(7, -3, 4, 6); ctx.restore();
+      if (Math.random() < 0.5) FX.smoke(m.px, m.py, 1, "#4a4058", 16, 6);
+    }
+  },
+};
+
+// the giant himself, in screen space between the skyline layers: haze-tinted steel, a glowing visor, shoulder pods, the chest reactor
+function drawGiantBack(b, time) {
+  const F = kolFrame(b), P = (lx, ly) => kolPt(F, lx, ly), zb = zoneBlend(), Z = ZONES[zb.b], haze = Z.layers[1];
+  const steel = (c, k = 0.2) => hexMix(c, haze, k), lw = F.s * 0.6;
+  const path = (pts) => { ctx.beginPath(); pts.forEach(([x, y], i) => { const [sx, sy] = P(x, y); i ? ctx.lineTo(sx, sy) : ctx.moveTo(sx, sy); }); ctx.closePath(); };
+  const poly = (pts, fill, edge) => { path(pts); if (fill) { ctx.fillStyle = fill; ctx.fill(); } ctx.strokeStyle = edge || "#06040c"; ctx.lineWidth = (edge ? 2 : 3) * lw; ctx.stroke(); };
+  const glowLine = (pts, col, a, w = 2) => { ctx.globalCompositeOperation = "lighter"; ctx.strokeStyle = rgba(col, a); ctx.lineWidth = w * lw; ctx.beginPath(); pts.forEach(([x, y], i) => { const [sx, sy] = P(x, y); i ? ctx.lineTo(sx, sy) : ctx.moveTo(sx, sy); }); ctx.stroke(); ctx.globalCompositeOperation = "source-over"; };
+  const lamp = (lx, ly, col, on, r = 26) => { const [x, y] = P(lx, ly); ctx.fillStyle = on ? "#ffe9ee" : rgba(col, 0.5); ctx.fillRect(x - 2 * lw, y - 2 * lw, 4 * lw, 4 * lw); if (on) glowAt(col, x, y, r * lw, r * lw, 0.9); };
+  const hurt = b.hitT > 0.3, dmg = 1 - b.hp / Math.max(1, b.hpMax), pulse = 0.5 + 0.5 * Math.sin(time * 2.4);
+  if (dmg > 0.3) for (let i = 0; i < 5; i++) { // the city behind him burns
+    const fx = W * (0.08 + i * 0.21) + Math.sin(i * 7.3) * 40, a = (dmg - 0.3) * (0.6 + 0.4 * Math.sin(time * 3 + i));
+    glowAt("#ff6a2a", fx, H * 0.86, 260, 120, a);
+  }
+  ctx.save();
+  // legs and hips, mostly hidden behind the near skyline
+  for (const sd of [-1, 1]) poly([[sd * 28, 0], [sd * 80, 0], [sd * 86, 240], [sd * 34, 240]], steel("#1a1428"));
+  poly([[-84, 8], [84, 8], [72, -26], [-72, -26]], steel("#221a36"));
+  // the back arm hangs at his side
+  poly([[92, -172], [130, -160], [154, -86], [122, -78]], steel("#1d1630"));
+  poly([[122, -86], [152, -88], [144, -12], [114, -14]], steel("#241b3a"));
+  poly([[104, -18], [152, -20], [156, 18], [102, 20]], steel("#2c2346"));
+  glowLine([[128, -150], [146, -92], [136, -20]], "#ff8a3d", 0.5);
+  // torso: a broad armoured chest, lit from the moon on his right
+  const tg = ctx.createLinearGradient(...P(0, -192), ...P(0, 0));
+  tg.addColorStop(0, steel("#3b3160")); tg.addColorStop(0.5, steel("#251d3e")); tg.addColorStop(1, steel("#120d20"));
+  const TORSO = [[-78, -12], [-96, -112], [-110, -168], [-62, -190], [62, -190], [110, -168], [96, -112], [78, -12]];
+  poly(TORSO, tg);
+  poly([[-70, -176], [70, -176], [84, -120], [-84, -120]], steel("#2f2650"), "#4d4078");                                // upper chest plate
+  poly([[-58, -112], [58, -112], [50, -40], [-50, -40]], steel("#211a38"), "#3d3262");                                   // belly armour
+  ctx.strokeStyle = "rgba(6,4,12,0.75)"; ctx.lineWidth = 2 * lw;                                                         // armour plate seams
+  for (const y of [-96, -78, -60]) { const [a0, a1] = P(-48, y), [c0, c1] = P(48, y); ctx.beginPath(); ctx.moveTo(a0, a1); ctx.lineTo(c0, c1); ctx.stroke(); }
+  for (const sd of [-1, 1]) glowLine([[sd * 92, -112], [sd * 66, -44], [sd * 58, -14]], "#ff8a3d", 0.55 + 0.25 * pulse);  // glowing seams down his flanks
+  glowLine([[-70, -176], [70, -176]], "#ff8a3d", 0.45);
+  glowLine([[62, -190], [110, -168], [96, -112], [78, -12]], Z.rim, 0.65, 2.6);                                            // moonlight on his right edge
+  // the reactor in a hexagonal housing; the doors slide apart when he overheats
+  const [cx, cy] = P(-8, -122), v = b.vent, rr = 24 * F.s;
+  poly([[-8, -158], [24, -140], [24, -104], [-8, -86], [-40, -104], [-40, -140]], steel("#120d22"), "#5a4a86");
+  glowAt("#ff8a3d", cx, cy, rr * (3 + v * 4), rr * (3 + v * 4), 0.35 + v * 0.65);
+  ctx.fillStyle = v > 0.05 ? "#ffd9a0" : "#ff8a3d"; ctx.beginPath(); ctx.arc(cx, cy, rr * (0.5 + v * 0.4), 0, TAU); ctx.fill();
+  if (v > 0.05) { ctx.strokeStyle = rgba("#fff3c4", 0.9); ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(cx, cy, rr * (0.95 + 0.08 * Math.sin(time * 9)), time * 3, time * 3 + 4.4); ctx.stroke(); }
+  for (const sd of [-1, 1]) poly([[-8 + sd * (3 + v * 34), -152], [-8 + sd * (30 + v * 34), -152], [-8 + sd * (30 + v * 34), -92], [-8 + sd * (3 + v * 34), -92]], steel("#3a2f5c"), "#5a4a86");
+  if (v > 0.6) chevron(cx, cy - rr * 2.4, false, 9 * lw, "#ffd23f", 0.6 + 0.4 * Math.sin(time * 10));                // shoot here
+  // shoulder pauldrons with hazard bands and missile pods (they open for a salvo)
+  const podOpen = b.ph === "mis" && b.mis.some((m) => m.st === "wait") ? 1 : 0;
+  for (const sd of [-1, 1]) {
+    poly([[sd * 66, -198], [sd * 142, -186], [sd * 150, -146], [sd * 86, -138], [sd * 62, -160]], steel("#3a2f5c"), "#5a4a86");
+    const [h0x, h0y] = P(sd > 0 ? 80 : -146, -160), [h1x] = P(sd > 0 ? 146 : -80, -160);
+    hazard(Math.min(h0x, h1x), h0y, Math.abs(h1x - h0x), 6 * lw, 5 * lw);
+    poly([[sd * 84, -194 - podOpen * 10], [sd * 136, -186 - podOpen * 10], [sd * 134, -176], [sd * 84, -182]], steel("#1a1428"), "#5a4a86"); // pod hatch
+    for (let i = 0; i < 3; i++) lamp(sd * (94 + i * 16), -184 - podOpen * 4, "#ff2e63", podOpen || (Math.floor(time * 5) + i) % 3 === 0, podOpen ? 40 : 22);
+    lamp(sd * 140, -196, "#ff2e63", Math.sin(time * 3 + sd) > 0.3, 30);
+  }
+  // the front arm hangs at his side when it is not out smashing
+  if (!b.fist) {
+    poly([[-92, -172], [-130, -160], [-156, -88], [-124, -80]], steel("#211a36"));
+    poly([[-124, -86], [-154, -88], [-148, -14], [-118, -12]], steel("#281f40"));
+    poly([[-106, -18], [-156, -20], [-160, 18], [-104, 20]], steel("#30264c"));
+    glowLine([[-128, -150], [-148, -92], [-138, -20]], "#ff8a3d", 0.5);
+  }
+  // neck pistons, head: an angular helmet, the visor slit, antenna fins
+  for (const sd of [-1, 1]) poly([[sd * 4, -186], [sd * 14, -186], [sd * 12, -202], [sd * 6, -202]], steel("#151022"));
+  poly([[-38, -198], [34, -198], [42, -232], [26, -256], [-28, -256], [-44, -230]], steel("#3d3364"), "#6a5a9a");
+  poly([[22, -252], [30, -280], [36, -248]], steel("#2a2146")); poly([[-24, -252], [-34, -284], [-38, -246]], steel("#2a2146"));
+  lamp(30, -280, "#ff2e63", Math.sin(time * 4) > 0, 24); lamp(-34, -284, "#ff2e63", Math.sin(time * 4 + 1.5) > 0, 24);
+  glowLine([[26, -256], [42, -232], [34, -198]], Z.rim, 0.6, 2.2);
+  const [ex, ey] = P(-10, -226), e = clamp(b.eye, 0, 1), L = b.las;
+  const charging = L && L.t < L.T ? clamp(L.t / L.T, 0, 1) : 0, fire = !!(L && L.t >= L.T), ch = Math.max(charging, fire ? 1 : 0);
+  glowAt("#ff2e63", ex, ey, (70 + 180 * ch) * lw, (34 + 80 * ch) * lw, 0.6 + 0.4 * e);
+  poly([[-36, -231], [20, -231], [18, -221], [-34, -221]], fire || charging > 0.6 ? "#ffe1e8" : "#ff2e63", "#06040c");
+  if (b.st === "down") { ctx.globalAlpha = Math.min(1, b.fall); poly([[-36, -231], [20, -231], [18, -221], [-34, -221]], "#1a1020"); ctx.globalAlpha = 1; }
+  if (fire) { // the beam leaves the eye towards the roofs on the left
+    ctx.globalCompositeOperation = "lighter"; ctx.strokeStyle = rgba("#ff6f91", 0.55); ctx.lineWidth = 9 * lw;
+    const ty = toScreenY((L.top || b.ground) - (L.kind === "high" ? 39 : 8));
+    ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(W * 0.62, ty); ctx.stroke(); ctx.globalCompositeOperation = "source-over";
+  }
+  if (dmg > 0.45) for (let i = 0; i < 2; i++) { const [sx, sy] = P(i ? 96 : -104, -170); if (Math.random() < 0.25) { const [wx, wy] = scrToWorld(sx, sy); FX.smoke(wx, wy, 1, "#3a3448", 50, 60); } glowAt("#ff6a2a", sx, sy, 60 * lw, 60 * lw, 0.4 + 0.3 * Math.sin(time * 7 + i)); }
+  if (hurt) { ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 0.35; path(TORSO); ctx.fillStyle = "#ffffff"; ctx.fill(); path([[-38, -198], [34, -198], [42, -232], [26, -256], [-28, -256], [-44, -230]]); ctx.fill(); ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over"; }
+  ctx.restore();
+}
+
 // ---------- Waffen gegen Bosse: wo sie hinzielen (aim), was ein Schuss trifft (shot), was eine Granate trifft (blast) ----------
 // Hubschrauber: der Rumpf nimmt Schaden. Krabbler: Panzer hält, nur der offene Kern; Minen kann man wegschießen.
 // Schwarm-Träger: der Rumpf ist geschirmt, seine Drohnen nicht. KI: das Auge ist geschirmt, die Generatoren nicht.
@@ -4828,6 +5364,7 @@ function drawSky(time, pulse) {
       fg.addColorStop(0, rgba(B.fog, 0)); fg.addColorStop(1, rgba(B.fog, 0.18 + pulse * 0.05));
       ctx.fillStyle = fg; ctx.fillRect(0, H * 0.55, W, H * 0.45);
       Ambience.traffic(time, 1, 0.5);
+      if (run.boss && run.boss.type === "koloss" && run.boss.st !== "gone") drawGiantBack(run.boss, time); // the giant stands behind the near skyline
     }
   }
 }
@@ -5489,6 +6026,30 @@ function drawHall(k, time, pulse, P) {
   ctx.fillStyle = P.rim; ctx.globalAlpha = 0.7 + pulse * 0.3; ctx.fillRect(k.x, k.floor - 2, k.w, 2); ctx.globalAlpha = 1; // Bodenkante wie draußen auf dem Dach
   if (k.kind === "office") drawOfficeGlass(k, time);
 }
+// ---- was der Koloss kaputt geschlagen hat: Krater voller Trümmer und Glut, ausgebrochene Hauswände ----
+function drawDamage(b, time) {
+  const P = palAt(b.x);
+  if (b.rubble) {
+    let k = 0; const s = (b.n >>> 0) + 17, rnd = () => hash01(s + k++ * 131);
+    for (let i = 0; i < 7; i++) {
+      const x = b.x + rnd() * b.w, w = 18 + rnd() * 34, h = 8 + rnd() * 18, a = (rnd() - 0.5) * 0.8;
+      ctx.save(); ctx.translate(x, b.top + 2); ctx.rotate(a); ctx.fillStyle = i % 2 ? P.body : P.deep; ctx.fillRect(-w / 2, -h, w, h);
+      ctx.strokeStyle = rgba(P.rim, 0.35); ctx.lineWidth = 1; ctx.strokeRect(-w / 2, -h, w, h); ctx.restore();
+    }
+    ctx.strokeStyle = "#8a7a9a"; ctx.lineWidth = 1.5; for (let i = 0; i < 5; i++) { const x = b.x + 10 + rnd() * (b.w - 20); line(x, b.top, x + (rnd() - 0.5) * 30, b.top - 14 - rnd() * 22); } // bent rebar
+    const fl = 0.55 + 0.25 * Math.sin(time * 9 + b.burn * 10) + 0.15 * Math.sin(time * 23 + b.burn * 3);
+    glowAt("#ff6a2a", b.x + b.w * 0.5, b.top - 10, b.w * 1.2, 70, fl);
+    if (Math.random() < 0.1) FX.smoke(b.x + b.w * (0.3 + Math.random() * 0.4), b.top - 10, 1, "#3a3448", 30, 70);
+    if (Math.random() < 0.15) FX.sparks(b.x + b.w * Math.random(), b.top - 4, 0, -1, 1);
+  }
+  for (const [x, dir] of [[b.cutL ? b.x : null, 1], [b.cutR ? b.x + b.w : null, -1]]) {
+    if (x == null) continue;
+    ctx.fillStyle = "#07050c"; ctx.beginPath(); ctx.moveTo(x, b.top - 2);
+    for (let i = 0; i <= 8; i++) ctx.lineTo(x + dir * ((i % 2 ? 14 : 4) + hash01((b.n >>> 0) + i * 7 + (dir > 0 ? 3 : 9)) * 10), b.top + i * 22);
+    ctx.lineTo(x, b.top + 180); ctx.closePath(); ctx.fill();
+    glowAt("#ff6a2a", x + dir * 6, b.top + 6, 40, 30, 0.5 + 0.3 * Math.sin(time * 11 + x));
+  }
+}
 // ---- Rutsch-Hindernisse: unter allen leuchtet die Rutschbahn auf dem Dach, damit man sie früh liest ----
 function slideLane(x0, x1, fl, pulse) {
   glowAt("#4ff3ff", (x0 + x1) / 2, fl - 7, x1 - x0 + 70, 26, 0.24 + 0.12 * pulse);
@@ -5705,9 +6266,11 @@ function drawWorld(time, pulse, L, R, T, B) {
     ctx.drawImage(Art.glow(z.rim), b.x - 16, b.top - 18, b.w + 32, 36);
     ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
     if (b.prop && b.w >= 300) drawRoofProp(b, time, pulse);
+    if (b.rubble || b.cutL || b.cutR) drawDamage(b, time);
   }
   for (const b of world.balls) if (b.cx + 330 > L && b.cx - 60 < R) drawBallRig(b, time); // demolition cranes stand on their roofs
   drawArenaGates(time, L, R, T, B);                                                            // the gates of the boss arenas
+  drawFinish(time, L, R, T, B);                                                                // the finish of a level
   // ---- towers over arcades, then the back yards of the light wells ----
   for (const k of world.blocks) { if (k.x > R || k.x + k.w < L || k.top > B || k.floor < T) continue; drawBlock(k, time, pulse, T, B); }
   for (const b of world.buildings) if (b.well != null && b.x + 40 > L && b.well - 40 < R) drawWell(b, time, pulse);
@@ -7698,7 +8261,8 @@ const ui = {
   chain: $("chain"), hearts: $("hearts"), hint: $("hint"), zone: $("zone"), touch: $("touchHints"),
   dashbar: $("dashbar"), dashfill: $("dashfill"), fire: $("btnFire"), ammo: $("ammo"),
   bossbar: $("bossbar"), bossName: $("bossName"), bossHp: $("bossHp"), bossLeft: $("bossLeft").firstElementChild,
-  start: $("screenStart"), pause: $("screenPause"), over: $("screenOver"), skills: $("screenSkills"),
+  start: $("screenStart"), pause: $("screenPause"), over: $("screenOver"), skills: $("screenSkills"), levels: $("screenLevels"), win: $("screenWin"),
+  lvline: $("lvline"), lvTag: $("lvTag"), lvFill: $("lvFill"),
 };
 const ghostLine = document.createElement("div");
 ghostLine.style.cssText = "font-weight:700;font-size:var(--step--1);letter-spacing:.12em;color:#7df9ff;min-height:1.2em";
@@ -7955,23 +8519,115 @@ function showHint(key, dur = 3.2, force = false) {
 // ---------- screens ----------
 function showScreen(name) {
   ui.start.hidden = name !== "menu"; ui.pause.hidden = name !== "pause"; ui.over.hidden = name !== "over"; ui.skills.hidden = name !== "skills";
-  ui.hud.hidden = name === "menu" || name === "skills";
+  ui.levels.hidden = name !== "levels"; ui.win.hidden = name !== "win";
+  ui.hud.hidden = name === "menu" || name === "skills" || name === "levels" || name === "win";
   ui.fire.hidden = !((name === "play" || name === "pause") && run.wp); hudCache.fb = !ui.fire.hidden;
   if (name !== "play") { $("toast").classList.add("fade"); toastT = 0; }
 }
 function newWorld() {
-  worldReset(SEED); resetRun(); FX.clear(); after.length = 0;
+  worldReset(LV ? LV.seed : SEED); resetRun(); FX.clear(); after.length = 0;
   worldGenerate(4000); scarfReset(player.x, player.y); cameraUpdate(0, true);
   rec = []; recT = 0; zoneShownIdx = 0; lastDist = 0;
 }
-function toMenu() {
-  state = "menu"; botOn = true; Sound.setQuiet(true); newWorld(); showScreen("menu"); Sound.setIntensity(0); Sound.fx.grind(false);
-  $("seedLabel").textContent = SEED_LABEL;
+function menuLabels() {
+  const n = nextLevel();
+  $("btnPlayTxt").textContent = lvProg.done[LEVEL_N] ? "LEVELS" : "LEVEL " + n;
+  $("lvLabel").textContent = Math.min(lvProg.open, LEVEL_N) + " / " + LEVEL_N;
+  $("starLabel").textContent = totalStars() + " / " + LEVEL_N * 3;
   $("bestLabel").textContent = bestToday.dist ? fmt(bestToday.dist) + " m" : "noch keine";
+}
+function toMenu() {
+  LV = null; ghost = store.get(ghostKey, null);
+  state = "menu"; botOn = true; Sound.setQuiet(true); newWorld(); showScreen("menu"); Sound.setIntensity(0); Sound.fx.grind(false);
+  menuLabels();
   ui.touch.hidden = true;
-  setTimeout(() => { try { $("btnStart").focus({ preventScroll: true }); } catch (e) {} }, 50);
+  setTimeout(() => { try { $("btnPlay").focus({ preventScroll: true }); } catch (e) {} }, 50);
+}
+// ---------- levels: progress, the level map, start, finish ----------
+const lvProg = (() => { const d = store.get("levels", null) || {}; return { open: clamp(d.open | 0, 1, LEVEL_N), done: d.done || {} }; })();
+const saveLv = () => store.set("levels", lvProg);
+const lvStars = (n) => (lvProg.done[n] ? lvProg.done[n].stars | 0 : 0);
+const totalStars = () => { let s = 0; for (let n = 1; n <= LEVEL_N; n++) s += lvStars(n); return s; };
+function nextLevel() { for (let n = 1; n <= lvProg.open; n++) if (!lvProg.done[n]) return n; return Math.min(lvProg.open, LEVEL_N); }
+const fmtT = (t) => t.toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + " s";
+function renderLevels() {
+  $("lvStarNum").textContent = totalStars();
+  const box = $("lvChapters"); box.textContent = "";
+  const nx = nextLevel();
+  for (let c = 0; c < Math.ceil(LEVEL_N / 10); c++) {
+    box.appendChild(mk("h3", "lv-ch", "KAPITEL " + (c + 1) + " · " + CHAPTERS[c]));
+    const g = mk("div", "lv-grid");
+    for (let n = c * 10 + 1; n <= Math.min(LEVEL_N, c * 10 + 10); n++) {
+      const L = LEVELS[n - 1], open = n <= lvProg.open, st = lvStars(n), done = lvProg.done[n];
+      const b = mk("button", "lv-tile" + (L.giant ? " giant" : "") + (n === nx && open ? " next" : ""));
+      b.type = "button"; b.disabled = !open; b.style.setProperty("--zc", ZONES[L.zone].rim);
+      b.append(mk("b", "", String(n)), mk("span", "nm", open ? L.name : "gesperrt"));
+      const s = mk("span", "st"); for (let i = 0; i < 3; i++) s.appendChild(mk("span", i < st ? "on" : "", "★")); b.appendChild(s);
+      if (L.giant || L.boss) b.appendChild(mk("span", "tag", L.giant ? "RIESE" : "BOSS"));
+      b.setAttribute("aria-label", "Level " + n + (open ? ": " + L.name + ", " + st + " von 3 Sternen" + (done && done.t ? ", Bestzeit " + fmtT(done.t) : "") : ", gesperrt"));
+      b.title = open ? L.teach + (done && done.t ? " · Bestzeit " + fmtT(done.t) : "") : "Schaff erst Level " + (n - 1);
+      b.addEventListener("click", () => { if (open) startLevel(n); });
+      g.appendChild(b);
+    }
+    box.appendChild(g);
+  }
+}
+function openLevels() {
+  renderLevels(); showScreen("levels");
+  setTimeout(() => { try { (document.querySelector(".lv-tile.next") || $("btnLevelsBack")).focus({ preventScroll: true }); } catch (e) {} }, 50);
+}
+function startLevel(n) {
+  if (n < 1 || n > Math.min(lvProg.open, LEVEL_N)) return;
+  try { if (window.__immersive) window.__immersive(); } catch (e) {}
+  LV = makeLevel(n); ghost = store.get("lvghost_" + n, null);
+  beginPlay();
+  const L = LV;
+  setTimeout(() => { if (state === "play" && LV === L) banner("LEVEL " + n + " · " + CHAPTERS[Math.floor((n - 1) / 10)], L.name.toUpperCase(), !!(L.boss || L.giant), 2.4); }, 150);
+}
+// crossed the finish line: stars, rewards, the best time and its ghost; the win screen follows a moment later
+function levelWon() {
+  const n = LV.n, hits = run.hits, bossOk = !(LV.boss || LV.giant) || run.bosses > 0;
+  const stars = !bossOk ? 1 : hits === 0 ? 3 : hits <= 2 ? 2 : 1, t = run.t, prev = lvProg.done[n];
+  run.won = true; run.wonT = 0; run.invT = 99; run.stars = stars; run.bossMissed = !bossOk;
+  let sp = 0; const why = [];
+  if (!prev) { sp += LV.giant ? 3 : LV.boss ? 2 : 1; why.push("Level " + n + " geschafft"); }
+  if (stars === 3 && (!prev || (prev.stars | 0) < 3)) { sp += 1; why.push("drei Sterne"); }
+  run.newBestT = !prev || !prev.t || t < prev.t; run.bestT = run.newBestT ? t : prev.t;
+  lvProg.done[n] = { stars: Math.max(stars, prev ? prev.stars | 0 : 0), t: run.bestT };
+  if (n >= lvProg.open && n < LEVEL_N) lvProg.open = n + 1;
+  saveLv();
+  if (run.newBestT && state === "play" && !botOn) store.set("lvghost_" + n, { d: rec, t });
+  if (sp && state === "play") grantSP(sp, why.join(" · "));
+  const p = player, f = world.finish;
+  FX.flash("#ffffff", 0.35); FX.slowmo(0.45, 0.7); FX.ring(p.x, p.y, "#ffd23f", 420); FX.shake(8);
+  for (const c of ["#ffd23f", "#4ff3ff", "#ff2e63"]) FX.burst(f ? f.x : p.x, (f ? f.top : p.y) - 150, 26, c, 520);
+  if (state === "play") banner("LEVEL " + n, "GESCHAFFT", false, 2);
+  Sound.fx.perfect(); Sound.fx.zone(); haptic([20, 40, 60]);
+}
+function levelComplete() {
+  keepAwake(false);
+  state = "won"; overAt = performance.now(); showScreen("win"); Sound.setIntensity(0); input.clear();
+  ui.hint.classList.add("fade"); hintT = 0; ui.touch.hidden = true; ui.zone.classList.add("fade");
+  const n = LV.n, last = n >= LEVEL_N;
+  $("winTitle").textContent = last ? "ALLE LEVEL GESCHAFFT" : "LEVEL " + n + " GESCHAFFT";
+  const ws = $("winStars"); ws.textContent = "";
+  for (let i = 0; i < 3; i++) { const s = mk("span", i < run.stars ? "on" : "", "★"); ws.appendChild(s); setTimeout(() => s.classList.add("in"), 150 + i * 220); }
+  ws.setAttribute("aria-label", run.stars + " von 3 Sternen");
+  $("winReason").textContent = run.bossMissed ? "Der Boss ist entkommen. Besiege ihn für mehr Sterne." : run.stars === 3 ? "Ohne einen einzigen Treffer. Sauber!" : run.stars === 2 ? "Fast perfekt. Ohne Treffer gibt es den dritten Stern." : "Geschafft! Mit höchstens zwei Treffern gibt es zwei Sterne.";
+  $("wTime").textContent = fmtT(run.t); $("wScore").textContent = fmt(run.score); $("wHits").textContent = run.hits;
+  $("wCoins").textContent = run.coins; $("wKills").textContent = run.kills; $("wPerfect").textContent = run.perfect;
+  const sg = $("winSp"); sg.textContent = ""; sg.hidden = !(run.spGain > 0);
+  if (run.spGain > 0) sg.append(mk("b", "", "+" + run.spGain + " SKILLPUNKT" + (run.spGain > 1 ? "E" : "")), document.createTextNode(" · " + run.spWhy.join(" · ")));
+  $("winGhost").textContent = run.newBestT ? "Neue Bestzeit: " + fmtT(run.t) + ". Dein Geist läuft ab jetzt in diesem Level mit." : "Bestzeit: " + fmtT(run.bestT) + ". Dein Geist läuft bei jedem Versuch mit.";
+  $("btnNext").firstElementChild.textContent = last ? "LEVELS" : "LEVEL " + (n + 1);
+  saveProg();
+  setTimeout(() => { try { $("btnNext").focus({ preventScroll: true }); } catch (e) {} }, 60);
 }
 function startRun() {
+  LV = null; ghost = store.get(ghostKey, null);
+  beginPlay();
+}
+function beginPlay() {
   Sound.unlock(); Sound.fx.ui(); keepAwake(true);
   state = "play"; botOn = !!window.__ntBot; Sound.setQuiet(false); input.clear(); newWorld(); showScreen("play");
   hintShown = {}; if (document.activeElement) document.activeElement.blur();
@@ -7992,12 +8648,21 @@ function gameOver() {
   $("overReason").textContent = wall ? "Zu langsam. Perfekte Swings, Boosts und Dashes halten dich vor der Dunkelheit."
     : hit ? "Alle Leben weg. Fallen überspringen, Gegner zerlegen – alle 500 m gibt es ein Leben zurück."
     : "Ab in die Straßenschlucht. Doppelsprung, Dash oder ein Haken hätten gereicht.";
-  const d = Math.floor(run.dist), rec_ = d > bestToday.dist;
+  const d = Math.floor(run.dist), rec_ = !LV && d > bestToday.dist;
   $("newRecord").hidden = !rec_;
+  $("btnLevelsO").hidden = !LV;
+  if (LV) { // in a level: how far you got, and that the level starts again from the top
+    $("overTitle").textContent = "LEVEL " + LV.n + ": " + $("overTitle").textContent;
+    const end = world.finish ? world.finish.x : LV.boss || LV.giant ? 0 : LV.endX;
+    if (end > 0) $("overReason").textContent += " Geschafft: " + Math.round(clamp(player.x / end, 0, 1) * 100) + " % der Strecke.";
+  }
   $("stDist").textContent = fmt(d) + " m"; $("stScore").textContent = fmt(run.score);
   $("stTop").textContent = fmt(run.topSpeed / PX_PER_M * 3.6) + " km/h";
   $("stPerfect").textContent = run.perfect; $("stDrones").textContent = run.kills; $("stChain").textContent = run.maxChain;
-  if (rec_) {
+  if (LV) {
+    const bt = lvProg.done[LV.n] && lvProg.done[LV.n].t;
+    $("ghostNote").textContent = bt ? "Deine Bestzeit in diesem Level: " + fmtT(bt) + ". Dein Geist läuft mit." : "Schaffst du das Level, läuft dein bester Lauf ab dann als Geist mit.";
+  } else if (rec_) {
     bestToday = { dist: d, score: Math.round(run.score) }; store.set(bestKey, bestToday);
     ghost = { d: rec }; store.set(ghostKey, ghost);
     $("ghostNote").textContent = "Neuer Geist gespeichert. Beim nächsten Versuch läuft dein " + fmt(d) + "-m-Lauf neben dir mit. Schlag ihn.";
@@ -8007,7 +8672,7 @@ function gameOver() {
   const sg = $("spGain"); sg.hidden = false; sg.textContent = "";
   if (run.spGain > 0) { sg.append(mk("b", "", "+" + run.spGain + " SKILLPUNKT" + (run.spGain > 1 ? "E" : "")), document.createTextNode(" · " + run.spWhy.join(" · "))); }
   else sg.textContent = "Noch " + (COINS_PER_SP - prog.bank) + " Münzen bis zum nächsten Skillpunkt.";
-  crewSubmit(d, run.score);
+  if (!LV) crewSubmit(d, run.score);
   setTimeout(() => { try { $("btnAgain").focus({ preventScroll: true }); } catch (e) {} }, 60);
 }
 
@@ -8123,6 +8788,7 @@ function botThink() {
   const ready = dashReady(p);
   let swing = false;
   input.jumpSrc.delete("bot");
+  if (run.won) { input.swingSrc.delete("bot"); return; }                    // over the finish line: just run out
   if (run.wp && run.ammo >= 1 && run.wpCD <= 0 && p.dashT <= 0 && (p.state === "run" || p.state === "air")) { // the weapon aims by itself: fire at what is in range
     const [ox, oy] = muzzle(p);
     if (aimTarget(ox, oy, p.face || 1, Math.min(run.wp.def.range, 640))) input.firePressed = true;
@@ -8202,9 +8868,10 @@ function step(dt) {
   // the blackout
   // while you hang on the rope or climb a light well the darkness slows down, so a long swing or a climb stays possible
   const climbing = player.state === "wall" || player.state === "mantle" || player.kickChain > 0;    // a light well costs time too: the darkness slows down
-  const ws = baseSpeedAt(player.x) * (0.9 + 0.13 * Math.min(1, run.t / 150)) * (player.state === "swing" || climbing ? 0.55 : 1);
-  run.wallX = Math.max(run.wallX + ws * dt, player.x - 1500);
+  const ws = baseSpeedAt(player.x) * (0.9 + 0.13 * Math.min(1, run.t / 150)) * (player.state === "swing" || climbing ? 0.55 : 1) * (LV ? LV.dark : 1);
+  run.wallX = run.won ? player.x - 3000 : Math.max(run.wallX + ws * dt, player.x - 1500);
   if (state === "play" && player.x - run.wallX < 0) die("wall");
+  if (LV && world.finish && !run.won && player.x >= world.finish.x) levelWon();   // over the finish line
   // ghost recording
   if (state === "play") {
     recT += dt;
@@ -8259,17 +8926,31 @@ function hudUpdate(rdt, gp) {
   let gtxt = "";
   if (ghost && ghost.d && state === "play") {
     if (gp) { const dm = Math.round((player.x - gp.x) / PX_PER_M); gtxt = "GEIST " + (dm >= 0 ? "+" : "−") + Math.abs(dm) + " m"; }
-    else if (run.dist < bestToday.dist) gtxt = ""; else gtxt = "GEIST GESCHLAGEN";
+    else if (LV || run.dist < bestToday.dist) gtxt = ""; else gtxt = "GEIST GESCHLAGEN";
   }
   setText(ghostLine, "ghost", gtxt);
+  { // in a level: its number and how much of the way to the finish is done (a giant level: how much of the giant is left)
+    const show = !!LV && (state === "play" || state === "pause");
+    if (hudCache.lv !== show) { hudCache.lv = show; ui.lvline.hidden = !show; }
+    if (show) {
+      setText(ui.lvTag, "lvt", "LEVEL " + LV.n);
+      let f;
+      if (world.finish) f = player.x / world.finish.x;
+      else if (LV.giant) f = 0.12 + 0.76 * (run.boss && run.boss.hpMax ? 1 - run.boss.hp / run.boss.hpMax : 0);
+      else if (LV.boss) { const a = world.arenas[0]; f = a ? 0.3 + 0.6 * clamp((player.x - a.x0) / Math.max(1, a.x1 - a.x0), 0, 1) : (player.x / PX_PER_M) / LV.bossAt * 0.3; }
+      else f = player.x / LV.endX;
+      const fq = Math.round(clamp(f, 0, 1) * 100);
+      if (hudCache.lf !== fq) { hudCache.lf = fq; ui.lvFill.style.width = fq + "%"; }
+    }
+  }
   { // the boss bar: its name, the hits it can still take, and how much of its arena is left
     const b = run.boss, show = (state === "play" || state === "pause") && bossOn();
     if (hudCache.bb !== show) { hudCache.bb = show; ui.bossbar.hidden = !show; document.body.classList.toggle("boss", show); }
     if (show) {
-      setText(ui.bossName, "bn", BOSS_NAME[b.type] + ["", "", " II", " III", " IV"][Math.min(4, b.lvl)]);
+      setText(ui.bossName, "bn", b.type === "koloss" ? ["", "KOLOSS", "KOLOSS MK II", "OMEGA"][b.lvl] || "KOLOSS" : BOSS_NAME[b.type] + ["", "", " II", " III", " IV"][Math.min(4, b.lvl)]);
       const hk = b.hp + "/" + b.hpMax;
       if (hudCache.bh !== hk) { hudCache.bh = hk; let h = ""; for (let i = 0; i < b.hpMax; i++) h += i < b.hp ? "<i></i>" : '<i class="off"></i>'; ui.bossHp.innerHTML = h; }
-      const a = b.arena, left = Math.round(clamp(1 - (player.x - a.x0) / Math.max(1, a.x1 - 250 - a.x0), 0, 1) * 80) / 80;
+      const a = b.arena, left = b.type === "koloss" ? 0 : Math.round(clamp(1 - (player.x - a.x0) / Math.max(1, a.x1 - 250 - a.x0), 0, 1) * 80) / 80;
       if (hudCache.bl !== left) { hudCache.bl = left; ui.bossLeft.style.transform = "scaleX(" + left + ")"; }
     }
   }
@@ -8331,6 +9012,7 @@ function frame(now) {
     if (n >= 10) acc = 0;
     if (state === "menu" && run.dead && run.deadT > 0.8) newWorld();
     if (state === "play" && run.dead && run.deadT > 1.5) gameOver();
+    if (state === "play" && run.won && !run.dead && (run.wonT += rdt) > 1.7) levelComplete();
     if (state === "play" && !run.dead) Sound.setIntensity(run.od > 0 ? 3 : mult() >= 3 || bossOn() ? 2 : 1);
   }
   // draw the runner between the last two physics steps: smooth on 60/120/144 Hz screens
@@ -8355,22 +9037,38 @@ function setFx(on) {
   $("btnFx").setAttribute("aria-pressed", String(on)); $("btnFx").textContent = on ? "Blitze an" : "Blitze aus";
 }
 onAnyInput = () => Sound.unlock();
+const restart = () => (LV ? startLevel(LV.n) : startRun());
+function levelsBack() { Sound.fx.ui(); if (state === "menu") { showScreen("menu"); menuLabels(); } else toMenu(); }
 onGameKey = (code, e) => {
   if (code === "KeyM") { setSound(!settings.sound); return; }
   if (!ui.skills.hidden) { if (code === "Escape") { showScreen("menu"); Sound.fx.ui(); } return; }
-  if (state === "menu" && (code === "Enter" || code === "Space")) { e.preventDefault(); startRun(); }
+  if (!ui.levels.hidden) { if (code === "Escape") levelsBack(); return; }
+  if (state === "menu" && (code === "Enter" || code === "Space")) { e.preventDefault(); startLevel(nextLevel()); }
   else if (state === "play" && (code === "Escape" || code === "KeyP")) pauseGame();
   else if (state === "pause" && (code === "Escape" || code === "KeyP" || code === "Enter")) { e.preventDefault(); resumeGame(); }
-  else if (state === "over" && (code === "Enter" || code === "Space" || code === "KeyR") && performance.now() - overAt > 600) { e.preventDefault(); startRun(); }
+  else if (state === "over" && (code === "Enter" || code === "Space" || code === "KeyR") && performance.now() - overAt > 600) { e.preventDefault(); restart(); }
+  else if (state === "won" && performance.now() - overAt > 600) {
+    if (code === "Enter" || code === "Space") { e.preventDefault(); $("btnNext").click(); }
+    else if (code === "KeyR") { e.preventDefault(); restart(); }
+    else if (code === "Escape") toMenu();
+  }
 };
 $("btnStart").addEventListener("click", startRun);
+$("btnPlay").addEventListener("click", () => (lvProg.done[LEVEL_N] ? openLevels() : startLevel(nextLevel())));
+$("btnLevels").addEventListener("click", () => { Sound.unlock(); Sound.fx.ui(); openLevels(); });
+$("btnLevelsBack").addEventListener("click", levelsBack);
+$("btnNext").addEventListener("click", () => { if (LV && LV.n < LEVEL_N) startLevel(LV.n + 1); else { toMenu(); openLevels(); } });
+$("btnRetryW").addEventListener("click", restart);
+$("btnLevelsW").addEventListener("click", () => { Sound.fx.ui(); toMenu(); openLevels(); });
+$("btnMenuW").addEventListener("click", () => { Sound.fx.ui(); toMenu(); });
+$("btnLevelsO").addEventListener("click", () => { Sound.fx.ui(); toMenu(); openLevels(); });
 $("btnSkills").addEventListener("click", () => { Sound.unlock(); Sound.fx.ui(); openSkills(); });
 $("btnSkillsBack").addEventListener("click", () => { Sound.fx.ui(); showScreen("menu"); setTimeout(() => { try { $("btnStart").focus({ preventScroll: true }); } catch (e) {} }, 50); });
 $("btnJoker").addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); onAnyInput(); if (state === "play") input.jokerPressed = true; });
 $("btnFire").addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); onAnyInput(); if (state === "play") input.firePressed = true; });
 $("btnFire").addEventListener("contextmenu", (e) => e.preventDefault());
-$("btnAgain").addEventListener("click", startRun);
-$("btnRestartP").addEventListener("click", startRun);
+$("btnAgain").addEventListener("click", restart);
+$("btnRestartP").addEventListener("click", restart);
 $("btnResume").addEventListener("click", resumeGame);
 $("btnMenu").addEventListener("click", () => { Sound.fx.ui(); toMenu(); });
 $("btnSkillsO").addEventListener("click", () => { Sound.fx.ui(); toMenu(); openSkills(); });
@@ -8446,7 +9144,8 @@ if (window.claude?.hot?.ready) window.claude.hot.ready(() => boot()); else boot(
     const go = !document.fullscreenElement && el.requestFullscreen ? el.requestFullscreen({ navigationUI: "hide" }) : Promise.resolve();
     Promise.resolve(go).then(() => (screen.orientation && screen.orientation.lock ? screen.orientation.lock("landscape") : null)).catch(() => {});
   }
-  ["btnStart", "btnAgain", "btnRestartP", "btnResume"].forEach((id) => { const b = document.getElementById(id); if (b) b.addEventListener("click", immersive); });
+  ["btnStart", "btnPlay", "btnAgain", "btnRestartP", "btnResume", "btnNext", "btnRetryW"].forEach((id) => { const b = document.getElementById(id); if (b) b.addEventListener("click", immersive); });
+  window.__immersive = immersive;                                                // the level tiles call it on their own tap
   if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").then((r) => r.update().catch(() => {})).catch(() => {}));
 })();
 </script>

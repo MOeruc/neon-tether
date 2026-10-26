@@ -31,6 +31,23 @@ Läuft als installierbare Web-App (PWA): Vollbild, eigenes Icon, funktioniert of
 - **Overdrive** füllt sich nur durch sauberes Spielen (Perfekt-Absprünge, Zerlegen, Loopings, Ringe). Ein Treffer leert die Leiste. Im Overdrive bist du 5 Sekunden schneller und unverwundbar.
 - Hinter dir frisst der **Blackout** die Stadt: Wer zu langsam wird, wird eingeholt.
 
+## Level und Endlos
+
+Im Startmenü gibt es zwei Arten zu spielen:
+
+- **Level** (Knopf „LEVEL n“ bzw. „LEVELS“ für die Übersicht): 30 feste Strecken in drei Kapiteln (Neon-Viertel, Hafen-Distrikt, Der Kern). Jedes Level bringt etwas Neues bei, am Ende steht das Ziel-Tor. Sterne: ★ Ziel erreicht, ★★ höchstens zwei Treffer, ★★★ ohne Treffer. In Boss-Leveln (5, 15, 18, 25) gibt es zwei und drei Sterne nur, wenn der Boss besiegt ist. Das erste Mal geschafft gibt Skillpunkte (1, Boss-Level 2, Riesen-Level 3), die ersten drei Sterne einen zusätzlichen. Deine Bestzeit läuft als Geist mit.
+- **Endlos**: die Tagesstrecke wie bisher, mit Bestenwert für heute und den Bossen alle 1.200 m.
+
+## Der Koloss (Level 10, 20 und 30)
+
+Alle zehn Level steigt rechts hinter der Stadt ein riesiger Roboter auf und versucht dich zu erwischen, während du weiterrennst. Er zerschlägt dabei die Dächer, und je mehr er abbekommt, desto breiter werden die Lücken. Das Ziel kommt erst, wenn er gefallen ist.
+
+- **Faustschlag:** Ein roter Ring auf einem Dach vor dir zeigt, wo seine Faust einschlägt. Das Dach bricht ein, ein Krater bleibt. Danach steckt die Faust kurz im Krater fest: ihr leuchtender Kern ist die Schwachstelle. Dash, Rutschen, Slam oder von oben draufspringen ist ein Treffer. Wer aufrecht dagegenläuft, prallt am Panzer ab. Aus dem flachen Krater kletterst du von selbst wieder heraus.
+- **Augenlaser:** Eine gestrichelte rote Linie folgt allen Dachkanten. Pfeile nach unten heißt Kopfhöhe: rutschen (das Rutschen hält, solange der Strahl brennt). Pfeile nach oben heißt am Boden: springen. Danach öffnet sich sein Brust-Reaktor; mit einer Waffe kannst du hineinschießen.
+- **Raketen:** Aus den Schulter-Kapseln kommen Raketen, rote Kreise zeigen die Einschläge. Sei in der Luft, wenn sie einschlagen, oder dash in eine Rakete hinein: Dann fliegt sie zurück in seine Brust.
+- **Stampfen** (Mk II und Omega): Eine Stoßwelle rollt übers Dach auf dich zu. Drüberspringen.
+- **Koloss** braucht 4 Treffer, **Koloss Mk II** 5 (schneller, stampft), **Omega** 6 (am schnellsten). Wird er wütend (ein Drittel Leben übrig), greift er noch schneller an.
+
 ## Figuren
 
 Vier Figuren in Echtzeit-3D, jede mit eigenem Bewegungsstil und eigenem Doppelsprung und Dash: **Kage-X** (Cyber-Ninja: Rauchbomben-Korkenzieher mit Schattendoppelgänger, Katana-Blitzschnitt), **Vektor** (Daten-Avatar: Absprung von einer Hologramm-Plattform, Dash als Pixel-Datenstrom), **Titan** (Exo-Anzug: Raketenschub aus Rucksack und Stiefeln, aufrechter Düsen-Dash) und **Aero** (City-Runner: Butterfly-Twist mit Lichtsohlen, Superman-Hechtsprung durch den Windkanal). Auswahl im Startmenü unter „Charakter“.
@@ -48,7 +65,7 @@ Neben Dächern, Seilen und Grind-Stellen gibt es eigene Abschnitte: **Lichtschä
 
 ## Bosse
 
-Ab 1.100 m kommt alle 1.200 m ein Boss, jedes Mal ein anderer. Jeder bekommt seine eigene Arena: ein Tor mit seinem Namen in Neon, dahinter saubere Dächer ohne normale Gegner. Am Tor beginnt der Kampf. Oben erscheint seine Lebensleiste und darunter eine gelbe Linie, die zeigt, wie viel von der Arena noch übrig ist. Besiegst du ihn vorher, gibt es den großen Bonus; hältst du bis zum Ende durch, bist du ENTKOMMEN. Welcher Boss zuerst kommt, wechselt jeden Tag. Nach allen vieren kommen sie stärker wieder (mehr Treffer, schnellere Angriffe).
+Im Endlos-Modus kommt ab 1.100 m alle 1.200 m ein Boss, jedes Mal ein anderer (in den Leveln haben sie ihre eigenen Level). Jeder bekommt seine eigene Arena: ein Tor mit seinem Namen in Neon, dahinter saubere Dächer ohne normale Gegner. Am Tor beginnt der Kampf. Oben erscheint seine Lebensleiste und darunter eine gelbe Linie, die zeigt, wie viel von der Arena noch übrig ist. Besiegst du ihn vorher, gibt es den großen Bonus; hältst du bis zum Ende durch, bist du ENTKOMMEN. Welcher Boss zuerst kommt, wechselt jeden Tag. Nach allen vieren kommen sie stärker wieder (mehr Treffer, schnellere Angriffe).
 
 - **Kampfhubschrauber:** Rote Kreise auf den Dächern zeigen, wo seine Raketen einschlagen: drüberspringen oder durchdashen. Nach jeder Salve kommt er tiefer (gelber Ring): hochspringen und mit Dash, Slam oder von oben treffen.
 - **Krabbler:** ein Spinnen-Panzer, der auf den Dächern vor dir herläuft. Er legt Minen (drüberspringen oder mit dem Dash entschärfen) und feuert einen Bodenlaser übers Dach (springen). Danach überhitzt er, bleibt stehen und der Kern auf seinem Rücken liegt frei: draufspringen, Slam oder Dash. Sonst prallst du an seinem Panzer ab.
