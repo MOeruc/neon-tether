@@ -203,6 +203,31 @@ html:not(.touch) .keys .kt, html.touch .keys .kd { display: none; } /* phones se
 #touchHints div + div { border-left: 1px dashed color-mix(in srgb, var(--paper) 30%, transparent); }
 #touchHints b { display: block; font-family: var(--font-display); font-weight: 400; font-size: var(--step-1); color: var(--tether); letter-spacing: 0.04em; margin-bottom: 4px; text-align: center; }
 
+/* ---------- the fire button (right edge, a little below the middle): crosshair, rounds as pips under it ---------- */
+.fire-btn {
+  --wc: var(--tether);
+  position: fixed; z-index: 6; right: max(14px, env(safe-area-inset-right, 0px)); top: 54%; transform: translateY(-50%);
+  width: 64px; height: 64px; border-radius: 50%; padding: 0; display: grid; place-items: center; cursor: pointer;
+  touch-action: none; pointer-events: auto; color: var(--wc);
+  background: color-mix(in srgb, var(--ink) 58%, transparent); border: 2px solid color-mix(in srgb, var(--wc) 75%, transparent);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--wc) 30%, transparent); transition: opacity 0.15s, transform 0.08s;
+}
+.fire-btn svg { width: 30px; height: 30px; }
+.fire-btn:active, .fire-btn.kick { transform: translateY(-50%) scale(0.9); }
+.fire-btn.dry { opacity: 0.5; }
+.fire-btn .ammo { position: absolute; left: 50%; bottom: -12px; transform: translateX(-50%); display: flex; gap: 3px; }
+.fire-btn .ammo i { width: 7px; height: 4px; transform: skewX(-20deg); background: color-mix(in srgb, var(--paper) 18%, transparent); }
+.fire-btn .ammo i.on { background: var(--wc); box-shadow: 0 0 6px var(--wc); }
+.fire-btn .ammo i.part { background: linear-gradient(90deg, var(--wc) calc(var(--f) * 100%), color-mix(in srgb, var(--paper) 18%, transparent) 0); }
+.fire-btn kbd { position: absolute; top: -7px; right: -5px; font: 700 10px var(--font-ui); background: var(--paper); color: var(--ink); padding: 1px 5px; border-radius: 3px; }
+html.touch .fire-btn kbd { display: none; }
+@media (max-height: 460px) { .fire-btn { width: 58px; height: 58px; } }
+.wp-stats { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: var(--step--1); letter-spacing: 0.06em; color: var(--paper); font-weight: 600; }
+.wp-stats span { color: var(--mute); font-weight: 600; }
+.wp-pips { display: flex; gap: 3px; }
+.wp-pips i { width: 14px; height: 5px; transform: skewX(-20deg); background: color-mix(in srgb, var(--paper) 16%, transparent); }
+.wp-pips i.on { background: var(--wc, var(--tether)); }
+
 /* ---------- skill points, jokers, skills screen ---------- */
 #btnJoker { width: auto; min-width: 58px; padding: 0 10px; gap: 6px; display: none; grid-auto-flow: column; border-color: var(--volt); color: var(--volt); }
 #btnJoker.on { display: grid; }
@@ -292,6 +317,10 @@ html:not(.touch) .keys .kt, html.touch .keys .kd { display: none; } /* phones se
 <div id="hint" class="fade" aria-live="polite"></div>
 <div id="zone" class="fade"></div>
 <div id="toast" class="fade" aria-live="polite"></div>
+<button class="fire-btn" id="btnFire" aria-label="Schießen" hidden>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4"/></svg>
+  <span class="ammo" id="ammo"></span><kbd>F</kbd>
+</button>
 <div id="touchHints" class="fade" hidden>
   <div><span><b>TIPPEN</b>SPRINGEN · AM SEIL SCHWUNG</span></div>
   <div><span><b>HALTEN</b><span id="touchRight">SCHWINGEN · WISCHEN → DASH · ↓ RUTSCHEN</span></span></div>
@@ -333,6 +362,8 @@ html:not(.touch) .keys .kt, html.touch .keys .kd { display: none; } /* phones se
           <kbd class="kt">NACH OBEN WISCHEN</kbd><span class="t kt"><em>Joker</em>: Greifhaken oder EMP (im Menü unter Skills freischalten)</span>
           <kbd class="kd">S / ↓</kbd><span class="t kd"><em>Rutschen</em> am Boden: unter Kanälen und Lasern durch · in der Luft Slam</span>
           <kbd class="kt">WISCHEN ↓</kbd><span class="t kt"><em>Rutschen</em> am Boden: unter Kanälen und Lasern durch · in der Luft Slam</span>
+          <kbd class="kd">F</kbd><span class="t kd"><em>Waffe</em> deines Charakters (unter Skills freischalten): zielt selbst, das Magazin lädt nach</span>
+          <kbd class="kt">FEUER-KNOPF</kbd><span class="t kt"><em>Waffe</em> deines Charakters (unter Skills freischalten): zielt selbst, das Magazin lädt nach</span>
           <kbd style="color:#ff2e63">♥ ♥ ♥</kbd><span class="t"><em>3 Leben</em>: jeder Treffer kostet eins, alle 500 m gibt es eins zurück</span>
         </div>
       </div>
@@ -356,6 +387,8 @@ html:not(.touch) .keys .kt, html.touch .keys .kd { display: none; } /* phones se
     </div>
     <h3 class="sk-h">JOKER · EINEN AUSRÜSTEN, IM LAUF MIT G / Q ODER NACH OBEN WISCHEN</h3>
     <div class="sk-grid" id="gridJoker"></div>
+    <h3 class="sk-h">WAFFEN · JEDER CHARAKTER HAT SEINE EIGENE · SCHIESSEN MIT F ODER DEM FEUER-KNOPF</h3>
+    <div class="sk-grid" id="gridWeapons"></div>
     <h3 class="sk-h">FÄHIGKEITEN · WIRKEN IMMER</h3>
     <div class="sk-grid" id="gridPassive"></div>
     <h3 class="sk-h">MEILENSTEINE · BRINGEN SKILLPUNKTE</h3>
@@ -474,11 +507,32 @@ const MILESTONES = [
   { id: "od2", name: "Overdrive-Junkie", desc: "2× Overdrive in einem Lauf", sp: 1, test: () => run.odN >= 2 },
   { id: "boss1", name: "Bossjäger", desc: "Einen Boss besiegen", sp: 2, test: () => run.bosses >= 1 },
   { id: "boss2", name: "Doppelschlag", desc: "Zwei Bosse in einem Lauf besiegen", sp: 2, test: () => run.bosses >= 2 },
+  { id: "slide10", name: "Limbo", desc: "10× sauber unter etwas durchgerutscht in einem Lauf", sp: 1, test: () => run.slides >= 10 },
+  { id: "shot10", name: "Scharfschütze", desc: "10 Gegner mit der Waffe in einem Lauf", sp: 1, test: () => run.shotKills >= 10 },
 ];
 const prog = (() => {
   const d = store.get("prog", null) || {};
-  return { sp: d.sp | 0, earned: d.earned | 0, bank: d.bank | 0, ms: d.ms || {}, sk: d.sk || {}, joker: d.joker || null };
+  return { sp: d.sp | 0, earned: d.earned | 0, bank: d.bank | 0, ms: d.ms || {}, sk: d.sk || {}, joker: d.joker || null, wp: d.wp || {} };
 })();
+// ---------- Waffen: jeder Charakter hat seine eigene, mit Skillpunkten freischalten und in 5 Stufen ausbauen ----------
+// Schießen mit F oder dem Feuer-Knopf. Das Magazin ist klein und lädt von selbst nach (ein Schuss nach dem anderen),
+// die Waffe zielt selbst auf das nächste Ziel vor dir. Bossen setzt sie nur Stück für Stück zu (chip: Anteil eines Treffers).
+const WEAPONS = {
+  kage: { name: "Shuriken-Werfer", col: "#29c9ff", kind: "shuriken", range: 900, chip: 0.25, speed: 1500,
+    desc: "Plasma-Shuriken vom Handgelenk: schnell und gerade.", mag: [3, 3, 4, 4, 5], reload: [1.1, 0.95, 0.85, 0.75, 0.65], pierce: [1, 1, 2, 2, 3],
+    perk: (i) => (i >= 4 ? "durchschlägt 3 Gegner" : i >= 2 ? "durchschlägt 2 Gegner" : "") },
+  vektor: { name: "Glitch-Railgun", col: "#ff4fd8", kind: "rail", range: 1050, chip: 0.5,
+    desc: "Ein Datenstrahl quer übers Bild: trifft alles in der Linie, auch durch Schilde.", mag: [2, 2, 3, 3, 4], reload: [1.7, 1.5, 1.35, 1.2, 1.05],
+    perk: () => "" },
+  titan: { name: "Granatwerfer", col: "#ff8a3d", kind: "grenade", range: 760, chip: 0.5,
+    desc: "Granaten im Bogen: fliegen über Schilde und reißen alles im Umkreis mit.", mag: [2, 2, 3, 3, 4], reload: [1.5, 1.35, 1.2, 1.05, 0.9], blast: [70, 78, 92, 100, 120],
+    perk: (i) => "Explosion " + [70, 78, 92, 100, 120][i] + " px" },
+  aero: { name: "Puls-Blaster", col: "#29e0cf", kind: "pulse", range: 850, chip: 0.15, speed: 1700,
+    desc: "Schnelle Lichtpulse: großes Magazin, lädt fix nach.", mag: [5, 6, 7, 8, 10], reload: [0.5, 0.45, 0.4, 0.36, 0.32], twin: [0, 0, 0, 1, 1],
+    perk: (i) => (i >= 3 ? "zwei Pulse pro Schuss" : "") },
+};
+const WP_COST = [3, 2, 3, 4, 5];                    // freischalten, dann Stufe 2 bis 5
+const wpLv = (id) => (prog.wp[id] | 0);
 const saveProg = () => store.set("prog", prog);
 const skillLv = (id) => prog.sk[id] | 0;
 const hasSkill = (id) => skillLv(id) > 0;
@@ -508,10 +562,10 @@ document.documentElement.classList.toggle("touch", IS_TOUCH);
 // ================= INPUT =================
 const input = {
   jumpSrc: new Set(), swingSrc: new Set(),
-  jumpPressed: false, divePressed: false, swingPressed: false, dashPressed: false, jokerPressed: false,
+  jumpPressed: false, divePressed: false, swingPressed: false, dashPressed: false, jokerPressed: false, firePressed: false,
   get jumpHeld() { return this.jumpSrc.size > 0; },
   get swingHeld() { return this.swingSrc.size > 0; },
-  clear() { this.jumpSrc.clear(); this.swingSrc.clear(); this.jumpPressed = this.divePressed = this.swingPressed = this.dashPressed = this.jokerPressed = false; },
+  clear() { this.jumpSrc.clear(); this.swingSrc.clear(); this.jumpPressed = this.divePressed = this.swingPressed = this.dashPressed = this.jokerPressed = this.firePressed = false; },
 };
 const KEYMAP = {
   Space: "jump", ArrowUp: "jump", KeyW: "jump",
@@ -519,6 +573,7 @@ const KEYMAP = {
   KeyD: "dash", ArrowRight: "dash", ShiftLeft: "dash", ShiftRight: "dash", KeyE: "dash", KeyL: "dash",
   ArrowDown: "dive", KeyS: "dive",
   KeyG: "joker", KeyQ: "joker",
+  KeyF: "fire", KeyH: "fire",
 };
 let onGameKey = () => {};   // set by the game module (pause, mute, restart)
 let onAnyInput = () => {};  // used to unlock audio
@@ -532,6 +587,7 @@ window.addEventListener("keydown", (e) => {
     else if (act === "dash") input.dashPressed = true;
     else if (act === "dive") input.divePressed = true;
     else if (act === "joker") input.jokerPressed = true;
+    else if (act === "fire") input.firePressed = true;
   }
   if (act || e.code === "Space") e.preventDefault();
   if (!e.repeat) onGameKey(e.code, e);
@@ -851,6 +907,12 @@ const Sound = (() => {
     },
     clang() { if (!ok()) return; const t = now(); osc("triangle", 190, t, 0.6, 0.22, sfxBus, 120); osc("square", 95, t, 0.3, 0.1, sfxBus, 60); noise(t, 0.22, "bandpass", 900, 0.42, sfxBus, 1.2); },
     shot() { if (!ok()) return; osc("square", 980, now(), 0.16, 0.06, sfxBus, 180); noise(now(), 0.1, "bandpass", 2400, 0.14, sfxBus, 2); },
+    // ---- die Waffen ----
+    wp_shuriken() { if (!ok()) return; const t = now(); noise(t, 0.12, "highpass", 4200, 0.22, sfxBus); osc("triangle", 2400, t, 0.12, 0.05, sfxBus, 3600); osc("square", 520, t, 0.05, 0.04, sfxBus, 260); },
+    wp_rail() { if (!ok()) return; const t = now(); osc("sawtooth", 180, t, 0.28, 0.13, sfxBus, 2600); osc("square", 3200, t + 0.02, 0.18, 0.04, sfxBus, 900); noise(t, 0.25, "bandpass", 3600, 0.3, sfxBus, 2, 900); kick(t, 0.7, sfxBus); },
+    wp_grenade() { if (!ok()) return; const t = now(); kick(t, 0.9, sfxBus); noise(t, 0.16, "lowpass", 900, 0.4, sfxBus, 1, 200); osc("sine", 300, t, 0.14, 0.06, sfxBus, 120); },
+    wp_pulse() { if (!ok()) return; const t = now(); osc("square", 1500, t, 0.07, 0.06, sfxBus, 420); osc("sine", 900, t, 0.06, 0.05, sfxBus, 300); },
+    dry() { if (ok()) osc("square", 240, now(), 0.04, 0.04, sfxBus, 200); },
     slide() { // knees down onto the roof: a short thump, then the hiss of sliding over gravel
       if (!ok()) return; const t = now();
       osc("sine", 130, t, 0.12, 0.13, sfxBus, 60); noise(t, 0.5, "bandpass", 1100, 0.3, sfxBus, 0.7, 380);
@@ -899,7 +961,7 @@ const world = {
   rng: Math.random, genX: 0, lastTop: 420, introDone: false,
   buildings: [], anchors: [], drones: [], boxes: [], lasers: [], rails: [], pads: [], coins: [], guards: [], bolts: [], blocks: [],
 };
-const WORLD_KEYS = ["buildings", "anchors", "drones", "boxes", "lasers", "rails", "pads", "coins", "guards", "bolts", "blocks", "spotters", "hunters", "waves", "balls", "taxis", "rings", "arenas", "lows"];
+const WORLD_KEYS = ["buildings", "anchors", "drones", "boxes", "lasers", "rails", "pads", "coins", "guards", "bolts", "blocks", "spotters", "hunters", "waves", "balls", "taxis", "rings", "arenas", "lows", "shots", "beams"];
 const GUARD_H = 44;          // Wächter robot: feet on the roof, 44 px tall
 const ENEMY_FREE_X = 5200;   // no guards / spike drones in the first ~200 m (except the intro guard)
 const NEW_FOE_X = 7500;      // from ~300 m on the new enemies come in, one after the other: shield guard, spotter (520 m), wrecking ball (760 m), hunter (960 m)
@@ -909,7 +971,15 @@ const HUNT_WARN = 1.15, HUNT_LOCK = 0.38, HUNT_V = 760;  // Jäger-Rakete: Vorwa
 const BALL_R = 27;                                       // Abrissbirne
 const TAXI_HOP = 960;                                    // so fest federt dich das Dach eines Lufttaxis hoch
 const TOP_MIN = 250, TOP_MAX = 640;
-const baseSpeedAt = (x) => Math.min(440 + Math.max(0, x) / PX_PER_M * 0.08, 840);
+let LV = null;                 // the level being played (null = the endless daily run)
+const baseSpeedAt = (x) => Math.min((LV ? LV.v0 : 440) + Math.max(0, x) / PX_PER_M * 0.08, 840);
+// what the generator may put down: in the endless run by distance (as before), in a level by the level's own list
+function genAllow(kind) {
+  if (LV) return LV.foes.includes(kind);
+  if (kind === "low") return world.genX > SLIDE_X;
+  if (kind === "shield") return world.genX > NEW_FOE_X;
+  return world.genX > ENEMY_FREE_X;   // guards, spike drones, drones in the set pieces
+}
 const R = () => world.rng();
 const RR = (a, b) => a + (b - a) * world.rng();
 const RI = (a, b) => Math.floor(RR(a, b + 1));
@@ -993,7 +1063,32 @@ function coinSwing(ax, ay, r, from = -0.75, to = 0.75, n = 7) {
 
 // decorate a roof with obstacles between x1 and x2: one thing at a time, with room to see it coming and to land after it.
 // The newer enemies (spotter, wrecking ball, hunter) only come in their own sections, never sprinkled in between.
+// in a level: the same kind of roof, but only with what this level allows, picked by weight
+function decorateRoofLV(b, x1, x2, d) {
+  const opts = [];
+  if (genAllow("box")) opts.push(["box", 1.1]);
+  if (genAllow("laser")) opts.push(["laser", 0.9 + d * 0.4]);
+  if (genAllow("drone")) opts.push(["drone", 1 + d * 0.5]);
+  if (genAllow("guard")) opts.push(["guard", 0.6 + d]);
+  if (genAllow("low")) opts.push(["bar", 0.7], ["duct", 0.55]);
+  opts.push(["pad", 0.5], ["coins", 0.9]);
+  const total = opts.reduce((a, o) => a + o[1], 0);
+  let x = x1 + RR(220, 340);
+  while (x < x2 - 300) {
+    let r = R() * total, k = opts[0][0];
+    for (const [key, w] of opts) { if (r < w) { k = key; break; } r -= w; }
+    if (k === "box") { addBox(x, RR(44, 78), RR(30, 58 + d * 22), b.top); x += RR(560, 720); }
+    else if (k === "laser") { addLaser(x, RR(70, 104), b.top); x += RR(580, 740); }
+    else if (k === "drone") { addDrone(x, b.top - RR(44, 66), 14, genAllow("spike") && R() < 0.2 + d * 0.3); x += RR(560, 720); }
+    else if (k === "guard" && x < x2 - 420) { if (genAllow("shield") && R() < 0.3 + d * 0.3) addShieldGuard(x + 60, b.top); else addGuard(x + 60, b.top); x += RR(700, 880); }
+    else if (k === "bar") { addBar(x, RR(80, 130), b.top); x += RR(520, 640); }
+    else if (k === "duct" && x < x2 - 520) { const w = RR(150, 230); addDuct(x, w, b.top); coinLine(x + 24, x + w - 24, b.top - 12, 40); x += w + RR(460, 580); }
+    else if (k === "pad") { addPad(x, b.top); coinArc(x + 40, b.top - 60, x + 520, b.top - 60, 300, 8); x += RR(680, 820); }
+    else { coinLine(x, Math.min(x + RR(150, 260), x2 - 40), b.top - 28); x += RR(420, 560); }
+  }
+}
 function decorateRoof(b, x1, x2, d) {
+  if (LV) return decorateRoofLV(b, x1, x2, d);
   let x = x1 + RR(220, 340);
   const early = world.genX < ENEMY_FREE_X, fresh = world.genX > NEW_FOE_X, slides = world.genX > SLIDE_X;
   while (x < x2 - 300) {
@@ -1017,7 +1112,7 @@ function decorateRoof(b, x1, x2, d) {
 
 const PATTERNS = [
   // simple rooftop sprint with jumpable gaps
-  { w: (d) => 3, fn(x, top, v, d) {
+  { key: "hop", w: (d) => 3, fn(x, top, v, d) {
     const n = RI(2, 4);
     for (let i = 0; i < n; i++) {
       const gap = RR(0.28, 0.52 + d * 0.16) * v * 0.72;
@@ -1032,7 +1127,7 @@ const PATTERNS = [
     return [x, top];
   } },
   // gap too wide to jump: one anchor
-  { w: (d) => 2.4, fn(x, top, v, d) {
+  { key: "anchor", w: (d) => 2.4, fn(x, top, v, d) {
     const gap = RR(1.35, 1.85) * v * 0.72;
     const nt = clamp(top + RR(-50, 90), TOP_MIN, TOP_MAX);
     const ax = x + gap * RR(0.36, 0.5), ay = Math.min(top, nt) - RR(230, 290);
@@ -1044,7 +1139,7 @@ const PATTERNS = [
     return [b.x + b.w, b.top];
   } },
   // swing chain over the void
-  { w: (d) => 0.9 + d * 2.2, fn(x, top, v, d) {
+  { key: "chain", w: (d) => 0.9 + d * 2.2, fn(x, top, v, d) {
     const n = RI(3, 4 + Math.round(d * 2));
     const sp = RR(390, 450) + v * 0.12;
     let ax = x + RR(200, 260);
@@ -1053,7 +1148,7 @@ const PATTERNS = [
       const ay = baseY + (i % 2 ? RR(-50, -10) : RR(10, 50));
       addAnchor(ax, ay, aerialKind());
       if (R() < 0.8) coinSwing(ax, ay, 220, -0.1, 0.9, 5);
-      if (d > 0.35 && i > 0 && R() < 0.18) addDrone(ax - sp * 0.5, ay + 120, 26);
+      if (d > 0.35 && i > 0 && genAllow("drone") && R() < 0.18) addDrone(ax - sp * 0.5, ay + 120, 26);
       else if (i < n - 1 && R() < 0.3) addRing(ax + sp * 0.52, ay + 60);                    // between two anchors: fly through it
       ax += sp;
     }
@@ -1062,7 +1157,7 @@ const PATTERNS = [
     return [b.x + b.w, b.top];
   } },
   // grind line down to the next roof: power line, pipe bridge or crane boom (gap still double-jumpable)
-  { w: (d) => 1.3, fn(x, top, v, d) {
+  { key: "rail", w: (d) => 1.3, fn(x, top, v, d) {
     const gap = RR(0.9, 1.25) * v * 0.72;
     const nt = clamp(top + RR(40, 130), TOP_MIN, TOP_MAX);
     addRail(x - RR(170, 230), top - 74, x + gap + RR(100, 160), nt - 46, { kind: railKind(), roof1: top, roof2: nt, gapL: x, gapR: x + gap });
@@ -1078,14 +1173,14 @@ const PATTERNS = [
     return [b.x + b.w, b.top];
   } },
   // long roof with obstacles
-  { w: (d) => 2, fn(x, top, v, d) {
+  { key: "long", w: (d) => 2, fn(x, top, v, d) {
     const gap = RR(0.3, 0.5) * v * 0.72;
     const b = addBuilding(x + gap, RR(1000, 1600), clamp(top + RR(-60, 80), TOP_MIN, TOP_MAX));
     decorateRoof(b, b.x + 80, b.x + b.w - 60, d);
     return [b.x + b.w, b.top];
   } },
   // drone stepping stones (stomp chain) with a high safety anchor
-  { w: (d) => 0.6 + d * 1.6, fn(x, top, v, d) {
+  { key: "stones", w: (d) => 0.6 + d * 1.6, fn(x, top, v, d) {
     const n = RI(2, 3);
     const sp = v * 0.62;
     let dx = x + sp * 0.75;
@@ -1095,7 +1190,7 @@ const PATTERNS = [
     return [b.x + b.w, b.top];
   } },
   // boost pad launch over a huge gap
-  { w: (d) => 1.1, fn(x, top, v, d) {
+  { key: "pad", w: (d) => 1.1, fn(x, top, v, d) {
     // the pad sits on the end of the current roof
     addPad(x - 150, top);
     const gap = RR(560, 760) + v * 0.25;
@@ -1108,11 +1203,11 @@ const PATTERNS = [
   } },
   // drone bridge: a line of drones at running height over the gap. Dash from one to the next,
   // every kill refills the dash, one last dash carries you to the roof. Backup anchor up high.
-  { w: (d) => (world.genX < ENEMY_FREE_X ? 0 : 0.6 + d * 1.1), fn(x, top, v, d) {
+  { key: "dbridge", w: (d) => (world.genX < ENEMY_FREE_X ? 0 : 0.6 + d * 1.1), fn(x, top, v, d) {
     const n = RI(2, d > 0.5 ? 4 : 3), sp = RR(200, 222), y = top - 30;
     let dx = x + 120;
     for (let i = 0; i < n; i++) {
-      addDrone(dx, y, 5, i === n - 1 && d > 0.45 && R() < 0.5);
+      addDrone(dx, y, 5, i === n - 1 && d > 0.45 && genAllow("spike") && R() < 0.5);
       if (i < n - 1) addCoin(dx + sp / 2, y);
       dx += sp;
     }
@@ -1123,12 +1218,12 @@ const PATTERNS = [
     return [b.x + b.w, b.top];
   } },
   // guard post: Wächter robots hold a long roof and shoot. Jump the bolts or dash straight through.
-  { w: (d) => (world.genX < ENEMY_FREE_X ? 0 : 0.5 + d * 1.2), fn(x, top, v, d) {
+  { key: "guards", w: (d) => (world.genX < ENEMY_FREE_X ? 0 : 0.5 + d * 1.2), fn(x, top, v, d) {
     const gap = RR(0.3, 0.5) * v * 0.72;
     const b = addBuilding(x + gap, RR(1150, 1600), clamp(top + RR(-50, 70), TOP_MIN, TOP_MAX));
     let gx = b.x + RR(400, 470);
     for (let i = 0; i < 2 && gx < b.x + b.w - 260; i++) {
-      if (world.genX > NEW_FOE_X && i > 0 && R() < 0.45) addShieldGuard(gx, b.top); else addGuard(gx, b.top);
+      if (genAllow("shield") && i > 0 && R() < 0.45) addShieldGuard(gx, b.top); else addGuard(gx, b.top);
       if (R() < 0.6) coinLine(gx - 230, gx - 110, b.top - 28, 40);
       gx += RR(640, 780);
     }
@@ -1143,7 +1238,7 @@ const PATTERNS = [
     addSpotter(sx, b.top); coinLine(sx - 150, sx + 150, b.top - 28, 38);
     const sx2 = sx + RR(540, 620);
     if (d > 0.6 && sx2 < b.x + b.w - 260) addSpotter(sx2, b.top);
-    else if (R() < 0.5) addDrone(sx + RR(330, 420), b.top - RR(44, 60), 14);
+    else if (R() < 0.5 && genAllow("drone")) addDrone(sx + RR(330, 420), b.top - RR(44, 60), 14);
     return [b.x + b.w, b.top];
   } },
   // Abrissbaustelle: ein Raupenkran schwingt die Abrissbirne über das Dach. Später zwei, die gegeneinander pendeln.
@@ -1192,11 +1287,11 @@ const PATTERNS = [
     const U = addBlock(F.x + runIn, offW, h - RR(320, 380), h - 112, "office", h);
     U.glassL = 1; U.glassR = 1;
     coinLine(U.x + 40, U.x + offW - 40, h - 30, 44);
-    if (world.genX > ENEMY_FREE_X && R() < 0.45) addDrone(U.x + offW * RR(0.45, 0.65), h - 52, 4);
+    if (genAllow("drone") && R() < 0.45) addDrone(U.x + offW * RR(0.45, 0.65), h - 52, 4);
     return [F.x + F.w, F.top];
   } },
   // Lichtschacht: through the arcade under a tower, then wall-jump up the light well between the two towers
-  { w: (d) => (world.genX < 3200 ? 0 : 0.6 + d * 0.5), fn(x, top, v, d) {
+  { key: "well", w: (d) => (world.genX < 3200 ? 0 : 0.6 + d * 0.5), fn(x, top, v, d) {
     const gap = RR(0.28, 0.42) * v * 0.72;
     const h = clamp(top + RR(-30, 50), TOP_MIN + 150, TOP_MAX);
     const climb = RR(400, 470), runIn = RR(240, 320), arcW = RR(300, 380), shaftW = RR(128, 146);
@@ -1210,13 +1305,13 @@ const PATTERNS = [
     coinLine(F.x + 60, ux - 40, h - 28, 44);
     coinLine(ux + 40, ux + arcW - 30, h - 30, 46);
     for (let i = 0; i < 5; i++) addCoin(i % 2 ? ux + arcW + 24 : B.x - 24, h - 140 - i * 72); // the kicks, zig-zag up the well
-    if (d > 0.2 && world.genX > ENEMY_FREE_X && R() < 0.6) addDrone(ux + arcW * 0.6, h - 52, 4); // hovers in the arcade: dash it
+    if (d > 0.2 && genAllow("drone") && R() < 0.6) addDrone(ux + arcW * 0.6, h - 52, 4); // hovers in the arcade: dash it
     coinLine(B.x + 80, B.x + 300, B.top - 28, 44);
     if (R() < 0.6) decorateRoof(B, B.x + 340, B.x + B.w, d);
     return [B.x + B.w, B.top];
   } },
   // Arkade: a tower stands over the roof on pillars. Run through underneath (no room to jump) or wall-run up and over the top
-  { w: (d) => (world.genX < 1800 ? 0 : 0.55), fn(x, top, v, d) {
+  { key: "arcade", w: (d) => (world.genX < 1800 ? 0 : 0.55), fn(x, top, v, d) {
     const gap = RR(0.28, 0.45) * v * 0.72;
     const h = clamp(top + RR(-40, 60), TOP_MIN + 60, TOP_MAX);
     const runIn = RR(260, 380), arcW = RR(420, 600), runOut = RR(240, 380);
@@ -1226,11 +1321,11 @@ const PATTERNS = [
     U.style = F.style; U.look = F.n;                                                   // same facade as the house it stands on
     coinLine(U.x + 30, U.x + arcW - 30, h - 30, 44);
     coinLine(U.x + 40, U.x + arcW - 40, U.top - 28, 52);
-    if (world.genX > ENEMY_FREE_X && R() < 0.45) addDrone(U.x + arcW * RR(0.45, 0.7), h - 52, 4);
+    if (genAllow("drone") && R() < 0.45) addDrone(U.x + arcW * RR(0.45, 0.7), h - 52, 4);
     return [F.x + F.w, F.top];
   } },
   // Stufen-Hochhaus: a tower with setbacks; jump or wall-run up the steps, then drop off the top
-  { w: (d) => (world.genX < 2400 ? 0 : 0.6), fn(x, top, v, d) {
+  { key: "steps", w: (d) => (world.genX < 2400 ? 0 : 0.6), fn(x, top, v, d) {
     const gap = RR(0.28, 0.42) * v * 0.72;
     let t = clamp(top + RR(0, 60), TOP_MIN + 160, TOP_MAX), bx = x + gap;
     const style = RI(0, 3), seed = RI(0, 1e6), steps = RI(3, 4);
@@ -1314,8 +1409,8 @@ const BOSS_S = { gunship: 17, mech: 19, carrier: 19, core: 19 };   // so viele S
 const BOSS_ROT = SEED % BOSS_TYPES.length;                            // die Reihenfolge wechselt jeden Tag
 const bossTypeAt = (n) => BOSS_TYPES[(n + BOSS_ROT) % BOSS_TYPES.length];
 const bossM = (n) => BOSS_AT + n * BOSS_EVERY;
-function genArena(x, top, v) {
-  const n = world.arenaN++, type = bossTypeAt(n), lvl = 1 + Math.floor(n / BOSS_TYPES.length);
+function genArena(x, top, v, forceType, forceLvl) {
+  const n = world.arenaN++, type = forceType || bossTypeAt(n), lvl = forceLvl || 1 + Math.floor(n / BOSS_TYPES.length);
   const E = addBuilding(x + RR(0.3, 0.42) * v * 0.72, RR(1250, 1400), clamp(top + RR(-30, 40), TOP_MIN + 40, TOP_MAX - 40));
   E.prop = 0;
   world.hunters = world.hunters.filter((h) => h.st !== "idle" || h.trig < E.x - 900);   // no rockets flying in while the boss arrives
@@ -1353,7 +1448,85 @@ function genArena(x, top, v) {
   return [bx, bt];
 }
 
+// ================= LEVEL: 30 Level in drei Kapiteln, jedes eine feste Strecke mit Ziel =================
+// Jedes Level hat seinen eigenen Zufallswert (immer dieselbe Strecke, man kann sie lernen), seine Muster und Gegner,
+// eine Farbe (Zone), ein Grundtempo und eine Schwierigkeit d. Level 5, 15, 18 und 25 haben einen Boss in seiner Arena,
+// Level 10, 20 und 30 den Riesen hinter der Stadt: dort ist das Ziel erst offen, wenn er liegt.
+const ALL_PATS = { hop: 2, anchor: 1.6, chain: 1.4, rail: 1.2, long: 1.6, stones: 1, pad: 1, dbridge: 1, guards: 1.2, spot: 1, ball: 0.9, hunt: 0.9, taxi: 0.8, glass: 0.7, well: 0.8, arcade: 0.6, steps: 0.6, slide: 1.4, slab: 0.8 };
+const ALL_FOES = ["box", "laser", "drone", "spike", "guard", "shield", "low"];
+const BASIC_FOES = ["box", "laser", "drone", "guard", "low"];
+const CHAPTERS = ["NEON-VIERTEL", "HAFEN-DISTRIKT", "DER KERN"];
+const LEVELS = [
+  { name: "Erster Sprung", len: 450, zone: 0, pats: { hop: 3, long: 2 }, foes: ["box"], teach: "Springen, in der Luft nochmal springen" },
+  { name: "Rutschpartie", len: 550, zone: 1, pats: { hop: 1.5, long: 1.5, slide: 3 }, foes: ["box", "low"], debut: [["slide", 90]], teach: "Rutschen: unter Kanälen und Lasern durch" },
+  { name: "Am Haken", len: 600, zone: 2, pats: { hop: 1, anchor: 3, chain: 1.6, pad: 1, rail: 1.2, slide: 0.6 }, foes: ["box", "low"], teach: "Seil, Schwung holen, im goldenen Bogen loslassen" },
+  { name: "Drohnenjagd", len: 650, zone: 3, pats: { hop: 1, long: 2, anchor: 1, stones: 1.2, dbridge: 1.6, slide: 0.8 }, foes: ["box", "laser", "drone", "low"], teach: "Dash und Slam gegen Drohnen" },
+  { name: "Kampfhubschrauber", len: 250, zone: 0, pats: { hop: 1.5, long: 1.5, anchor: 1, slide: 1 }, foes: ["box", "laser", "drone", "low"], boss: "gunship", bossAt: 200, teach: "Der erste Boss" },
+  { name: "Wächterposten", len: 750, zone: 1, pats: { long: 2, guards: 2.5, hop: 1, slide: 1.2, anchor: 1 }, foes: ["box", "laser", "drone", "guard", "shield", "low"], debut: [["shield", 260]], teach: "Wächter und Schild-Wächter" },
+  { name: "Lichtschächte", len: 800, zone: 2, pats: { well: 2.5, arcade: 1.8, steps: 1.5, glass: 1.5, hop: 1, slab: 1 }, foes: ["box", "drone", "guard", "low"], teach: "Walljumps die Schächte hoch" },
+  { name: "Suchlicht", len: 850, zone: 3, pats: { spot: 2.5, hunt: 2, long: 1.5, anchor: 1, slide: 1, chain: 1 }, foes: BASIC_FOES, debut: [["spot", 120], ["hunt", 420]], teach: "Späher und Jäger-Raketen" },
+  { name: "Abrissviertel", len: 900, zone: 0, pats: { ball: 2.5, taxi: 2, long: 1.5, rail: 1, slab: 1, pad: 1 }, foes: ALL_FOES, debut: [["ball", 120]], teach: "Abrissbirnen und Lufttaxis" },
+  { name: "Koloss", giant: 1, len: 160, zone: 3, pats: { hop: 2.5, long: 2, slide: 1 }, foes: ["box", "low"], teach: "Der Riese hinter der Stadt" },
+  { name: "Hafenkräne", len: 900, zone: 1, pats: { anchor: 2, chain: 2, rail: 2, slide: 1.5, hop: 1 }, foes: BASIC_FOES, teach: "Lange Schwünge über den Hafen" },
+  { name: "Stachelfeld", len: 950, zone: 2, pats: { long: 2, dbridge: 2, stones: 1.5, guards: 1.5, slide: 1 }, foes: ALL_FOES, teach: "Stachel-Drohnen: nie draufspringen" },
+  { name: "Glaspaläste", len: 1000, zone: 0, pats: { glass: 2.5, spot: 1.5, slab: 1.5, arcade: 1.5, slide: 1, hop: 1 }, foes: ALL_FOES, teach: "Durch die Scheiben und unter den Containern durch" },
+  { name: "Raketenregen", len: 1000, zone: 3, pats: { hunt: 2.5, taxi: 1.5, long: 1.5, chain: 1, slide: 1 }, foes: ALL_FOES, teach: "Jäger-Raketen von vorn" },
+  { name: "Krabbler", len: 250, zone: 1, pats: { hop: 1.5, long: 1.5, slide: 1, guards: 1 }, foes: BASIC_FOES, boss: "mech", bossAt: 200, teach: "Der Spinnen-Panzer" },
+  { name: "Nachtschicht", len: 1100, zone: 2, pats: ALL_PATS, foes: ALL_FOES, teach: "Alles auf einmal" },
+  { name: "Schwebebahn", len: 1100, zone: 0, pats: { taxi: 2.5, pad: 2, chain: 2, rail: 1.5, slide: 1 }, foes: ALL_FOES, teach: "Taxis, Ringe und Boost" },
+  { name: "Schwarm-Träger", len: 250, zone: 3, pats: { hop: 1.5, long: 1.5, dbridge: 1, slide: 1 }, foes: BASIC_FOES, boss: "carrier", bossAt: 200, teach: "Ganze Staffeln zerlegen" },
+  { name: "Schrottplatz", len: 1200, zone: 1, pats: { ball: 2.5, guards: 2, slab: 1.5, slide: 1.5, long: 1 }, foes: ALL_FOES, teach: "Abrissbirnen und Schilde" },
+  { name: "Koloss Mk II", giant: 2, len: 160, zone: 3, pats: { hop: 2.5, long: 2, slide: 1, anchor: 0.8 }, foes: ["box", "drone", "low"], teach: "Er ist zurück, schneller und wütender" },
+  { name: "Goldene Skyline", len: 1200, zone: 2, pats: ALL_PATS, foes: ALL_FOES, teach: "Das letzte Kapitel" },
+  { name: "Tunnelblick", len: 1250, zone: 0, pats: { slide: 3, slab: 2, well: 1.5, arcade: 1.5, hop: 1 }, foes: ALL_FOES, teach: "Rutschen, rutschen, rutschen" },
+  { name: "Feuerwand", len: 1300, zone: 3, pats: { guards: 2, hunt: 2, long: 2, spot: 1.5, slide: 1 }, foes: ALL_FOES, teach: "Wächter, Späher und Raketen" },
+  { name: "Drahtseilakt", len: 1300, zone: 1, pats: { chain: 3, anchor: 2, stones: 1.5, rail: 1.5, dbridge: 1.5 }, foes: ALL_FOES, teach: "Kaum noch Dächer" },
+  { name: "Die KI", len: 250, zone: 3, pats: { hop: 1.5, long: 1.5, slide: 1, spot: 1 }, foes: BASIC_FOES, boss: "core", bossAt: 200, teach: "Das Auge über der Stadt" },
+  { name: "Blackout", len: 1400, zone: 2, pats: ALL_PATS, foes: ALL_FOES, dark: 1.12, teach: "Die Dunkelheit ist schneller" },
+  { name: "Hochspannung", len: 1400, zone: 0, pats: ALL_PATS, foes: ALL_FOES, teach: "Alles, was du kannst" },
+  { name: "Höllenritt", len: 1500, zone: 3, pats: ALL_PATS, foes: ALL_FOES, dark: 1.06, teach: "Kein Platz für Fehler" },
+  { name: "Letzte Meile", len: 1600, zone: 1, pats: ALL_PATS, foes: ALL_FOES, dark: 1.08, teach: "Gleich hast du es" },
+  { name: "Omega", giant: 3, len: 160, zone: 3, pats: { hop: 2.5, long: 2, slide: 1, anchor: 1 }, foes: ["box", "drone", "low"], teach: "Der letzte Kampf" },
+];
+const LEVEL_N = LEVELS.length;
+const MINI_BOSS = { 5: 1, 15: 1, 18: 1, 25: 1 };
+function makeLevel(n) {
+  const L = LEVELS[n - 1];
+  return Object.assign({ n, seed: 91000 + n * 7919, d: Math.min(1, 0.035 * (n - 1)), v0: 430 + n * 4, debut: [], dark: 1, bossLv: n >= 20 ? 2 : 1 }, L, { endX: L.len * PX_PER_M });
+}
+function debutPattern(key, x, top, v) {
+  return key === "shield" ? debutShield(x, top, v) : key === "slide" ? debutSlide(x, top, v) : PATTERNS.find((pt) => pt.key === key).fn(x, top, v, 0.2);
+}
+// the finish: a long roof with the ZIEL gate on it
+function genFinish(x, top, v) {
+  const b = addBuilding(x + RR(0.3, 0.42) * v * 0.72, 1700, clamp(top + RR(-20, 20), TOP_MIN + 40, TOP_MAX - 40)); b.prop = 0;
+  coinLine(b.x + 120, b.x + 480, b.top - 28, 40);
+  world.finish = { x: b.x + 640, top: b.top };
+  return [b.x + b.w, b.top];
+}
+function genPatternLV() {
+  const d = LV.d, v = baseSpeedAt(world.genX), m = world.genX / PX_PER_M;
+  if (world.finish) { // beyond the finish: plain roofs to run out on
+    const b = addBuilding(world.genX + RR(0.3, 0.42) * v * 0.72, RR(900, 1300), clamp(world.lastTop + RR(-30, 30), TOP_MIN, TOP_MAX));
+    world.genX = b.x + b.w; world.lastTop = b.top; return;
+  }
+  if (world.genX >= LV.endX && (!LV.boss || world.arenaDone) && (!LV.giant || world.giantDown)) { [world.genX, world.lastTop] = genFinish(world.genX, world.lastTop, v); return; }
+  for (const [key, at] of LV.debut) if (!world.debut[key] && m >= at) { world.debut[key] = true; [world.genX, world.lastTop] = debutPattern(key, world.genX, world.lastTop, v); return; }
+  if (LV.boss && !world.arenaDone && m >= LV.bossAt) { // the boss gets its arena, the finish comes right after it
+    world.arenaDone = true; [world.genX, world.lastTop] = genArena(world.genX, world.lastTop, v, LV.boss, LV.bossLv); LV.endX = world.genX; return;
+  }
+  const keys = Object.keys(LV.pats), opening = m < 60;                 // a gentle opening: plain roofs first
+  let total = 0;
+  const ws = PATTERNS.map((p) => { const w = opening ? (p.key === "hop" || p.key === "long" ? 1 : 0) : LV.pats[p.key] || 0; total += w; return w; });
+  if (total <= 0) { ws[0] = 1; total = 1; }
+  let r = R() * total, idx = 0;
+  while (idx < ws.length - 1 && (r > ws[idx] || ws[idx] <= 0)) { r -= ws[idx]; idx++; }
+  if (ws[idx] <= 0) idx = 0;
+  const [nx, nt] = PATTERNS[idx].fn(world.genX, world.lastTop, v, d);
+  world.genX = nx; world.lastTop = nt;
+}
 function genPattern() {
+  if (LV) return genPatternLV();
   const d = clamp(world.genX / PX_PER_M / 3600, 0, 1);
   const v = baseSpeedAt(world.genX);
   if (!world.introDone && world.genX >= 2600) {
@@ -1380,7 +1553,8 @@ function genPattern() {
 }
 
 function worldReset(seed) {
-  world.rng = mulberry32(seed); world.introDone = false; world.debut = {}; world.arenaN = 0; lastAerialKind = ""; lastRailKind = "";
+  world.rng = mulberry32(seed); world.introDone = !!LV; world.debut = {}; world.arenaN = 0; lastAerialKind = ""; lastRailKind = "";
+  world.finish = null; world.arenaDone = false; world.giantDown = false;
   for (const k of WORLD_KEYS) world[k] = [];
   const b = addBuilding(-900, 2200, 420);
   b.ant = -1;
@@ -1406,6 +1580,8 @@ function worldCull(minX) {
   world.boxes = world.boxes.filter((o) => o.x + o.w > minX);
   world.lasers = world.lasers.filter((o) => o.x > minX);
   world.lows = world.lows.filter((o) => o.x + o.w > minX);
+  world.shots = world.shots.filter((s) => s.life > 0);
+  world.beams = world.beams.filter((b) => b.t < 0.3);
   world.rails = world.rails.filter((o) => o.x2 > minX);
   world.pads = world.pads.filter((o) => o.x + o.w > minX);
   world.coins = world.coins.filter((o) => o.x > minX && !o.taken);
@@ -1450,7 +1626,7 @@ function resetRun() {
     pumpCD: 0, pumpT: 9, pumpN: 0, pumpDir: 1, swingTurn: 0, swingE: null,
     dashT: 0, dashCD: 0, dashBuf: 0, airDash: 1, dashN: 0, dashKills: 0, dashCombo: 0, dashV: 0, preDashVx: 0, dashEndT: 9, dashStreak: null,
     wallDir: 1, wallBot: Infinity, wallRun: true, kickT: 0, kickChain: 0, face: 1, vaultT: 0, vaultH: 0, mt: null,
-    slideT: 0, slideAge: 9, slideN: 0, slideBuf: 0,
+    slideT: 0, slideAge: 9, slideN: 0, slideBuf: 0, aimT: 0, aimAng: 0, fireBuf: 0,
   });
   Object.assign(run, {
     t: 0, dist: 0, score: 0, flow: 0, chain: 0, chainT: 0, maxChain: 0, od: 0,
@@ -1462,6 +1638,11 @@ function resetRun() {
     hp: LIVES + (hasSkill("shield") ? 1 : 0), hpMax: LIVES + (hasSkill("shield") ? 1 : 0), invT: 0, healAt: 0, hits: 0,
     magnet: hasSkill("magnet") ? 170 : 0, odMax: OD_TIME + (hasSkill("turbo") ? 2 : 0),
   });
+  { // the weapon of the runner you picked, if you unlocked it
+    const id = currentSkin.id, lv = wpLv(id), d = WEAPONS[id];
+    run.wp = lv > 0 && d ? { id, def: d, lv, i: lv - 1, mag: d.mag[lv - 1], reload: d.reload[lv - 1] } : null;
+    run.ammo = run.wp ? run.wp.mag : 0; run.wpCD = 0; run.shotsFired = 0; run.shotKills = 0; run.dry = 0;
+  }
   bossReset();
 }
 
@@ -1848,6 +2029,16 @@ function playerUpdate(dt) {
   p.dashBuf -= dt; p.dashCD -= dt; p.dashEndT += dt;
   if (p.dashBuf > 0 && dashReady(p)) { p.dashBuf = 0; startDash(); }
   if (input.jokerPressed) { input.jokerPressed = false; useJoker(); }
+  if (input.firePressed) { input.firePressed = false; p.fireBuf = 0.12; }
+  p.fireBuf -= dt; p.aimT = Math.max(0, p.aimT - dt); run.dry -= dt;
+  if (run.wp) { // the magazine refills one round after the other; a shot needs a whole round
+    run.wpCD -= dt;
+    if (run.ammo < run.wp.mag) run.ammo = Math.min(run.wp.mag, run.ammo + dt / run.wp.reload);
+    if (p.fireBuf > 0 && run.wpCD <= 0 && (p.state === "run" || p.state === "air" || p.state === "swing" || p.state === "grind")) {
+      if (run.ammo >= 1) { p.fireBuf = 0; fireWeapon(); }
+      else if (run.dry <= 0) { run.dry = 0.35; p.fireBuf = 0; Sound.fx.dry(); }
+    }
+  } else if (p.fireBuf > 0 && run.dry <= 0 && state === "play") { run.dry = 2; p.fireBuf = 0; FX.popup(p.x, p.y - 60, "KEINE WAFFE", "#9a91c4", 0.7, false, true); } // not unlocked yet
   for (const a of world.anchors) { a.cool -= dt; if (a.kind === "drone") droneUpdate(a, dt); }
   p.target = p.state === "swing" ? null : findAnchor();
   const prevFeet = p.y + HALF_H;
@@ -2207,6 +2398,7 @@ function destroyEnemy(e, kind, how) {
   if (how === "dash") { e.vx = p.vx * 0.5 + rand(60, 220); e.vy = rand(-560, -320); }
   else if (how === "stomp") { e.vx = p.vx * 0.5 + rand(-80, 80); e.vy = 500; }
   else if (how === "bolt") { e.vx = rand(200, 420); e.vy = rand(-500, -300); }
+  else if (how === "shot") { e.vx = rand(140, 320); e.vy = rand(-420, -240); }
   else { e.vx = p.vx * 0.6 + rand(-80, 80); e.vy = -400; }
   run.kills++; if (!guard) run.drones++;
   award(guard ? 110 : e.spike ? 90 : 60); addFlow(guard ? 14 : 12); addChain();
@@ -2341,7 +2533,164 @@ function enemiesUpdate(dt) {
     }
   }
   newFoesUpdate(dt, live, view);
+  shotsUpdate(dt);
 }
+
+// ================= WAFFEN: Schüsse, Zielhilfe, Treffer =================
+// Shuriken und Pulse fliegen gerade (Shuriken durchschlagen ab Stufe 3 mehrere Gegner), die Railgun trifft sofort alles
+// in einer Linie (auch durch Schilde), Granaten fliegen im Bogen und explodieren. Schild-Wächter blocken Schüsse von vorn.
+function solidAt(x, y) {
+  for (const b of world.buildings) if (x > b.x && x < b.x + b.w && y > b.top) return true;
+  for (const k of world.blocks) if (x > k.x && x < k.x + k.w && y > k.top && y < k.bot) return true;
+  return false;
+}
+function lineClear(x0, y0, x1, y1) {
+  const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 24);
+  for (let i = 1; i < n; i++) { const t = i / n; if (solidAt(lerp(x0, x1, t), lerp(y0, y1, t))) return false; }
+  return true;
+}
+function aimTargets() {
+  const T = [];
+  for (const d of world.drones) if (d.alive && !(d.fly && d.fly.t < d.fly.T)) T.push({ x: d.x, y: d.y });
+  for (const g of world.guards) if (g.alive) T.push({ x: g.x, y: g.top - 24 });
+  for (const s of world.spotters) if (s.alive) T.push({ x: s.x, y: s.y });
+  for (const h of world.hunters) if (h.st === "fly") T.push({ x: h.x, y: h.y, vx: h.vx, pri: 1 });
+  const b = run.boss;
+  if (b && bossOn() && BOSS[b.type].aim) for (const a of BOSS[b.type].aim(b)) T.push(a);
+  return T;
+}
+// the weapon locks on by itself: the nearest target ahead inside a cone, nothing solid in between
+function aimTarget(ox, oy, face, range) {
+  let best = null, bs = 1e9;
+  for (const t of aimTargets()) {
+    const dx = (t.x - ox) * face, dy = t.y - oy;
+    if (dx < 24 || dx > range) continue;
+    const ang = Math.atan2(dy, dx);
+    if (ang < -0.78 || ang > 0.6) continue;                                      // up to ~45° up, ~34° down
+    if (!lineClear(ox, oy, t.x, t.y)) continue;
+    const sc = dx + Math.abs(dy) * 1.5 - (t.pri ? 260 : 0);
+    if (sc < bs) { bs = sc; best = t; }
+  }
+  return best;
+}
+function muzzle(p) { const f = p.face || 1; return sliding(p) ? [p.x + f * 18, p.y + HALF_H - 13] : [p.x + f * 20, p.y - 14]; }
+function fireWeapon() {
+  const p = player, W = run.wp, d = W.def, face = p.face || 1, [ox, oy] = muzzle(p);
+  const tgt = aimTarget(ox, oy, face, d.range);
+  let tx = tgt ? tgt.x : 0, ty = tgt ? tgt.y : 0;
+  if (tgt && (tgt.vx || tgt.vy) && d.kind !== "rail") { // lead a moving target: where it will be when the shot gets there
+    const sp = d.kind === "grenade" ? 900 : d.speed + Math.max(0, p.vx) * 0.5;
+    for (let k = 0; k < 3; k++) { const tt = Math.abs(tx - ox) / sp; tx = tgt.x + (tgt.vx || 0) * tt; ty = tgt.y + (tgt.vy || 0) * tt; }
+  }
+  const ang = tgt ? clamp(Math.atan2(ty - oy, (tx - ox) * face), -0.78, 0.6) : 0;
+  run.ammo -= 1; run.wpCD = d.kind === "pulse" ? 0.1 : d.kind === "rail" ? 0.3 : 0.18; run.shotsFired++;
+  p.aimT = 0.42; p.aimAng = ang;
+  const c = Math.cos(ang) * face, s = Math.sin(ang);
+  if (d.kind === "rail") railShot(ox, oy, c, s, W);
+  else if (d.kind === "grenade") { // a lob that comes down on the target (without one: a throw ahead)
+    let vx = face * 900, vy = -360;
+    if (tgt) { const dx = tx - ox, T = clamp(Math.abs(dx) / 900, 0.16, 0.85); vx = dx / T; vy = (ty - oy - 0.5 * 1500 * T * T) / T; }
+    world.shots.push({ kind: "grenade", x: ox, y: oy, vx, vy, life: 1.8, t: 0, r: 7, col: d.col, chip: d.chip, hit: new Set(), pierce: 1, blast: d.blast[W.i] });
+  } else {
+    const sp = d.speed + Math.max(0, p.vx) * 0.5, n = d.kind === "pulse" && d.twin[W.i] ? 2 : 1;
+    for (let i = 0; i < n; i++) {
+      const a2 = ang + (n > 1 ? (i - 0.5) * 0.08 : 0);
+      world.shots.push({ kind: d.kind, x: ox, y: oy, vx: Math.cos(a2) * face * sp, vy: Math.sin(a2) * sp, life: d.range / sp + 0.05, t: 0, r: d.kind === "pulse" ? 6 : 9,
+        col: d.col, chip: d.chip, hit: new Set(), pierce: d.kind === "shuriken" ? d.pierce[W.i] : 1, rot: 0 });
+    }
+  }
+  FX.burst(ox, oy, 6, d.col, 220); FX.sparks(ox, oy, face, -0.1, 3);
+  Sound.fx["wp_" + d.kind](); haptic(8);
+  if (!fireTutDone) { fireTutDone = true; store.set("fireTut", true); }
+}
+// the railgun: one beam, at once, through everything in its line until it hits a wall
+function railShot(ox, oy, c, s, W) {
+  const d = W.def; let len = d.range;
+  for (let t = 16; t < d.range; t += 10) if (solidAt(ox + c * t, oy + s * t)) { len = t; break; }
+  const near = (x, y) => { const t = clamp((x - ox) * c + (y - oy) * s, 0, len); return Math.hypot(ox + c * t - x, oy + s * t - y); };
+  for (const dr of world.drones) if (dr.alive && near(dr.x, dr.y) < 22) shotKill(null, dr, "drone");
+  for (const g of world.guards) if (g.alive && near(g.x, g.top - 22) < 26) shotKill(null, g, "guard");
+  for (const sp of world.spotters) if (sp.alive && near(sp.x, sp.y) < 26) shotKill(null, sp, "spot");
+  for (const h of world.hunters) if (h.st === "fly" && near(h.x, h.y) < 20) shotKill(null, h, "hunt");
+  const b = run.boss;
+  if (b && bossOn() && BOSS[b.type].shot) { // the beam meets the boss somewhere along its line: one hit
+    const ps = { kind: "rail", x: ox, y: oy, vx: c, vy: s, col: d.col, chip: d.chip, r: 4 };
+    for (let t = 0; t <= len; t += 12) { ps.x = ox + c * t; ps.y = oy + s * t; if (BOSS[b.type].shot(b, ps)) break; }
+  }
+  const p = player; // the beam is drawn relative to the runner while it fades, so it stays in the hand
+  world.beams.push({ x0: ox - p.x, y0: oy - p.y, x1: ox + c * len - p.x, y1: oy + s * len - p.y, t: 0, col: d.col });
+  FX.sparks(ox + c * len, oy + s * len, -c, -s, 8); FX.burst(ox + c * len, oy + s * len, 6, d.col, 200);
+}
+function shotKill(s, e, k) {
+  if (s) s.hit.add(e);
+  run.shotKills++;
+  if (k === "drone") destroyEnemy(e, "drone", "shot");
+  else if (k === "guard") destroyEnemy(e, "guard", "shot");
+  else if (k === "spot") killSpotter(e, "shot");
+  else if (k === "hunt") { hunterBoom(e, "shot"); run.kills++; award(70); addFlow(6); addChain(); }
+}
+function shotsUpdate(dt) {
+  for (const b of world.beams) b.t += dt;
+  for (const s of world.shots) {
+    if (s.life <= 0) continue;
+    s.life -= dt; s.t += dt;
+    const px = s.x, py = s.y;
+    if (s.kind === "grenade") s.vy += 1500 * dt;
+    s.x += s.vx * dt; s.y += s.vy * dt; s.rot = (s.rot || 0) + dt * 26;
+    const n = Math.max(1, Math.ceil(Math.hypot(s.x - px, s.y - py) / 10));      // sub-steps: a fast shot must not skip through a thin target
+    for (let i = 1; i <= n && s.life > 0; i++) {
+      const x = lerp(px, s.x, i / n), y = lerp(py, s.y, i / n);
+      if (solidAt(x, y)) { s.life = 0; s.x = x; s.y = y; if (s.kind === "grenade") grenadeBoom(s, x, y); else FX.sparks(x, y, -Math.sign(s.vx) || -1, -0.4, 5); break; }
+      shotHitAt(s, x, y);
+    }
+    if (s.life <= 0 && s.kind === "grenade" && !s.boomed) grenadeBoom(s, s.x, s.y);
+  }
+}
+function shotHitAt(s, x, y) {
+  const r = s.r, take = (e, k) => {
+    if (s.kind === "grenade") { grenadeBoom(s, x, y); return true; }
+    shotKill(s, e, k); if (--s.pierce <= 0) s.life = 0;
+    return s.life <= 0;
+  };
+  for (const d of world.drones) if (d.alive && !s.hit.has(d) && Math.abs(d.x - x) < 20 + r && Math.abs(d.y - y) < 16 + r && take(d, "drone")) return;
+  for (const g of world.guards) {
+    if (!g.alive || s.hit.has(g) || Math.abs(g.x - x) > 16 + r || y < g.top - GUARD_H - r || y > g.top + 2) continue;
+    if (g.shield && s.kind !== "grenade" && s.vx > 0 && x < g.x) { s.life = 0; g.blockT = 0.35; FX.sparks(g.x - 30, y, -1, -0.5, 8); Sound.fx.block(); return; } // the shield holds
+    if (take(g, "guard")) return;
+  }
+  for (const sp of world.spotters) if (sp.alive && !s.hit.has(sp) && Math.abs(sp.x - x) < 30 + r && Math.abs(sp.y - y) < 14 + r && take(sp, "spot")) return;
+  for (const h of world.hunters) if (h.st === "fly" && !s.hit.has(h) && Math.abs(h.x - x) < 24 + r && Math.abs(h.y - y) < 10 + r && take(h, "hunt")) return;
+  for (const b of world.balls) if (Math.hypot(b.x - x, b.y - y) < BALL_R + r) { // steel: everything bounces off it
+    if (s.kind === "grenade") grenadeBoom(s, x, y); else { s.life = 0; FX.sparks(x, y, -1, -0.3, 6); Sound.fx.clang(); }
+    return;
+  }
+  const B = run.boss;
+  if (B && bossOn() && BOSS[B.type].shot) {
+    const sx = s.x, sy = s.y; s.x = x; s.y = y;
+    if (BOSS[B.type].shot(B, s)) { if (s.kind === "grenade") grenadeBoom(s, x, y, true); s.life = 0; }
+    else { s.x = sx; s.y = sy; }
+  }
+}
+function grenadeBoom(s, x, y, bossDone) {
+  if (s.boomed) return;
+  s.boomed = true; s.life = 0;
+  const R = s.blast;
+  FX.burst(x, y, 22, "#ff8a3d", 420); FX.burst(x, y, 10, "#fff3c4", 260); FX.smoke(x, y, 8, "#3a3448", 180, 50); FX.ring(x, y, "#ffb347", R * 1.3); FX.shake(8); Sound.fx.boom();
+  for (const d of world.drones) if (d.alive && Math.hypot(d.x - x, d.y - y) < R + 18) shotKill(s, d, "drone");
+  for (const g of world.guards) if (g.alive && Math.hypot(g.x - x, g.top - 22 - y) < R + 20) shotKill(s, g, "guard");
+  for (const sp of world.spotters) if (sp.alive && Math.hypot(sp.x - x, sp.y - y) < R + 24) shotKill(s, sp, "spot");
+  for (const h of world.hunters) if (h.st === "fly" && Math.hypot(h.x - x, h.y - y) < R + 16) shotKill(s, h, "hunt");
+  const B = run.boss;
+  if (!bossDone && B && bossOn() && BOSS[B.type].blast) BOSS[B.type].blast(B, x, y, R, s);
+}
+// a boss only takes a piece of a hit per shot; when the pieces make a whole one, it counts
+function bossChip(b, x, y, amt) {
+  FX.sparks(x, y, -1, -0.4, 7); FX.burst(x, y, 6, "#ffd23f", 200); Sound.fx.clang();
+  if (b.st !== "fight") return;
+  b.chip = (b.chip || 0) + amt;
+  if (b.chip >= 0.999) { b.chip = 0; bossHit(b, x, y, "shot"); }
+}
+function bossArmour(x, y) { FX.sparks(x, y, -1, -0.5, 6); Sound.fx.block(); }   // shots spark off armour
 
 
 // ================= NEUE GEGNER: Späher-Drohne, Jäger-Rakete, Schild-Wächter, Abrissbirne =================
@@ -2376,7 +2725,7 @@ function callHunters(n) { // the alarm: hunters come from ahead, one after the o
   for (let i = 0; i < n; i++) world.hunters.push({ trig: -1, st: "warn", t: -0.25 - i * 0.6, x: 0, y: 0, hy: player.y, vx: 0, vy: 0, rot: 0, dead: 0, passed: false, beep: 0, smoke: 0 });
 }
 function hunterBoom(h, how) { // how: wall (hit a building), hit (on you), counter / slam / emp (shot down: the wreck tumbles)
-  const down = how === "counter" || how === "slam" || how === "emp";
+  const down = how === "counter" || how === "slam" || how === "emp" || how === "shot";
   if (down) { h.st = "dead"; h.dead = 0; h.vx = how === "counter" ? 460 : 160; h.vy = -380; }
   else h.st = "gone";
   FX.burst(h.x, h.y, 14, "#ff8a3d", 340); FX.smoke(h.x, h.y, 5, "#4a4058", 120, 40); FX.ring(h.x, h.y, "#ff8a3d", 70);
@@ -2627,7 +2976,7 @@ function bossStart(a) {
     hitT: 0, vx: 0, vy: 0, rot: 0, dead: 0, arcs: [], sp: Math.pow(0.88, lvl - 1), pv: Math.max(p.vx, bossVb()) }; // sp: higher levels attack faster
   BOSS[a.type].start(b);
   if (state === "play") {
-    banner("BOSS" + (lvl > 1 ? " · STUFE " + lvl : "") + " · " + fmt(bossM(a.n)) + " M", BOSS_NAME[a.type], true, 2.6);
+    banner("BOSS" + (lvl > 1 ? " · STUFE " + lvl : "") + " · " + (LV ? "LEVEL " + LV.n : fmt(bossM(a.n)) + " M"), BOSS_NAME[a.type], true, 2.6);
     Sound.fx.alarm(); FX.flash("#ff2e63", 0.18);
   }
   return b;
@@ -3542,6 +3891,54 @@ BOSS.core = {
 };
 
 // ---------- drawing ----------
+// ---------- Waffen gegen Bosse: wo sie hinzielen (aim), was ein Schuss trifft (shot), was eine Granate trifft (blast) ----------
+// Hubschrauber: der Rumpf nimmt Schaden. Krabbler: Panzer hält, nur der offene Kern; Minen kann man wegschießen.
+// Schwarm-Träger: der Rumpf ist geschirmt, seine Drohnen nicht. KI: das Auge ist geschirmt, die Generatoren nicht.
+function mineShot(m) { const y = mechMineY(m); m.st = "boom"; m.t = 0; FX.burst(m.x, y - 8, 14, "#ff8a3d", 320); FX.smoke(m.x, y - 10, 4, "#3a3448", 120, 40); Sound.fx.boom(); award(30); }
+function genShot(b, g, amt) {
+  g.hs = (g.hs ?? 1) - amt; FX.sparks(g.x, g.y - 40, -1, -0.4, 6); Sound.fx.clang();
+  if (g.hs > 0.001) return;
+  g.st = "dead"; g.t = 0; FX.debris(g.x, g.y - 34, "#ff2e63", 16); FX.burst(g.x, g.y - 44, 12, "#ffd23f", 280);
+  b.arcs.push({ x: g.x, y: g.y - 76, t: 0 }); bossHit(b, b.x, b.y, "gen");
+}
+Object.assign(BOSS.gunship, {
+  aim: (b) => (b.st === "fight" ? [{ x: b.x, y: b.y, vx: b.dipT > 0 ? b.pv * 0.5 : b.pv, pri: 1 }] : []),
+  shot(b, s) { if (b.st !== "fight" || Math.abs(s.x - b.x) > 80 || Math.abs(s.y - b.y) > 26) return false; bossChip(b, s.x, s.y, s.chip); return true; },
+  blast(b, x, y, R, s) { if (b.st === "fight" && Math.abs(b.x - x) < R + 70 && Math.abs(b.y - y) < R + 26) bossChip(b, b.x, b.y, s.chip); },
+});
+Object.assign(BOSS.mech, {
+  aim(b) {
+    const T = [];
+    if (b.st === "fight" && b.ph === "vent" && !b.leap) T.push({ x: b.x, y: b.y - 36, pri: 1 });
+    for (const m of b.mines) if (m.st === "armed") T.push({ x: m.x, y: m.y - 6 });
+    return T;
+  },
+  shot(b, s) {
+    for (const m of b.mines) if (m.st === "armed" && Math.abs(m.x - s.x) < 14 && Math.abs(m.y - 6 - s.y) < 14) { mineShot(m); return true; }
+    if (b.st !== "fight" || b.leap || s.x < b.x - MECH.HW || s.x > b.x + MECH.HW || s.y < b.y - 39 || s.y > b.y + 29) return false;
+    if (b.ph === "vent") bossChip(b, s.x, s.y, s.chip * 2); else bossArmour(s.x, s.y);   // the open core takes it double, the armour nothing
+    return true;
+  },
+  blast(b, x, y, R, s) {
+    for (const m of b.mines) if (m.st === "armed" && Math.hypot(m.x - x, m.y - y) < R + 10) mineShot(m);
+    if (b.st === "fight" && b.ph === "vent" && !b.leap && Math.hypot(b.x - x, b.y - 36 - y) < R + 50) bossChip(b, b.x, b.y - 36, s.chip * 2);
+  },
+});
+Object.assign(BOSS.carrier, {
+  aim: () => [],
+  shot(b, s) { if (b.st !== "fight" || Math.abs(s.x - b.x) > CARR.HW || Math.abs(s.y - b.y) > 30) return false; bossArmour(s.x, s.y); return true; },
+  blast() {},
+});
+Object.assign(BOSS.core, {
+  aim: (b) => b.gens.filter((g) => g.st === "on").map((g) => ({ x: g.x, y: g.y - CORE.GEN_H * 0.5, pri: 1 })),
+  shot(b, s) {
+    for (const g of b.gens) if (g.st === "on" && Math.abs(g.x - s.x) < 18 && s.y > g.y - CORE.GEN_H && s.y < g.y) { genShot(b, g, s.chip * 2); return true; }
+    if (b.st === "fight" && Math.hypot(s.x - b.x, s.y - b.y) < 60) { bossArmour(s.x, s.y); return true; }
+    return false;
+  },
+  blast(b, x, y, R, s) { for (const g of b.gens) if (g.st === "on" && Math.abs(g.x - x) < R + 18 && Math.abs(g.y - 40 - y) < R + 40) genShot(b, g, s.chip * 2); },
+});
+
 function drawEnemies(time, L, R, T, B) {
   drawBossGround(time, L, R);
   for (const s of world.spotters) if (s.x > L - 260 && s.x < R + 260) drawSpotter(s, time);
@@ -3895,6 +4292,45 @@ function drawBolts(L, R) {
   ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha = 1;
 }
 
+// ---------- die eigenen Schüsse ----------
+function drawShots(time) {
+  ctx.globalCompositeOperation = "lighter";
+  for (const b of world.beams) { // railgun: a hot line, wide glow, a jitter of data bits along it; gone in a moment
+    const k = 1 - clamp(b.t / 0.24, 0, 1); if (k <= 0) continue;
+    const x0 = player.x + b.x0, y0 = player.y + b.y0, x1 = player.x + b.x1, y1 = player.y + b.y1;
+    const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L;
+    ctx.strokeStyle = rgba(b.col, 0.3 * k); ctx.lineWidth = 16 * k + 2; line(x0, y0, x1, y1);
+    ctx.strokeStyle = rgba(b.col, 0.85 * k); ctx.lineWidth = 5 * k + 1; line(x0, y0, x1, y1);
+    ctx.strokeStyle = rgba("#ffffff", k); ctx.lineWidth = 1.6; line(x0, y0, x1, y1);
+    ctx.fillStyle = rgba("#ffffff", 0.8 * k);
+    for (let t = 0.05; t < 1; t += 0.07) { const o = Math.sin(t * 91 + time * 70) * 9 * k; ctx.fillRect(x0 + dx * t + nx * o - 1.5, y0 + dy * t + ny * o - 1.5, 3, 3); }
+  }
+  for (const s of world.shots) {
+    if (s.life <= 0) continue;
+    if (s.kind === "shuriken") { // a spinning four-point star of light
+      ctx.drawImage(Art.glow(s.col), s.x - 20, s.y - 20, 40, 40);
+      ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.rot);
+      ctx.fillStyle = "#e8fdff"; ctx.beginPath();
+      for (let i = 0; i < 8; i++) { const a = (i / 8) * TAU, r = i % 2 ? 2.6 : 9.5; ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+      ctx.closePath(); ctx.fill(); ctx.restore();
+      ctx.strokeStyle = rgba(s.col, 0.45); ctx.lineWidth = 3; line(s.x, s.y, s.x - s.vx * 0.022, s.y - s.vy * 0.022);
+    } else if (s.kind === "pulse") { // a short bolt of light along its flight
+      const v = Math.hypot(s.vx, s.vy) || 1, ux = s.vx / v, uy = s.vy / v;
+      ctx.drawImage(Art.glow(s.col), s.x - 16, s.y - 12, 32, 24);
+      ctx.strokeStyle = rgba(s.col, 0.9); ctx.lineWidth = 5; line(s.x - ux * 16, s.y - uy * 16, s.x + ux * 4, s.y + uy * 4);
+      ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2; line(s.x - ux * 12, s.y - uy * 12, s.x + ux * 3, s.y + uy * 3);
+    } else if (s.kind === "grenade") { // a dark shell with a blinking fuse and a smoke trail
+      if (Math.random() < 0.5) FX.smoke(s.x, s.y, 1, "#4a4058", 12, 6);
+      ctx.globalCompositeOperation = "source-over";
+      ctx.fillStyle = "#1a1424"; ctx.beginPath(); ctx.arc(s.x, s.y, 6, 0, TAU); ctx.fill();
+      ctx.strokeStyle = "#ff8a3d"; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.globalCompositeOperation = "lighter";
+      if (Math.sin(time * 30) > 0) ctx.drawImage(Art.glow("#ff8a3d"), s.x - 12, s.y - 12, 24, 24);
+    }
+  }
+  ctx.globalCompositeOperation = "source-over";
+}
+
 // ================= ZONES (palettes) =================
 const ZONE_M = 800;
 const ZONES = [
@@ -3903,7 +4339,7 @@ const ZONES = [
   { name: "GOLDENE SKYLINE", sky: ["#0c0a25", "#3b1c48", "#c4563a"], moon: "#ffe6b0", layers: ["#2d173c", "#211131", "#170b26"], bld: "#120821", rim: "#ffd23f", win: ["#ffd23f", "#ff8a3d", "#fff2c4"], fog: "#ff8a3d" },
   { name: "DER KERN", sky: ["#050008", "#26000f", "#5e0a1f"], moon: "#ff9aa8", layers: ["#200612", "#17040c", "#0f0208"], bld: "#0b0107", rim: "#ff2e63", win: ["#ff2e63", "#ffffff", "#ff7a90"], fog: "#ff2e63" },
 ];
-const zoneIndexAt = (x) => Math.floor(Math.max(0, x) / PX_PER_M / ZONE_M);
+const zoneIndexAt = (x) => (LV ? LV.zone : Math.floor(Math.max(0, x) / PX_PER_M / ZONE_M));   // a level keeps one colour
 const zoneAt = (x) => ZONES[zoneIndexAt(x) % ZONES.length];
 
 function hexToRgb(h) { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
@@ -4343,6 +4779,7 @@ const toScreenX = (x) => (x - cam.x) * cam.zoom + W / 2;
 const toScreenY = (y) => (y - cam.y) * cam.zoom + H / 2;
 
 function zoneBlend() {
+  if (LV) return { a: LV.zone, b: LV.zone, t: 1 };
   const m = Math.max(0, cam.x) / PX_PER_M, zi = Math.floor(m / ZONE_M);
   const t = clamp((m - zi * ZONE_M) / 70, 0, 1);
   return { a: Math.max(0, zi - 1) % ZONES.length, b: zi % ZONES.length, t: zi === 0 ? 1 : t };
@@ -5349,6 +5786,7 @@ function drawWorld(time, pulse, L, R, T, B) {
   for (const r of world.rings) if (r.x > L && r.x < R) drawRing(r, time, false);
   // ---- drones, guards, bolts ----
   drawEnemies(time, L, R, T, B);
+  drawShots(time);
 }
 
 // ================= C3: the 3D character engine (originally generated from lab/c3_*.js by mk_c3.py; the lab sources are not in this repo, so it is edited here) =================
@@ -5830,6 +6268,11 @@ MODELS3.kage = {
     };
     kb(BN.chest, [-3.9, 11.4, 3.9], [-4.0, 9.0, 2.6], [-4.1, -4.2, -3.6], 1, [1, 0, 0]);
     kb(BN.handR, [-0.9, 0.0, 0], [1.6, 0.0, 0], [14.5, 0.4, 0], 2, [0, 1, 0]);
+    // weapon (group 3, only while aiming): a shuriken launcher strapped to the right forearm, a short barrel over the fist
+    mb.box(BN.foreR, [5.4, 0, 1.45], [2.5, 1.0, 0.55], M.armor, { g: 3 });
+    mb.bar(BN.handR, [-0.4, 0, 1.45], [3.4, 0, 1.45], 1.1, 0.9, M.hilt, { g: 3 });
+    mb.line(BN.foreR, [[3.2, 0, 2.05], [7.6, 0, 2.05]], "#4ff3ff", 0.45, null, { g: 3 });
+    mb.glow(BN.handR, [3.7, 0, 1.45], "#29c9ff", 4.5, { g: 3 });
   },
   cloth: [
     { bone: BN.chest, at: [-2.5, 8.7, 0.6], n: 14, seg: 2.35, w0: 2.8, w1: 0.7, col: "#ff2e63", back: "#a3123e", grav: 60, drag: 0.9 },
@@ -5865,6 +6308,11 @@ MODELS3.vektor = {
     // data rings around wrists and ankles
     const ring = (bone, t, r) => { const pts = []; for (let j = 0; j <= 10; j++) { const a = (j / 10) * TAU; pts.push([t, r * Math.cos(a), r * Math.sin(a)]); } mb.line(bone, pts, "#ff4fd8", 0.4, null); };
     ring(BN.foreR, 6.4, 1.7); ring(BN.foreL, 6.4, 1.7); ring(BN.shinR, 10.2, 2.1); ring(BN.shinL, 10.2, 2.1);
+    // weapon (group 3): a long crystal rail rifle out of the right fist
+    mb.bar(BN.handR, [-3.0, 0, 0], [12.5, 0, 0], 1.4, 1.0, P, { g: 3, taper: 0.5 });
+    mb.bar(BN.handR, [0.8, 0, 0], [5.8, 0, 0], 2.4, 1.5, C, { g: 3 });
+    mb.line(BN.handR, [[-2.5, 0.75, 0], [12.0, 0.4, 0]], "#ffffff", 0.5, null, { g: 3 });
+    mb.glow(BN.handR, [12.6, 0, 0], "#ff4fd8", 5, { g: 3 });
   },
   cloth: [],
   fx: { dataBits: true, holo: true },
@@ -5915,6 +6363,12 @@ MODELS3.titan = {
       mb.line(sh, [[2.0, 2.35, 0], [8.5, 2.1, 0]], "#ff9a4d", 0.5, [0, 1, 0]);
       mb.bar(th, [8.0, -2.2, 0], [15.6, -2.6, 0], 0.55, 0.55, K); // hydraulic piston behind the knee
     }
+    // weapon (group 3): a grenade cannon over the right forearm and fist
+    mb.bar(BN.foreR, [2.6, 0, 0], [9.0, 0, 0], 3.6, 3.4, A2, { g: 3 });
+    mb.bar(BN.handR, [0.0, 0, 0], [5.8, 0, 0], 2.7, 2.7, K, { g: 3 });
+    mb.bar(BN.handR, [5.4, 0, 0], [6.8, 0, 0], 3.5, 3.5, A, { g: 3 });
+    mb.line(BN.foreR, [[3.0, 1.85, 0], [8.6, 1.85, 0]], "#ff9a4d", 0.5, null, { g: 3 });
+    mb.glow(BN.handR, [7.1, 0, 0], "#ff9a4d", 6, { g: 3 });
   },
   cloth: [],
   fx: { thrusters: [{ bone: BN.chest, p: [-5.4, 0.1, -2.0] }, { bone: BN.chest, p: [-5.4, 0.1, 2.0] }] },
@@ -5949,6 +6403,12 @@ MODELS3.aero = {
       mb.line(th, [[1.0, 0.3, lo * 2.75], [11.6, 0.1, lo * 1.75]], "#19c3b1", 0.55, [0, 0, lo], { glow: false });
       mb.box(fo, [6.6, 0.0, 0], [0.75, 1.15, 1.1], CO);
     }
+    // weapon (group 3): a compact pulse blaster in the right fist
+    mb.bar(BN.handR, [-0.6, 0, 1.25], [5.4, 0, 1.25], 1.8, 1.4, J, { g: 3 });
+    mb.bar(BN.handR, [5.2, 0, 1.45], [7.9, 0, 1.45], 0.8, 0.8, G, { g: 3 });
+    mb.bar(BN.handR, [1.0, 0, 0.6], [0.6, 0, -1.8], 1.3, 1.1, G, { g: 3 });
+    mb.line(BN.handR, [[0.0, 0, 2.0], [5.0, 0, 2.0]], "#4ffff0", 0.45, null, { g: 3 });
+    mb.glow(BN.handR, [8.2, 0, 1.45], "#4ffff0", 4, { g: 3 });
   },
   cloth: [
     { bone: BN.head, at: [-2.3, 7.7, 0], n: 9, seg: 2.1, w0: 2.4, w1: 0.6, col: "#f7f4ef", back: "#c9d3e0", grav: 120, drag: 0.86, tube: true },
@@ -6562,8 +7022,20 @@ function airCycle(ph, D, S, P) {
   return [[5 * c, -20 + 6 * Math.max(0, s), 0.6 - 0.4 * c], [-5 * c, -20 + 6 * Math.max(0, -s), 0.6 + 0.4 * c]];
 }
 
-// ---------- every other move ----------
+// ---------- aiming: the right arm points the weapon along the shot (model space: x ahead, y up), the hand pinned so it does not lag ----------
+function aimArm(P, D, ang, k) {
+  const T = torsoFrame(P, D), reach = (D.upper + D.fore) * 0.93;
+  P.hRx = lerp(P.hRx, T.shR.x + Math.cos(ang) * reach, k);
+  P.hRy = lerp(P.hRy, T.shR.y - Math.sin(ang) * reach, k);
+  P.hRz = lerp(P.hRz, T.shR.z + 1.2, k);
+}
 function genPose(rig, q, D, time, dt = 0) {
+  const P = genPoseBase(rig, q, D, time, dt), m = rig.mode;
+  if (q.aimT > 0 && (m === "run" || m === "air" || m === "slide")) { aimArm(P, D, q.aimAng || 0, clamp(q.aimT / 0.1, 0, 1)); rig.pin = true; }
+  return P;
+}
+// ---------- every other move ----------
+function genPoseBase(rig, q, D, time, dt = 0) {
   const S = rig.style, P = rig.tgt, m = rig.mode;
   rig.pin = false;                                       // true = the hands hold on to something: skip their follow-through springs
   if (m === "run" || m === "wall") return genRun(rig, q, D, S, P, time, m === "wall");
@@ -6850,7 +7322,7 @@ function playerQuery(p) {
   return { st, vx: p.vx, vy: p.vy, swingAng: ang, swingW, diving: p.diving,
     flipK: p.flipT > 0 ? 1 - p.flipT / FLIP_T : -1, stumble: p.stumbleT, deadT: run.deadT, od: run.od > 0, runT: run.t,
     landK: p.landK, landT: p.landT, jumpT: p.jumpT, rollT: p.rollT, attachT, pumpT: p.pumpT, pumpDir: p.pumpDir,
-    dashT: p.dashT, dashEnd: p.dashEndT, slamT: p.slamT, slideT: p.state === "run" ? p.slideT : 0, slideAge: p.slideAge,
+    dashT: p.dashT, dashEnd: p.dashEndT, slamT: p.slamT, slideT: p.state === "run" ? p.slideT : 0, slideAge: p.slideAge, aimT: p.aimT, aimAng: p.aimAng,
     wallRun: p.wallRun, kickT: p.kickT, vaultT: p.vaultT, vaultH: p.vaultH,
     mantleK: mt ? clamp(mt.t / MANTLE_T, 0, 1) : 1, ledgeX: mt ? (mt.hx - p.x) * mt.dir : 0, ledgeY: mt ? p.y - mt.hy : 0 };
 }
@@ -6877,6 +7349,7 @@ function animatePlayer(dt, time) {
   const st = pRig.style, m = pRig.mode;
   // the katana leaves its sheath for the blade dash and the kneeling slam
   pInst.mask = (m === "dash" && st.dash === "blade") || ((m === "slamland" || m === "dive") && st.slam === "kneel") ? 5 : 3;
+  if (p.aimT > 0 && run.wp && (m === "run" || m === "air" || m === "slide")) pInst.mask |= 8;   // the weapon shows while aiming
   C3.clothUpdate3(pInst, dt, time, 0, st.twos ? 1 : 0.2);
   C3.fxUpdate3(pInst, dt, time, m, q);
   pView = viewFor(p.x, p.y);
@@ -7223,7 +7696,7 @@ let botOn = false;            // attract-mode autopilot (also used by tests)
 const ui = {
   hud: $("hud"), dist: $("dist"), score: $("score"), mult: $("mult"), flowfill: $("flowfill"), flowbar: $("flowbar"),
   chain: $("chain"), hearts: $("hearts"), hint: $("hint"), zone: $("zone"), touch: $("touchHints"),
-  dashbar: $("dashbar"), dashfill: $("dashfill"),
+  dashbar: $("dashbar"), dashfill: $("dashfill"), fire: $("btnFire"), ammo: $("ammo"),
   bossbar: $("bossbar"), bossName: $("bossName"), bossHp: $("bossHp"), bossLeft: $("bossLeft").firstElementChild,
   start: $("screenStart"), pause: $("screenPause"), over: $("screenOver"), skills: $("screenSkills"),
 };
@@ -7341,8 +7814,49 @@ function skillCard(sk) {
   card.append(ico, body);
   return card;
 }
+// ---------- weapons on the skills screen: one card per character, the one you run with is highlighted ----------
+const WP_ICONS = {
+  shuriken: svgI('<path d="M12 2.5 14 10l7.5 2-7.5 2-2 7.5-2-7.5-7.5-2L10 10z"/><circle cx="12" cy="12" r="1.4"/>'),
+  rail: svgI('<path d="M2 14.5h13.5l2.5-2.5h4"/><path d="M5 14.5v3h4l1-3"/><path d="M7.5 12 9.5 9h8"/><path d="m13 5.5 1.5 3.5"/>'),
+  grenade: svgI('<circle cx="11" cy="14.5" r="6.5"/><path d="M11 8V5.5h3.5l2.5-2.5"/><path d="M8.5 12l5 5"/>'),
+  pulse: svgI('<path d="M3 9h12.5l2 2H21v3h-4.5l-1.2 1.2H9.5L8.4 20H5.2l1.2-5.6H3z"/><path d="M10 12h3"/>'),
+};
+const fmtS = (v) => v.toLocaleString("de-DE", { maximumFractionDigits: 2 });
+function wpStats(d, i) { const p = d.perk(i); return "Magazin " + d.mag[i] + " · lädt alle " + fmtS(d.reload[i]) + " s" + (p ? " · " + p : ""); }
+function weaponCard(id) {
+  const d = WEAPONS[id], lv = wpLv(id), sk = SKINS.find((s) => s.id === id), mine = currentSkin.id === id;
+  const card = mk("div", "sk-card" + (lv ? " owned" : "") + (mine ? " equipped" : ""));
+  card.style.setProperty("--wc", d.col);
+  const ico = mk("div", "sk-ico"); ico.innerHTML = WP_ICONS[d.kind]; if (lv) ico.style.color = d.col;
+  const name = mk("div", "sk-name", d.name);
+  name.appendChild(mk("small", "", (lv ? "STUFE " + lv + "/5" : "GESPERRT") + " · " + sk.name.toUpperCase() + (mine ? " (DU)" : "")));
+  const pips = mk("div", "wp-pips"); for (let i = 0; i < 5; i++) pips.appendChild(mk("i", i < lv ? "on" : ""));
+  const desc = mk("p", "sk-desc", d.desc + " " + wpStats(d, Math.max(0, lv - 1)) + ".");
+  const body = mk("div", "sk-body"); body.append(name, pips, desc);
+  if (lv && lv < 5) body.appendChild(mk("p", "sk-desc", "Stufe " + (lv + 1) + ": " + wpStats(d, lv) + "."));
+  const act = mk("div", "sk-act");
+  if (lv < 5) {
+    const c = WP_COST[lv], b = mk("button", "chip buy", (lv ? "STUFE " + (lv + 1) : "FREISCHALTEN") + " · " + c + " SP");
+    b.type = "button"; b.disabled = prog.sp < c; b.addEventListener("click", () => buyWeapon(id)); act.appendChild(b);
+  }
+  if (!mine) { // the weapon goes with its runner: pick them right here
+    const b = mk("button", "chip", "MIT " + sk.name.toUpperCase() + " LAUFEN");
+    b.type = "button"; b.addEventListener("click", () => { setSkin(sk); for (const el of document.querySelectorAll("#skinRow .skin")) el.setAttribute("aria-checked", String(el.dataset.id === sk.id)); Sound.fx.ui(); renderSkills(); });
+    act.appendChild(b);
+  }
+  body.appendChild(act);
+  card.append(ico, body);
+  return card;
+}
+function buyWeapon(id) {
+  const lv = wpLv(id), c = WP_COST[lv];
+  if (c == null || prog.sp < c) return;
+  prog.sp -= c; prog.wp[id] = lv + 1;
+  saveProg(); Sound.unlock(); Sound.fx.perfect(); renderSkills(); updateSpBadge();
+}
 function renderSkills() {
   $("spNum").textContent = prog.sp;
+  { const g = $("gridWeapons"); g.textContent = ""; for (const id of C3.MODEL_ORDER) if (WEAPONS[id]) g.appendChild(weaponCard(id)); }
   $("spCoins").textContent = "Noch " + (COINS_PER_SP - prog.bank) + " Münzen bis zum nächsten Skillpunkt. Meilensteine bringen extra.";
   $("coinFill").style.width = ((prog.bank / COINS_PER_SP) * 100).toFixed(1) + "%";
   for (const [id, joker] of [["gridJoker", true], ["gridPassive", false]]) {
@@ -7386,6 +7900,7 @@ const HINTS = IS_TOUCH ? {
   release: "Im <kbd>goldenen Bogen</kbd> loslassen = PERFEKT + Zeitlupe",
   dive: "In der Luft nach unten <kbd>wischen</kbd> = SLAM durch Drohnen",
   slide: "Am Boden nach unten <kbd>wischen</kbd> = RUTSCHEN · unter Kanälen und Lasern durch",
+  fire: "<kbd>FEUER</kbd> rechts = schießen · zielt von selbst, das Magazin lädt nach",
   pump: "Am Seil links <kbd>tippen</kbd> = Schwung holen · unten am stärksten",
   dash: "Nach rechts <kbd>wischen</kbd> = DASH · zerlegt Drohnen und Wächter",
   spike: "Stachel-Drohne: nicht draufspringen · <kbd>DASH</kbd> durch!",
@@ -7407,6 +7922,7 @@ const HINTS = IS_TOUCH ? {
   release: "Im <kbd>goldenen Bogen</kbd> loslassen = PERFEKT + Zeitlupe",
   dive: "<kbd>S</kbd> in der Luft = SLAM · von oben auf Drohnen springen",
   slide: "<kbd>S</kbd> oder <kbd>↓</kbd> am Boden = RUTSCHEN · unter Kanälen und Lasern durch",
+  fire: "<kbd>F</kbd> = schießen · zielt von selbst, das Magazin lädt nach",
   pump: "Am Seil <kbd>LEER</kbd> = Schwung holen · unten am stärksten",
   dash: "<kbd>D</kbd> <kbd>→</kbd> oder <kbd>SHIFT</kbd> = DASH · zerlegt Drohnen und Wächter",
   spike: "Stachel-Drohne: nicht draufspringen · <kbd>DASH</kbd> durch!",
@@ -7427,6 +7943,7 @@ let hintShown = {}, hintT = 0, zoneShownIdx = 0, zoneT = 0;
 const tutDone = () => store.get("tut", false);
 let pumpTutDone = store.get("pumpTut", false);
 let dashTutDone = store.get("dashTut", false), spikeTutDone = store.get("spikeTut", false), wallTutDone = store.get("wallTut", false), slideTutDone = store.get("slideTut", false);
+let fireTutDone = store.get("fireTut", false);
 const newTut = { spot: store.get("tutSpot", false), hunt: store.get("tutHunt", false), shield: store.get("tutShield", false), ball: store.get("tutBall", false), gun: store.get("tutGun", false),
   bmech: store.get("tutMech", false), bcarrier: store.get("tutCarrier", false), bcore: store.get("tutCore", false),
   trap: store.get("tutTrap", false), life: store.get("tutLife", false) };
@@ -7439,6 +7956,7 @@ function showHint(key, dur = 3.2, force = false) {
 function showScreen(name) {
   ui.start.hidden = name !== "menu"; ui.pause.hidden = name !== "pause"; ui.over.hidden = name !== "over"; ui.skills.hidden = name !== "skills";
   ui.hud.hidden = name === "menu" || name === "skills";
+  ui.fire.hidden = !((name === "play" || name === "pause") && run.wp); hudCache.fb = !ui.fire.hidden;
   if (name !== "play") { $("toast").classList.add("fade"); toastT = 0; }
 }
 function newWorld() {
@@ -7605,6 +8123,10 @@ function botThink() {
   const ready = dashReady(p);
   let swing = false;
   input.jumpSrc.delete("bot");
+  if (run.wp && run.ammo >= 1 && run.wpCD <= 0 && p.dashT <= 0 && (p.state === "run" || p.state === "air")) { // the weapon aims by itself: fire at what is in range
+    const [ox, oy] = muzzle(p);
+    if (aimTarget(ox, oy, p.face || 1, Math.min(run.wp.def.range, 640))) input.firePressed = true;
+  }
   const lowR = roofAt(p.x + 10), lowUp = lowR ? lowR.top - (p.y + HALF_H) : -1;
   if (p.dashT <= 0 && (p.state === "run" || (p.state === "air" && p.vy > 0 && lowUp >= -2 && lowUp < 60)) && botLowAhead(p)) { // slide under it (from the air: right before touching down)
     if (p.state === "run" ? p.slideT < 0.12 : p.slideBuf <= 0) input.divePressed = true;
@@ -7721,6 +8243,19 @@ function hudUpdate(rdt, gp) {
     if (hudCache.df !== fq) { hudCache.df = fq; ui.dashfill.style.transform = "scaleX(" + fq + ")"; }
     if (hudCache.dc !== cls) { hudCache.dc = cls; ui.dashbar.className = cls; }
   }
+  { // the weapon: the fire button shows the rounds left, the one loading fills up
+    const Wp = run.wp, show = !!Wp && (state === "play" || state === "pause");
+    if (hudCache.fb !== show) { hudCache.fb = show; ui.fire.hidden = !show; }
+    if (show) {
+      if (hudCache.fc !== Wp.def.col) { hudCache.fc = Wp.def.col; ui.fire.style.setProperty("--wc", Wp.def.col); ui.fire.setAttribute("aria-label", Wp.def.name + ": schießen"); }
+      const full = Math.floor(run.ammo + 1e-6), part = Math.floor((run.ammo - full) * 8) / 8, key = Wp.mag + ":" + full + ":" + part;
+      if (hudCache.am !== key) {
+        hudCache.am = key; let h = "";
+        for (let i = 0; i < Wp.mag; i++) h += i < full ? '<i class="on"></i>' : i === full && part > 0 ? '<i class="part" style="--f:' + part + '"></i>' : "<i></i>";
+        ui.ammo.innerHTML = h; ui.fire.classList.toggle("dry", full < 1);
+      }
+    }
+  }
   let gtxt = "";
   if (ghost && ghost.d && state === "play") {
     if (gp) { const dm = Math.round((player.x - gp.x) / PX_PER_M); gtxt = "GEIST " + (dm >= 0 ? "+" : "−") + Math.abs(dm) + " m"; }
@@ -7758,6 +8293,7 @@ function hudUpdate(rdt, gp) {
     if (!slideTutDone && !hintShown.slide && (world.blocks.some((k) => k.low && k.x > player.x && k.x - player.x < 820) || world.lows.some((o) => !o.hit && o.x > player.x && o.x - player.x < 820))) {
       ui.hint.classList.add("fade"); hintT = 0; showHint("slide", 4, true);
     }
+    if (run.wp && !fireTutDone && !hintShown.fire && hintT <= 0) { const [ox, oy] = muzzle(player); if (aimTarget(ox, oy, player.face || 1, run.wp.def.range)) showHint("fire", 3.6, true); }
     // the new enemies explain themselves once, the first time they show up
     const tutNew = (key, flag, seen) => { if (!newTut[key] && !hintShown[key] && seen()) { ui.hint.classList.add("fade"); hintT = 0; showHint(key, 3.8, true); newTut[key] = true; store.set(flag, true); } };
     tutNew("spot", "tutSpot", () => world.spotters.some((s) => s.alive && s.x > player.x && s.x - player.x < 760));
@@ -7774,7 +8310,7 @@ function hudUpdate(rdt, gp) {
   }
   // zone banner
   const zi = zoneIndexAt(player.x);
-  if (state === "play" && zi > zoneShownIdx) {
+  if (state === "play" && !LV && zi > zoneShownIdx) {
     zoneShownIdx = zi; const z = ZONES[zi % ZONES.length];
     ui.zone.innerHTML = "<small>ZONE " + (zi + 1) + " · " + fmt(zi * ZONE_M) + " M</small>" + z.name; ui.zone.classList.remove("alert");
     ui.zone.classList.remove("fade"); zoneT = 1.8; Sound.fx.zone();
@@ -7831,6 +8367,8 @@ $("btnStart").addEventListener("click", startRun);
 $("btnSkills").addEventListener("click", () => { Sound.unlock(); Sound.fx.ui(); openSkills(); });
 $("btnSkillsBack").addEventListener("click", () => { Sound.fx.ui(); showScreen("menu"); setTimeout(() => { try { $("btnStart").focus({ preventScroll: true }); } catch (e) {} }, 50); });
 $("btnJoker").addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); onAnyInput(); if (state === "play") input.jokerPressed = true; });
+$("btnFire").addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); onAnyInput(); if (state === "play") input.firePressed = true; });
+$("btnFire").addEventListener("contextmenu", (e) => e.preventDefault());
 $("btnAgain").addEventListener("click", startRun);
 $("btnRestartP").addEventListener("click", startRun);
 $("btnResume").addEventListener("click", resumeGame);

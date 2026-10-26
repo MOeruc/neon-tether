@@ -21,6 +21,7 @@ Läuft als installierbare Web-App (PWA): Vollbild, eigenes Icon, funktioniert of
 | Rutschen (am Boden) / Slam (in der Luft) | S, ↓ | nach unten wischen |
 | Walljump zur Gegenwand | an der Wand Leertaste | an der Wand links tippen |
 | Joker (Greifhaken / EMP) | G oder Q | nach oben wischen oder Joker-Knopf oben rechts |
+| Schießen (wenn die Waffe freigeschaltet ist) | F | Feuer-Knopf am rechten Rand |
 
 ## Regeln
 
@@ -70,5 +71,11 @@ Alle 35 gesammelten Münzen gibt es einen Skillpunkt, dazu einmalig für Meilens
 
 - **Joker** (einer ist ausgerüstet): **Greifhaken** zieht dich zur nächsten Dachkante hoch (1× pro Lauf, Stufe 2: 2×), **EMP-Schlag** zerlegt alle Gegner vor dir, schaltet Laser ab, holt Raketen vom Himmel und trifft einen Boss doppelt (1× pro Lauf).
 - **Fähigkeiten** (wirken immer): Münzmagnet, Schutzschild (ein Leben mehr), Dreifachsprung, Turbo-Overdrive (+2 s).
+- **Waffen:** Jeder Charakter hat seine eigene. Freischalten kostet 3 SP, danach gibt es vier weitere Stufen (2, 3, 4 und 5 SP). Die Waffe zielt selbst auf das nächste Ziel vor dir (Drohnen, Wächter, Späher, Raketen, Schwachstellen der Bosse). Das Magazin ist klein und lädt Schuss für Schuss von selbst nach. Bossen setzen Schüsse nur stückweise zu: mehrere Treffer ergeben einen ganzen.
+  - **Kage-X – Shuriken-Werfer:** schnelle Plasma-Shuriken, ab Stufe 3 durchschlagen sie zwei, auf Stufe 5 drei Gegner.
+  - **Vektor – Glitch-Railgun:** ein Strahl, der sofort alles in seiner Linie trifft, auch durch Schilde. Wenig Schuss, lädt langsam.
+  - **Titan – Granatwerfer:** Granaten im Bogen, die über Schilde fliegen und im Umkreis alles erwischen. Die Explosion wächst mit jeder Stufe.
+  - **Aero – Puls-Blaster:** großes Magazin, lädt schnell nach, ab Stufe 4 zwei Pulse pro Schuss.
+  - Schild-Wächter blocken Shuriken und Pulse von vorn. Der Panzer des Krabblers, der Rumpf des Schwarm-Trägers und das Auge der KI halten Schüsse ab. Treffen kannst du den offenen Kern, die Drohnen und die Generatoren. Minen kann man wegschießen.
 
 Der Fortschritt wird im Browser gespeichert.
