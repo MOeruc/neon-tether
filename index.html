@@ -1529,7 +1529,7 @@ function genArena(x, top, v, forceType, forceLvl) {
 // ================= LEVEL: 30 Level in drei Kapiteln, jedes eine feste Strecke mit Ziel =================
 // Jedes Level hat seinen eigenen Zufallswert (immer dieselbe Strecke, man kann sie lernen), seine Muster und Gegner,
 // eine Farbe (Zone), ein Grundtempo und eine Schwierigkeit d. Level 5, 15, 18 und 25 haben einen Boss in seiner Arena,
-// Level 10, 20 und 30 den Riesen hinter der Stadt: dort ist das Ziel erst offen, wenn er liegt.
+// Level 10, 20 und 30 den Riesen auf der Strecke: dort ist das Ziel erst offen, wenn er liegt.
 const ALL_PATS = { hop: 2, anchor: 1.6, chain: 1.4, rail: 1.2, long: 1.6, stones: 1, pad: 1, dbridge: 1, guards: 1.2, spot: 1, ball: 0.9, hunt: 0.9, taxi: 0.8, glass: 0.7, well: 0.8, arcade: 0.6, steps: 0.6, slide: 1.4, slab: 0.8 };
 const ALL_FOES = ["box", "laser", "drone", "spike", "guard", "shield", "low"];
 const BASIC_FOES = ["box", "laser", "drone", "guard", "low"];
@@ -1544,7 +1544,7 @@ const LEVELS = [
   { name: "Lichtschächte", len: 800, zone: 2, pats: { well: 2.5, arcade: 1.8, steps: 1.5, glass: 1.5, hop: 1, slab: 1 }, foes: ["box", "drone", "guard", "low"], teach: "Walljumps die Schächte hoch" },
   { name: "Suchlicht", len: 850, zone: 3, pats: { spot: 2.5, hunt: 2, long: 1.5, anchor: 1, slide: 1, chain: 1 }, foes: BASIC_FOES, debut: [["spot", 120], ["hunt", 420]], teach: "Späher und Jäger-Raketen" },
   { name: "Abrissviertel", len: 900, zone: 0, pats: { ball: 2.5, taxi: 2, long: 1.5, rail: 1, slab: 1, pad: 1 }, foes: ALL_FOES, debut: [["ball", 120]], teach: "Abrissbirnen und Lufttaxis" },
-  { name: "Koloss", giant: 1, len: 160, zone: 3, pats: { hop: 2.5, long: 2, slide: 1 }, foes: ["box", "low"], teach: "Der Riese hinter der Stadt" },
+  { name: "Koloss", giant: 1, len: 160, zone: 3, pats: { hop: 2.5, long: 2, slide: 1 }, foes: ["box", "low"], teach: "Ein Riese auf deiner Strecke" },
   { name: "Hafenkräne", len: 900, zone: 1, pats: { anchor: 2, chain: 2, rail: 2, slide: 1.5, hop: 1 }, foes: BASIC_FOES, teach: "Lange Schwünge über den Hafen" },
   { name: "Stachelfeld", len: 950, zone: 2, pats: { long: 2, dbridge: 2, stones: 1.5, guards: 1.5, slide: 1 }, foes: ALL_FOES, teach: "Stachel-Drohnen: nie draufspringen" },
   { name: "Glaspaläste", len: 1000, zone: 0, pats: { glass: 2.5, spot: 1.5, slab: 1.5, arcade: 1.5, slide: 1, hop: 1 }, foes: ALL_FOES, teach: "Durch die Scheiben und unter den Containern durch" },
@@ -2152,7 +2152,7 @@ function playerUpdate(dt) {
       if (top === null) { p.state = "air"; p.coyote = 0.1; p.jumpCut = false; }
       else p.y = top - HALF_H;
     }
-    if (p.state === "run") {
+    if (p.state === "run" && !(sliding(p) && eyeLaserHigh())) {                      // (under the giant's eye laser you slide over a pad)
       for (const pad of world.pads) if (ovX(p.x, PW, pad.x, pad.w) && Math.abs(p.y + HALF_H - pad.top) < 4) {
         if (p.dashT > 0) endDash(true);
         p.state = "air"; p.vy = -1380; p.vx = Math.max(p.vx, base + 260); p.jumpCut = true; pad.used = 1;
@@ -3127,7 +3127,7 @@ function bossUpdate(dt) {
   let b = run.boss;
   if (!b) {
     if (!live) return;
-    if (LV && LV.giant && !world.giantDown && !world.giantOn && p.x > KOL.AT * PX_PER_M) { // a giant level: he rises behind the city
+    if (LV && LV.giant && !world.giantDown && !world.giantOn && p.x > KOL.AT * PX_PER_M) { // a giant level: he drops onto the roofs ahead of you
       world.giantOn = true; const r = roofAt(p.x);
       b = run.boss = bossStart({ n: 0, type: "koloss", lvl: LV.giant, x0: p.x, x1: Infinity, gy: r ? r.top : 420, bridges: [], done: true });
     }
@@ -4056,48 +4056,67 @@ BOSS.core = {
 };
 
 // ---------- drawing ----------
-// ---------- DER KOLOSS: ein Riese hinter der Stadt (Level 10, 20 und 30) ----------
-// Er steht rechts hinten über den Dächern (in Bildschirmkoordinaten zwischen den Skyline-Ebenen gemalt) und greift die Strecke an:
-//  FAUSTSCHLAG: ein roter Kreis auf einem Dach vor dir, dann kracht seine Faust hinein. Das Dach bricht ein (ein Krater bleibt),
-//     eine Stoßwelle rollt dir entgegen (springen). Die Faust steckt kurz fest: ihr glühender Kern ist die Schwachstelle
-//     (Dash, Slam, von oben, Schüsse). Wer sonst gegen die Faust läuft, prallt ab.
-//  AUGENLASER: eine rote Linie folgt den Dachkanten. ▼ = auf Kopfhöhe (rutschen!), ▲ = am Boden (springen!). Danach ist er
-//     überhitzt: die Brustklappe steht offen und der Reaktor nimmt Schüsse.
-//  RAKETENHAGEL: rote Kreise auf den Dächern, die Raketen kommen von seinen Schultern. Ausweichen; ein Dash in eine Rakete
-//     schickt sie zurück (Treffer), Schüsse holen sie herunter.
-//  STAMPFEN (Mk II, Omega): eine Stoßwelle rollt übers Dach heran.
-// Je weniger Leben er hat, desto kaputter wird die Stadt vor dir (der Generator baut dann mehr Lücken, Seile und Rutsch-Hindernisse).
-const KOL = { AT: 150, HP: [0, 4, 5, 6], SMASH_T: 1.05, STUCK: 1.9, LAS_T: 1.0, LAS_F: 0.42, LAS_FL: 0.28, VENT: 2.6, MIS_T: 1.0, MIS_GAP: 0.75, MIS_N: [0, 3, 3, 4], R: 100, PIT: 54, BLAST: 46, SAFE: 56 };
-const KOL_ORDER = [null, ["smash", "laser", "smash", "mis"], ["smash", "laser", "stomp", "smash", "mis"], ["smash", "laser", "mis", "smash", "stomp", "laser"]];
+// ---------- DER KOLOSS (Level 10, 20 und 30): ein Riesen-Mech auf deiner Strecke ----------
+// Ein echtes 3D-Modell (die Figuren-Engine C3: Arme und Beine per IK, nichts dehnt sich), gut halb so hoch wie der Bildschirm,
+// auf denselben Dächern wie du. Er stürzt vor dir vom Himmel und kämpft dann abwechselnd von vorn und von hinten:
+// VORN (rechts) schwebt er auf seinen Düsen rückwärts vor dir her, den Körper zu dir und zu uns gedreht:
+//   FAUSTSCHLAG: er holt aus und kommt näher, ein roter Ring zeigt, wo die Faust aufs Dach kracht. Ein Krater bleibt,
+//     die Faust steckt kurz fest: ihr glühender Kern ist die Schwachstelle (Dash, Rutschen, Slam, von oben, Schüsse).
+//     Wer nur dagegen läuft, prallt am Panzer ab. Danach läufst du unter ihm durch: er dreht sich um und jagt dich.
+//   STAMPFEN (Mk II, Omega): er steigt auf den Düsen hoch und kracht aufs Dach, eine Stoßwelle rollt auf dich zu (springen).
+//   AUGENLASER: aus seinem Visier, eine Linie folgt den Dachkanten. ▼ = Kopfhöhe (rutschen), ▲ = Boden (springen).
+//     Danach überhitzt er: die Klappen vor dem Reaktor in seiner Brust stehen offen (mit einer Waffe treffbar).
+// HINTEN (links) rennt er dir nach, leicht zu dir gedreht: RAKETEN aus den Schulterkapseln (rote Kreise vor dir: dann in der
+//   Luft sein; ein Dash in eine Rakete schickt sie zurück in seine Brust = Treffer), bei Omega auch der Augenlaser.
+// Zwischen vorn und hinten springt er in einem riesigen Satz über dich hinweg.
+const KOL = { AT: 150, HP: [0, 4, 5, 6], S: 6.8, ZOOM: 0.86, SMASH_T: 1.0, STUCK: 1.9, LAS_T: 1.0, LAS_F: 0.42, LAS_FL: 0.22, VENT: 2.6, MIS_T: 1.0, MIS_GAP: 0.75, MIS_N: [0, 2, 3, 4],
+  R: 54, PIT: 54, BLAST: 46, SAFE: 56, LEAP_T: 1.3, LEAP_H: 230, POUND_T: 1.0, POUND_H: 100, FX: 21, FZ: 3, FH: 2.2, FIST: 40, STRIDE: 20, STANCE: 0.36,
+  YAW_A: 0.85, YAW_B: 0.55, YAW_S: 0.45 };
+// what he does on each visit in front of you and behind you (the lists take turns)
+const KOL_ORDER = [null,
+  { ahead: [["smash"], ["laser", "smash"]], behind: [["mis"]] },
+  { ahead: [["smash"], ["laser", "smash"], ["stomp", "smash"]], behind: [["mis"]] },
+  { ahead: [["smash"], ["laser", "stomp", "smash"], ["stomp", "laser", "smash"]], behind: [["mis", "laser"], ["mis"]] }];
 BOSS_NAME.koloss = "KOLOSS"; BOSS_COL.koloss = "#ff8a3d"; BOSS_WIN.koloss = "ZU FALL GEBRACHT!";
-// the giant lives in screen space: where it stands, how big it is, and how a point of its body maps into the world
-function kolFrame(b) {
-  const s = clamp(H / 250, 1, 2.4), rise = b.rise ?? 1, fall = b.fall || 0;
-  const x = W * 0.79 + Math.sin(b.bob * 0.7) * 6 * s + fall * fall * 30 * s;
-  const y = H * 1.12 + (1 - smoothT(rise)) * H * 0.95 + Math.abs(Math.sin(b.bob * 1.4)) * 3 * s + fall * fall * H * 0.35;
-  return { x, y, s, tilt: -fall * 0.22 };
+const easeInOutQ = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+// how far ahead of you or behind you he stays (he must fit on the screen, which the camera widens during the fight)
+function kolDist() { // near: how close he leans in to strike (his fist then lands about 300 px ahead of you)
+  const vw = W / Math.max(0.3, cam.zoom), ahead = Math.min(clamp(vw * 0.47, 480, 880), Math.max(480, vw * 0.7 - 70));
+  return { ahead, near: Math.min(ahead, clamp(vw * 0.36, 430, 620)), behind: clamp(vw * 0.23, 230, 380) };
 }
-const kolPt = (F, lx, ly) => { const c = Math.cos(F.tilt), sn = Math.sin(F.tilt); return [F.x + (lx * c - ly * sn) * F.s, F.y + (lx * sn + ly * c) * F.s]; };
-const scrToWorld = (sx, sy) => [(sx - W / 2) / cam.zoom + cam.x, (sy - H / 2) / cam.zoom + cam.y];
-function kolWorld(b, lx, ly) { const F = kolFrame(b), [sx, sy] = kolPt(F, lx, ly); return scrToWorld(sx, sy); }
-// a roof ahead with room for the crater (no light well, no tower over it), and the spot on it
-// best: about where you will be shortly after it lands, on a roof at your own height (so the fist core is at running height)
+// where the model stands and how it is turned (C3 view: model y up, the soles at y = -21)
+function kolView(b) {
+  const o = b.view || (b.view = { s: KOL.S, pitch: 0.06 });
+  o.x = b.gx; o.y = b.ground - 21 * Math.cos(o.pitch) * KOL.S - b.lift - (b.hov || 0); o.yaw = b.yaw; o.px = 1 / Math.max(0.3, cam.zoom);
+  return o;
+}
+const kolBody = (b, bone, lx, ly, lz) => C3.bonePoint(b.inst, bone, lx, ly, lz, kolView(b));
+const kolCore = (b) => kolBody(b, C3.BN.chest, 5.0, 5.1, 0);                 // the reactor in his chest
+const kolEye = (b) => kolBody(b, C3.BN.head, 3.2, 2.9, 0);                    // the visor
+const kolArm = (b) => (b.face > 0 ? "R" : "L");                               // he smashes with the arm on our side
+const kolFistAt = (b) => kolBody(b, C3.BN[kolArm(b) === "R" ? "handR" : "handL"], 2.6, 0, 0);
+const kolYawFor = (b) => (b.face > 0 ? KOL.YAW_B : Math.PI - (b.act && b.act.name === "smash" ? KOL.YAW_S : KOL.YAW_A));
+// a world point in model space at depth z (to send the smashing arm exactly there)
+function kolToModel(o, wx, wy, z) {
+  const c1 = Math.cos(o.yaw), s1 = Math.sin(o.yaw), c2 = Math.cos(o.pitch), s2 = Math.sin(o.pitch);
+  const x = ((wx - o.x) / o.s + s1 * z) / c1;
+  return [x, ((o.y - wy) / o.s + s2 * (s1 * x + c1 * z)) / c2, z];
+}
+// where the fist would come down right now: in front of him, on a roof at his own height with room for the crater
 function kolSmashSpot(b) {
-  const p = player, v = Math.max(b.pv, baseSpeedAt(p.x)), r = KOL.R, here = roofAt(p.x) || roofAt(p.x + 80), want = p.x + v * (KOL.SMASH_T * b.sp + 0.5);
-  let best = null, bs = 1e9;
-  for (let x = want - 240; x < want + 520; x += 30) {
-    const bd = roofAt(x);
-    if (!bd || bd.rubble || bd.well != null || x - r < bd.x + 90 || x + r > bd.x + bd.w - 170) continue;
-    if (world.blocks.some((k) => k.x < x + r + 60 && k.x + k.w > x - r - 60 && k.bot <= bd.top + 2)) continue;
-    const sc = Math.abs(x - want) + (here ? Math.abs(bd.top - here.top) * 4 : 0);
-    if (sc < bs) { bs = sc; best = { x, y: bd.top, bd }; }
+  const yaw = Math.PI - KOL.YAW_S, z = -KOL.FZ, r = KOL.R, x0 = b.gx + KOL.S * (Math.cos(yaw) * KOL.FX - Math.sin(yaw) * z);
+  for (const dx of [0, -15, 15, -30, 30]) {
+    const x = x0 + dx, bd = roofAt(x);
+    if (!bd || bd.rubble || bd.well != null || x - r < bd.x + 30 || x + r > bd.x + bd.w - 30 || Math.abs(bd.top - b.ground) > 60) continue;
+    if (world.blocks.some((k) => k.x < x + r + 40 && k.x + k.w > x - r - 40 && k.bot <= bd.top + 2)) continue;
+    return { x, y: bd.top, bd };
   }
-  return best;
+  return null;
 }
-// the roof caves in where the fist hit: the house splits, a pit of rubble stays in between (jump over it, or out of it)
+// the roof caves in where the fist hit: the house splits, a pit of rubble stays in between (jump over it, or climb out)
 function kolCrater(f) {
   const bd = f.bd, r = KOL.R, x0 = f.x - r, x1 = f.x + r;
-  if (!world.buildings.includes(bd) || x0 < bd.x + 30 || x1 > bd.x + bd.w - 30) return;
+  if (!world.buildings.includes(bd) || x0 < bd.x + 20 || x1 > bd.x + bd.w - 20) return;
   const right = { x: x1, w: bd.x + bd.w - x1, top: bd.top, style: bd.style, n: bd.n, look: bd.look ?? bd.n, face: null, ant: -1, prop: 0, propX: 0.5, cutL: true, cutR: bd.cutR };
   const pit = { x: x0, w: x1 - x0, top: bd.top + KOL.PIT, style: bd.style, n: bd.n, look: bd.look ?? bd.n, face: null, ant: -1, prop: 0, propX: 0.5, rubble: true, burn: Math.random() };
   if (bd.ant > 0 && bd.x + bd.w * bd.ant > x0 - 20) bd.ant = -1;
@@ -4111,140 +4130,265 @@ function kolCrater(f) {
   for (const c of world.coins) if (inPit(c.x) && c.y > bd.top - 80) c.y += KOL.PIT;            // the coins drop into the pit
   for (const g of world.guards) if (g.alive && inPit(g.x)) destroyEnemy(g, "guard", "crash");
 }
+// where (and how soon) you will stand on a roof: now if you are running, else where your jump comes down (straight ahead at speed v)
+function kolLand(p, v, T) {
+  if (p.state === "run") { const r = roofAt(p.x); return r ? { r, t: 0 } : null; }
+  if (p.state !== "air") return null;
+  const feet = p.y + HALF_H;
+  for (let t = 0.02; t <= T; t += 0.02) { const x = p.x + v * t, y = feet + p.vy * t + 0.5 * G * t * t, r = roofAt(x); if (r && y >= r.top && feet + p.vy * (t - 0.02) + 0.5 * G * (t - 0.02) ** 2 <= r.top + 4) return { r, t }; }
+  return null;
+}
 const kolLowNear = (x0, x1) => world.lows.some((o) => o.x < x1 && o.x + o.w > x0) || world.blocks.some((k) => k.low && k.x < x1 && k.x + k.w > x0);
+// a visit on one side: in front of you (facing left) or behind you (facing right), with its list of attacks
+function kolVisit(b, side) {
+  const lists = (KOL_ORDER[b.lvl] || KOL_ORDER[1])[side];
+  b.side = side; b.face = side === "ahead" ? -1 : 1;
+  const i = b.retry === side ? b.vi[side] - 1 : b.vi[side]++;                 // a list he could not finish comes round again (once)
+  b.retry = null; b.queue = lists[i % lists.length].slice(); b.hold = 0;
+}
+// the next move: the next attack of this visit, or (when the visit is over) the leap over you to the other side
 function kolNext(b) {
-  const order = KOL_ORDER[b.lvl] || KOL_ORDER[1], a = order[b.k++ % order.length], p = player;
+  const p = player;
+  if (!b.queue.length) { kolLeap(b); return; }
+  const a = b.queue[0], v = Math.max(b.pv, baseSpeedAt(p.x));
+  const wait = (n) => { if ((b.hold = (b.hold || 0) + 1) < n) { b.pt = 0.2; return true; } b.queue.shift(); b.hold = 0; b.pt = 0.2; return false; };
   if (a === "smash") {
-    const s = kolSmashSpot(b);
-    if (!s) { if ((b.hold = (b.hold || 0) + 1) < 7) b.k--; else b.hold = 0; b.ph = "idle"; b.pt = 0.25; return; } // nowhere to hit yet: try again a moment later, then the next attack
-    b.hold = 0; b.fist = { st: "aim", t: 0, x: s.x, y: s.y, bd: s.bd, T: KOL.SMASH_T * b.sp, fx: 0, fy: 0 };
-    b.ph = "smash"; Sound.fx.charge(); Sound.fx.rumble();
-  } else if (a === "laser") {
-    const r = roofAt(p.x), need = (Math.max(b.pv, baseSpeedAt(p.x), p.vx) + 150) * (KOL.LAS_T * b.sp + KOL.LAS_F) + 120;
-    if ((!r || r.rubble || r.x + r.w - p.x < need) && (b.hold = (b.hold || 0) + 1) < 10) { b.k--; b.ph = "idle"; b.pt = 0.2; return; } // waits for a roof long enough to dodge on
-    b.hold = 0;
-    let kind = b.lk % 2 === 0 ? "high" : "low";
-    if (kind === "low" && kolLowNear(p.x - 40, p.x + Math.max(b.pv, baseSpeedAt(p.x)) * (KOL.LAS_T * b.sp + KOL.LAS_FL) + 80)) kind = "high"; // a duct ahead: no room to jump, the beam goes high
-    else b.lk++;
-    b.las = { kind, t: 0, T: KOL.LAS_T * b.sp, F: kind === "low" ? KOL.LAS_FL : KOL.LAS_F, hit: false, top: r ? r.top : b.ground };
-    b.ph = "laser"; Sound.fx.charge();
+    b.queue.shift(); b.act = { name: "smash", st: "aim", t: 0, T: KOL.SMASH_T * b.sp, hold: 0 }; b.spot = null;
+    Sound.fx.charge(); Sound.fx.rumble();
+  } else if (a === "laser") { // judged where you will be when it fires: high = a roof long enough to slide on, low = a roof to jump from, no duct
+    const T = KOL.LAS_T * b.sp, xT = p.x + v * T, land = kolLand(p, v, T), r = land && land.r;
+    const fits = (lead, tail) => !!r && !r.rubble && T - land.t >= lead && r.x + r.w - xT >= tail; // on that roof long enough before it fires, and it goes on
+    const duct = kolLowNear(xT - 0.3 * v, xT + 0.3 * v + 60);
+    const high = fits(0.45, (v + 150) * KOL.LAS_F + 120), low = fits(0.3, 20) && !duct; // a roof edge soon after a low beam is fine: you jump anyway
+    const want = b.lk % 2 === 0 ? "high" : "low", kind = want === "high" ? (high ? "high" : low ? "low" : null) : low ? "low" : high ? "high" : null;
+    if (!kind) { if (!wait(7) && !b.retried) { b.retry = b.side; b.retried = true; } return; } // no beam fits yet
+    b.retried = false;
+    b.queue.shift(); b.hold = 0;
+    if (kind === want) b.lk++;
+    b.las = { kind, t: 0, T: KOL.LAS_T * b.sp, F: kind === "low" ? KOL.LAS_FL : KOL.LAS_F, hit: false, top: r.top };
+    b.act = { name: "laser", t: 0 }; Sound.fx.charge();
   } else if (a === "mis") {
-    const v = Math.max(b.pv, baseSpeedAt(p.x)) * (p.dashT > 0 ? 0.6 : 1), n = KOL.MIS_N[b.lvl] || 3, gap = KOL.MIS_GAP * Math.max(0.8, b.sp);
+    b.queue.shift(); b.hold = 0;
+    const vv = Math.max(v, p.dashT > 0 ? 0 : p.vx * 0.9) * (p.dashT > 0 ? 0.6 : 1), n = KOL.MIS_N[b.lvl] || 3, gap = KOL.MIS_GAP * Math.max(0.8, b.sp);
     for (let i = 0; i < n; i++) {
-      const T = KOL.MIS_T * b.sp + 0.25 + i * gap, x = p.x + v * T + (i % 2 ? 30 : -20), r = roofAt(x);
+      const T = KOL.MIS_T * b.sp + 0.45 + i * gap, x = p.x + vv * T + (i % 2 ? 30 : -20), r = roofAt(x);
       if (!r || kolLowNear(x - KOL.BLAST - 50, x + KOL.BLAST + 50)) continue;                 // never where you cannot jump
-      b.mis.push({ x, y: r.top, t: 0, T, L: 0.15 + i * 0.16, st: "wait", sx: 0, sy: 0, px: 0, py: 0, bx: 0, by: 0, bt: 0 });
+      b.mis.push({ x, y: r.top, t: 0, T, L: 0.35 + i * 0.16, st: "wait", side: i % 2, sx: 0, sy: 0, px: 0, py: 0, bx: 0, by: 0, bt: 0 });
     }
-    b.ph = "mis"; b.pt = 0.6; Sound.fx.lockBeep(true);
-  } else { // stomp: the ground shakes, a wave rolls along your roof towards you
-    const r = roofAt(p.x + 40) || roofAt(p.x);
-    if (!r || kolLowNear(p.x - 20, p.x + 760)) { b.ph = "idle"; b.pt = 0.2; return; }       // a duct in the way: no wave this time
-    b.ph = "stomp"; b.pt = 0.55; b.stomp = 0;
-    if (r) b.wave = { x: Math.min(r.x + r.w - 30, p.x + Math.max(560, b.pv * 1.1)), y: r.top };
+    b.act = { name: "mis", t: 0, T: 0.6 + n * 0.16 }; Sound.fx.lockBeep(true);
+  } else { // stomp: up on the jets and down onto the roof, a wave rolls along your roof towards you
+    const r = roofAt(p.x + 40) || roofAt(p.x), wx = r ? Math.min(r.x + r.w - 30, b.gx - 40) : 0;
+    if (!r || wx < p.x + 360 || kolLowNear(p.x - 20, wx)) { wait(8); return; }              // no room for a wave on your roof (yet)
+    b.queue.shift(); b.hold = 0;
+    b.act = { name: "stomp", t: 0, T: KOL.POUND_T * Math.max(0.85, b.sp), done: false };
+    Sound.fx.rumble();
   }
 }
+function kolLeap(b) { // a huge jump over the runner to the other side
+  const p = player, to = b.side === "ahead" ? "behind" : "ahead";
+  b.leap = { t: 0, T: KOL.LEAP_T * (b.lvl > 2 ? 0.9 : 1), dx0: b.gx - p.x, to, yaw0: b.yaw, yaw1: to === "ahead" ? Math.PI - KOL.YAW_A : KOL.YAW_B, off: false };
+  b.act = null; b.las = null; b.fist = null; b.spot = null; Sound.fx.rumble();
+}
 function kolFistHit(b, how) { // the fist core took it
-  const f = b.fist; if (!f) return;
+  const f = b.fist; if (!f || f.st !== "stuck") return;
   f.st = "back"; f.t = 0;
-  bossHit(b, f.x - 26, f.y - 34, how);
+  const [x, y] = kolFistAt(b);
+  bossHit(b, x, y, how);
 }
 BOSS.koloss = {
   start(b) {
-    b.hp = b.hpMax = KOL.HP[b.lvl] || 8; b.sp = [1, 1, 0.84, 0.72][b.lvl] || 1; b.k = 0; b.lk = 0;
-    b.ph = "rise"; b.pt = 0; b.fist = null; b.las = null; b.mis = []; b.vent = 0; b.rise = 0; b.bob = 0; b.fall = 0; b.arm = 0; b.eye = 0; b.flashT = 0; b.angry = false; b.step = 0;
+    const p = player, d = kolDist();
+    b.hp = b.hpMax = KOL.HP[b.lvl] || 3; b.sp = [1, 1, 0.86, 0.76][b.lvl] || 1; b.lk = 0; b.hold = 0; b.vi = { ahead: 0, behind: 0 }; b.queue = [];
+    b.inst = C3.makeInst3("koloss"); b.P = C3.poseNew(); b.ph = 0; b.walkK = 0; b.clock = 0;
+    b.side = "ahead"; b.face = -1; b.yaw = Math.PI - KOL.YAW_A; b.gx = p.x + d.ahead; b.vx = p.vx; b.lift = 1100;
+    const r = roofAt(b.gx) || roofAt(p.x); if (r) b.ground = r.top;
+    b.act = null; b.fist = null; b.spot = null; b.las = null; b.mis = []; b.leap = null; b.pt = 0.6; b.vent = 0; b.eye = 0.35; b.pod = 0; b.angry = false;
+    b.hurtT = 0; b.landed = false; b.jet = 1; b.camK = 0; b.blown = false;
     Sound.fx.rumble(); FX.shake(10);
+    kolPoseNow(b, 0);
   },
-  pos(b) { return kolWorld(b, -8, -122); },
+  pos(b) { return kolCore(b); },
   update(b, dt, live) {
-    const p = player;
-    bossGround(b, dt);
-    b.bob += dt * (b.st === "fight" ? 1 : 0.6);
-    [b.x, b.y] = kolWorld(b, -8, -122);                                                         // its chest core in the world (for arcs and FX)
-    if (Math.floor(b.bob * 1.4 / Math.PI) !== b.step && b.st !== "down") { b.step = Math.floor(b.bob * 1.4 / Math.PI); FX.shake(6); Sound.fx.thud(); } // footfalls
-    if (b.st === "intro") { b.rise = Math.min(1, b.t / 2.6); if (Math.random() < 0.3) FX.shake(7); if (b.t > 2.8) { b.st = "fight"; b.t = 0; b.ph = "idle"; b.pt = 0.6; Sound.fx.roar(); } }
-    b.eye += ((b.las && b.las.t < b.las.T + b.las.F ? 1 : 0.35) - b.eye) * Math.min(1, dt * 6);
-    b.vent += ((b.ph === "vent" ? 1 : 0) - b.vent) * Math.min(1, dt * 5);
-    b.arm += ((b.fist && (b.fist.st === "aim") ? 1 : 0) - b.arm) * Math.min(1, dt * 5);
-    if (b.st === "down") {
-      b.fall = Math.min(1.6, b.fall + dt * 0.55);
-      if (b.fall < 1.3 && Math.random() < dt * 7) { const [x, y] = kolWorld(b, rand(-90, 90), rand(-230, -40)); FX.burst(x, y, 12, "#ff8a3d", 340); FX.smoke(x, y, 4, "#3a3448", 120, 40); FX.shake(9); Sound.fx.boom(); }
-      if (b.fall >= 1.6) b.st = "gone";
+    const p = player, d = kolDist(), S = KOL.S, lp = b.leap;
+    b.clock += dt;
+    let act = b.act;
+    const planted = b.st === "down" || !!(act && act.name === "smash" && act.st !== "aim");
+    // ---- where he is: in the air over you, falling from the sky, or keeping his distance on the roofs ----
+    if (lp) {
+      lp.t += dt; const u = clamp(lp.t / lp.T, 0, 1), dx1 = lp.to === "ahead" ? d.ahead : -d.behind;
+      b.gx = p.x + lerp(lp.dx0, dx1, easeInOutQ(u)); b.vx = p.vx;
+      b.lift = KOL.LEAP_H * Math.sin(Math.PI * clamp((u - 0.15) / 0.65, 0, 1));
+      b.yaw = lerp(lp.yaw0, lp.yaw1, smoothT(clamp((u - 0.2) / 0.5, 0, 1)));
+      if (!lp.off && u > 0.15) { lp.off = true; FX.shake(10); FX.dust(b.gx, b.ground, 22); Sound.fx.thud(); Sound.fx.whoosh(); }
+      if (u >= 0.8 && !lp.down) { // touchdown
+        lp.down = true; b.lift = 0;
+        FX.shake(14); FX.dust(b.gx, b.ground, 26); FX.ring(b.gx, b.ground, "#ffb347", 260, 0.22); Sound.fx.slam(); Sound.fx.thud(); haptic([20, 30, 40]);
+      }
+      if (u >= 1) { b.leap = null; b.lift = 0; b.yaw = lp.yaw1; kolVisit(b, lp.to); b.pt = 0.35 * b.sp; }
+    } else {
+      let off = b.side === "ahead" ? d.ahead : -d.behind;
+      if (act && act.name === "smash" && act.st === "aim") off = lerp(d.ahead, Math.min(d.ahead, d.near), smoothT(clamp(act.t / act.T, 0, 1))); // he leans in to strike
+      const tx = p.x + off;
+      if (b.st === "down") b.vx = (b.dvx ?? (b.dvx = Math.max(p.vx, b.pv))) * Math.exp(-b.t * 0.7);
+      else if (planted) b.vx *= Math.exp(-dt * 9);
+      else b.vx += ((tx - b.gx) * 9 - (b.vx - p.vx) * 6) * dt;
+      b.vx = clamp(b.vx, -2400, 2400); b.gx += b.vx * dt;
+      if (b.st === "intro") { // he falls out of the sky in front of you, his jets roaring, and lands hard
+        const u = clamp(b.t / 1.0, 0, 1);
+        b.lift = 1100 * (1 - u) * (1 - u);
+        if (u >= 1 && !b.landed) {
+          b.landed = true; b.lift = 0;
+          FX.shake(16); FX.flash("#ffb347", 0.2); FX.dust(b.gx, b.ground, 30); FX.ring(b.gx, b.ground, "#ffb347", 320, 0.22); FX.debris(b.gx, b.ground - 10, "#8a7a9a", 16);
+          Sound.fx.boom(); Sound.fx.slam(); haptic([30, 30, 60]);
+        }
+        if (b.t > 1.3 && !b.roared) { b.roared = true; Sound.fx.roar(); }
+        if (b.t > 2.6) { b.st = "fight"; b.t = 0; kolVisit(b, "ahead"); b.pt = 0.3; }
+      } else if (!(act && act.name === "stomp")) b.lift = Math.max(0, b.lift - dt * 600);
+      b.yaw += (kolYawFor(b) - b.yaw) * Math.min(1, dt * 5);
     }
-    // ---- the fist ----
+    const under = roofAt(b.gx);
+    { const r = under || roofAt(b.gx - 60) || roofAt(b.gx + 60); if (r && !r.rubble) b.ground += (r.top - b.ground) * Math.min(1, dt * (lp && !lp.down ? 4 : r.top < b.ground ? 12 : 6)); }
+    // ---- his gait: a heavy run when he chases you, the jets when he hovers in front of you or crosses a gap ----
+    const chase = b.side === "behind" && !lp && !planted && b.st === "fight" && !!under && Math.abs(b.gx - (p.x - d.behind)) < 260 && !(act && act.name === "stomp");
+    b.walkK += ((chase ? 1 : 0) - b.walkK) * Math.min(1, dt * 8);
+    const hover = !chase && !planted && !lp && (b.st === "fight" || (b.st === "intro" && b.t > 1.3)) && !(act && act.name === "stomp");
+    b.hov = (b.hov || 0) + ((hover ? 18 : 0) - (b.hov || 0)) * Math.min(1, dt * (hover ? 3 : 10));          // a gap under his boots while the jets carry him
+    const jetOn = b.st === "down" ? b.t < 1.6 && Math.random() < 0.35 : !planted && (lp || !chase || b.st === "intro");
+    b.jet += ((jetOn ? (lp || (b.st === "intro" && !b.landed) || (act && act.name === "stomp" && act.t < act.T * 0.68) ? 1.6 : 1) : 0) - b.jet) * Math.min(1, dt * 6);
+    if (chase) {
+      const ph0 = b.ph; b.ph += ((b.vx * b.face) / S) * KOL.STANCE / KOL.STRIDE * dt;
+      if (Math.floor(b.ph * 2) !== Math.floor(ph0 * 2)) { // a footfall
+        FX.dust(b.gx + 20 * b.face, b.ground, 6); Sound.fx.thud(); if (Math.abs(b.gx - p.x) < 520) FX.shake(2.5);
+      }
+    }
+    b.eye += ((b.las && b.las.t < b.las.T + b.las.F ? 1 : 0.4) - b.eye) * Math.min(1, dt * 6);
+    b.vent += ((act && act.name === "vent" ? 1 : 0) - b.vent) * Math.min(1, dt * 5);
+    b.pod += ((act && act.name === "mis" ? 1 : 0) - b.pod) * Math.min(1, dt * 6);
+    b.hurtT = Math.max(0, b.hurtT - dt);
+    b.camK += (((b.st === "down" ? b.gx < p.x - 60 : (lp ? lp.to : b.side) === "behind") ? 1 : 0) - b.camK) * Math.min(1, dt * 2.5);
+    // ---- the defeat: he staggers, drops to his knees, bursts into flames and blows apart ----
+    if (b.st === "down") {
+      b.las = null; b.act = null; b.leap = null; b.fist = null; b.lift = Math.max(0, b.lift - dt * 900);
+      if (b.t > 0.3 && b.t < 1.95 && Math.random() < dt * 9) {
+        const bones = [C3.BN.chest, C3.BN.pelvis, C3.BN.upperR, C3.BN.upperL, C3.BN.head, C3.BN.thighR, C3.BN.thighL], bn = bones[(Math.random() * bones.length) | 0];
+        const [x, y] = kolBody(b, bn, rand(-2, 6), rand(-2, 6), rand(-3, 3)); FX.explode(x, y, rand(34, 60)); Sound.fx.boom(); FX.shake(8);
+      }
+      const left = cam.x - W / 2 / Math.max(0.3, cam.zoom) + 110;                  // he stays on the screen until he blows
+      if (b.gx < left) { b.gx = left; b.vx = Math.max(b.vx, Math.min(p.vx, 1400)); }
+      if (b.t > 0.75 && b.vx > 80 && Math.random() < 0.7) { // on his knees he grinds along the roof
+        const [kx] = kolBody(b, C3.BN[b.face > 0 ? "shinL" : "shinR"], 0, 0, 0); FX.sparks(kx, b.ground - 3, -1, -0.35, 2);
+      }
+      if (b.t > 2.0 && !b.blown) {
+        b.blown = true; const [x, y] = kolCore(b);
+        FX.explode(x, y, 170, b.ground); FX.explode(x - 80, y + 90, 90, b.ground); FX.explode(x + 70, y - 110, 100); FX.flash("#ffffff", 0.6); FX.debris(x, y, "#c3ccdd", 30); FX.shake(24);
+        Sound.fx.explode(170); haptic([40, 40, 80]);
+      }
+      if (b.t > 2.2) b.st = "gone";
+      kolPoseNow(b, dt); return;
+    }
+    // ---- the fist: aim (he leans in), down onto the ring, stuck in the crater, back up ----
     const f = b.fist;
-    if (f) {
-      f.t += dt;
-      if (f.st === "aim" && f.t >= f.T) { f.st = "fall"; f.t = 0; Sound.fx.whoosh(); }
-      else if (f.st === "fall" && f.t >= 0.16) { // impact
-        f.st = "stuck"; f.t = 0; kolCrater(f);
+    if (act && act.name === "smash") {
+      act.t += dt;
+      if (act.st === "aim") {
+        b.spot = kolSmashSpot(b);
+        if (act.t >= act.T) {
+          if (b.spot) { act.st = "fall"; act.t = 0; b.fist = { st: "fall", t: 0, x: b.spot.x, y: b.spot.y, bd: b.spot.bd }; Sound.fx.whoosh(); }
+          else if ((act.hold += dt) > 1.0) { b.act = null; b.spot = null; b.pt = 0.3; }      // nowhere to hit: he lets it go
+        }
+      } else if (act.st === "fall" && act.t >= 0.16) { // impact
+        act.st = "stuck"; act.t = 0; f.st = "stuck"; f.t = 0; kolCrater(f);
         FX.shake(16); FX.flash("#ff8a3d", 0.18); FX.burst(f.x, f.y, 26, "#ff8a3d", 460); FX.debris(f.x, f.y - 10, "#8a7a9a", 22); FX.smoke(f.x, f.y - 10, 12, "#3a3448", 260, 60); FX.ring(f.x, f.y, "#ffb347", 230, 0.3);
         Sound.fx.boom(); Sound.fx.slam(); haptic([30, 30, 60]);
         const feet = p.y + HALF_H;
         if (live && Math.abs(p.x - f.x) < KOL.R + PW / 2 && feet > f.y - 90 && feet < f.y + KOL.PIT + 10) crash(f.x, f.y - 30, "FAUSTSCHLAG!");
-      } else if (f.st === "stuck" && (f.t >= KOL.STUCK * (b.lvl > 2 ? 0.85 : 1) || b.st !== "fight")) { f.st = "back"; f.t = 0; }
-      else if (f.st === "back" && f.t >= 0.5) { b.fist = null; b.ph = "idle"; b.pt = 0.75 * b.sp; }
-      if (f.st === "fall" || f.st === "back") {                                                  // in flight: from high up (the raised arm) to the roof and back
-        const [hx, hy] = kolWorld(b, -150, -330), k = f.st === "fall" ? (f.t / 0.16) ** 2 : 1 - smoothT(clamp(f.t / 0.5, 0, 1));
-        f.fx = lerp(hx, f.x, k); f.fy = lerp(hy, f.y - 40, k);
-      } else if (f.st === "aim") { const [hx, hy] = kolWorld(b, -150, -330); f.fx = hx; f.fy = hy; }
-      else { f.fx = f.x; f.fy = f.y - 40; }
+      } else if (act.st === "stuck") {
+        if (f && f.st === "stuck") f.t += dt;
+        if (!f || f.st === "back" || f.t >= KOL.STUCK * (b.lvl > 2 ? 0.85 : 1) || b.st !== "fight") { act.st = "back"; act.t = 0; if (f) { f.st = "back"; f.t = 0; } }
+      } else if (act.st === "back" && act.t >= 0.5) {
+        b.act = null; b.fist = null; b.spot = null; b.pt = 0.5 * b.sp;
+        if (p.x > b.gx - 40 && b.side === "ahead") { kolVisit(b, "behind"); b.pt = 0.7; } // you ran past under him: he turns round and comes after you
+      }
     }
+    // ---- stomp: up on the jets, a moment in the air, down hard: a shock wave rolls towards you ----
+    if (act && act.name === "stomp") {
+      act.t += dt; const u = act.t / act.T;
+      b.lift = u < 0.25 ? 14 * smoothT(u / 0.25) : u < 0.55 ? 14 + (KOL.POUND_H - 14) * Math.sin((u - 0.25) / 0.3 * Math.PI / 2) : u < 0.7 ? KOL.POUND_H * (1 - Math.pow((u - 0.55) / 0.15, 2)) : 0;
+      if (!act.done && u >= 0.7) {
+        act.done = true; b.lift = 0; const r = roofAt(p.x + 40) || roofAt(p.x);
+        if (r) world.waves.push({ x: Math.max(p.x + 200, Math.min(r.x + r.w - 30, b.gx - 40)), y: r.top, vx: -600, life: 2.2, hit: false, over: false, big: true });
+        FX.shake(16); FX.dust(b.gx, b.ground, 24); FX.ring(b.gx, b.ground, "#ffb347", 240, 0.24); FX.sparks(b.gx - 30, b.ground - 4, -1, -0.3, 10); Sound.fx.slam(); Sound.fx.thud(); haptic([20, 30, 40]);
+      }
+      if (u >= 1) { b.act = null; b.pt = 0.6 * b.sp; }
+    }
+    if (act && act.name === "mis") {
+      act.t += dt;
+      if (act.t >= act.T && !b.mis.some((m) => m.st === "wait")) { b.act = null; b.pt = 0.9 * b.sp; }
+    }
+    if (act && act.name === "vent") { act.t += dt; if (act.t >= act.T) { b.act = null; b.pt = 0.5 * b.sp; } }
     // ---- the eye laser ----
     const L = b.las;
     if (L) {
       const was = L.t; L.t += dt;
       if (was < L.T && L.t >= L.T) { Sound.fx.laser(); FX.shake(8); }
-      if (L.t >= L.T + L.F || b.st !== "fight") { b.las = null; if (b.st === "fight") { b.ph = "vent"; b.pt = KOL.VENT * (run.wp ? 1 : 0.45); Sound.fx.thud(); } }
+      if (L.t >= L.T + L.F || b.st !== "fight") {
+        b.las = null; b.act = null;
+        if (b.st === "fight") { b.act = { name: "vent", t: 0, T: b.side === "ahead" && run.wp ? KOL.VENT : 0.9 }; Sound.fx.thud(); } // overheated: the reactor doors open
+      }
     }
-    // ---- missiles: they leave the shoulder pods, arc over and come down on their circles ----
+    // ---- missiles: out of the shoulder pods, up, over, down on their circles ----
     for (const m of b.mis) {
       m.t += dt;
-      if (m.st === "wait" && m.t >= m.L) { m.st = "fly"; [m.sx, m.sy] = kolWorld(b, (m.L * 97) % 2 > 1 ? 108 : -112, -196); Sound.fx.missile(); FX.burst(m.sx, m.sy, 6, "#ffd23f", 160); }
+      if (m.st === "wait" && m.t >= m.L) {
+        m.st = "fly"; [m.sx, m.sy] = kolBody(b, C3.BN.chest, -1.0, 14.2, (m.side ? 1 : -1) * 5.8);
+        Sound.fx.missile(); FX.burst(m.sx, m.sy, 6, "#ffd23f", 160); FX.smoke(m.sx, m.sy, 3, "#5a5068", 60, 40);
+      }
       if (m.st === "fly") {
-        const u = clamp((m.t - m.L) / (m.T - m.L), 0, 1), cx = lerp(m.sx, m.x, 0.5), cy = Math.min(m.sy, m.y) - 260;
+        const u = clamp((m.t - m.L) / (m.T - m.L), 0, 1), cx = lerp(m.sx, m.x, 0.5), cy = Math.min(m.sy, m.y) - 300;
         m.px = (1 - u) * (1 - u) * m.sx + 2 * (1 - u) * u * cx + u * u * m.x; m.py = (1 - u) * (1 - u) * m.sy + 2 * (1 - u) * u * cy + u * u * m.y;
         if (u >= 1) { // impact
-          m.st = "boom"; FX.burst(m.x, m.y - 6, 18, "#ff8a3d", 380); FX.smoke(m.x, m.y - 10, 6, "#3a3448", 160, 50); FX.ring(m.x, m.y, "#ff8a3d", 90, 0.3); FX.shake(7); Sound.fx.boom();
+          m.st = "boom"; FX.explode(m.x, m.y - 8, 40, m.y); Sound.fx.boom(); FX.shake(7);
           const feet = p.y + HALF_H;
           if (live && Math.abs(p.x - m.x) < KOL.BLAST + PW / 2 && feet > m.y - KOL.SAFE && feet < m.y + 30) crash(m.x, m.y - 24, "RAKETE!");
           else if (live && Math.abs(p.x - m.x) < 160) { award(30); addFlow(3); }
         }
       } else if (m.st === "back") { // countered: it flies home into his chest
-        m.bt += dt; const k = clamp(m.bt / 0.45, 0, 1), [tx, ty] = kolWorld(b, -8, -122);
+        m.bt += dt; const k = clamp(m.bt / 0.45, 0, 1), [tx, ty] = kolCore(b);
         m.px = lerp(m.bx, tx, k * k); m.py = lerp(m.by, ty, k * k);
-        if (k >= 1) { m.st = "dead"; FX.burst(tx, ty, 20, "#ffd23f", 380); if (b.st === "fight") bossHit(b, tx, ty, "counter"); }
+        if (k >= 1) { m.st = "dead"; FX.explode(tx, ty, 50); if (b.st === "fight") bossHit(b, tx, ty, "counter"); }
       }
     }
     b.mis = b.mis.filter((m) => m.st !== "boom" && m.st !== "dead" && m.st !== "down");
     // ---- the attack cycle ----
-    if (b.st !== "fight") return;
-    if (!b.angry && b.hp <= b.hpMax / 3) { b.angry = true; b.sp *= 0.85; Sound.fx.roar(); }  // badly hurt: faster
-    b.pt -= dt;
-    if (b.ph === "idle" && b.pt <= 0) kolNext(b);
-    else if (b.ph === "vent" && b.pt <= 0) { b.ph = "idle"; b.pt = 0.7 * b.sp; }
-    else if (b.ph === "mis" && b.pt <= 0 && !b.mis.some((m) => m.st === "wait")) { b.ph = "idle"; b.pt = 1.1 * b.sp; }
-    else if (b.ph === "stomp") {
-      b.stomp += dt;
-      if (b.wave && b.stomp >= 0.4) { world.waves.push({ x: b.wave.x, y: b.wave.y, vx: -600, life: 2.2, hit: false, over: false, big: true }); b.wave = null; FX.shake(14); Sound.fx.slam(); FX.dust(player.x + 300, b.ground, 10); }
-      if (b.pt <= 0) { b.ph = "idle"; b.pt = 0.8 * b.sp; }
+    if (b.st === "fight") {
+      if (!b.angry && b.hp <= b.hpMax / 3) { b.angry = true; b.sp *= 0.86; Sound.fx.roar(); b.hurtT = 0.8; }
+      act = b.act;
+      if (!act && !b.leap) { // you got past him (or fell behind him): he turns round
+        if (b.side === "ahead" && p.x > b.gx + 30) { kolVisit(b, "behind"); b.pt = Math.max(b.pt, 0.5); }
+        else if (b.side === "behind" && p.x < b.gx - 30) { kolVisit(b, "ahead"); b.pt = Math.max(b.pt, 0.5); }
+      }
+      b.pt -= dt;
+      const tx = p.x + (b.side === "ahead" ? d.ahead : -d.behind), there = Math.abs(b.gx - tx) < 200 && Math.abs(b.yaw - kolYawFor(b)) < 0.2;
+      if (!b.act && !b.las && !b.leap && b.pt <= 0 && there) kolNext(b);
     }
+    kolPoseNow(b, dt);
   },
   contacts(b, p) {
     if (b.st !== "fight") return;
     const f = b.fist, dash = p.dashT > 0;
     if (f && f.st === "stuck" && b.hitT <= 0) { // the fist sits in the crater: its core faces you
-      const x0 = f.x - 58, x1 = f.x + 58, top = f.y - 74, feet = p.y + HALF_H;
+      const [cx, cy] = kolFistAt(b), x0 = cx - KOL.FIST, x1 = cx + KOL.FIST, top = Math.min(cy - 34, f.y - 74), feet = p.y + HALF_H;
       if (p.x + PW / 2 > x0 && p.x - PW / 2 < x1 && feet > top && headY(p) < f.y + 30) {
         const fromAbove = p.vy > 0 && p.prevY + HALF_H <= top + 12;
         if (dash || p.diving || fromAbove || run.od > 0 || sliding(p) || p.slideGrace > 0) {
           if (dash) { dashRefill(); endDash(true); }
           if (p.state !== "swing" && p.state !== "grind") { p.state = "air"; p.vy = -780; p.vx = Math.max(p.vx, b.pv); p.airJumps = AIRJ; p.airDash = 1; p.diving = false; p.jumpCut = true; }
-          FX.slash(f.x - 20, f.y - 36, -0.5, currentSkin.trail, 130);
+          FX.slash(cx, cy, -0.5, currentSkin.trail, 130);
           kolFistHit(b, "fist");
         } else { // armour plating: you bounce off it
           b.hitT = 0.4; if (dash) endDash(false);
           p.state = "air"; p.diving = false; p.flipT = 0; p.jumpCut = true; p.x = Math.min(p.x, x0 - PW / 2 - 1); p.vx = -200; p.vy = -560; p.kickT = 0.18;
-          FX.sparks(x0, p.y, -1, -0.6, 12); FX.shake(8); FX.hitstop(0.05); FX.popup(f.x, top - 30, "PANZER!", "#ff8a3d", 1, false); Sound.fx.block(); haptic(22);
+          FX.sparks(x0, p.y, -1, -0.6, 12); FX.shake(8); FX.hitstop(0.05); FX.popup(cx, top - 30, "PANZER!", "#ff8a3d", 1, false); Sound.fx.block(); haptic(22);
         }
       }
     }
@@ -4264,37 +4408,57 @@ BOSS.koloss = {
       }
     }
   },
-  down(b) { b.fist = null; b.las = null; for (const m of b.mis) if (m.st === "fly" || m.st === "wait") m.st = "down"; b.ph = "dead"; world.giantDown = true; if (LV) LV.endX = 0; return kolWorld(b, -8, -122); },
+  down(b) {
+    b.fist = null; b.las = null; b.act = null; b.leap = null; b.spot = null;
+    for (const m of b.mis) if (m.st === "fly" || m.st === "wait") m.st = "down";
+    world.giantDown = true; if (LV) LV.endX = 0;
+    return kolCore(b);
+  },
   leave(b) {},
-  emp(b) { b.las = null; if (b.ph === "laser") { b.ph = "vent"; b.pt = KOL.VENT * (run.wp ? 1 : 0.45); } for (const m of b.mis) if (m.st === "fly" || m.st === "wait") { m.st = "down"; FX.burst(m.px || m.x, m.py || m.y, 8, "#4ff3ff", 200); } if (b.fist && b.fist.st === "aim") { b.fist = null; b.ph = "idle"; b.pt = 0.6; } },
+  emp(b) {
+    if (b.las) { b.las = null; b.act = { name: "vent", t: 0, T: b.side === "ahead" && run.wp ? KOL.VENT : 0.9 }; }
+    for (const m of b.mis) if (m.st === "fly" || m.st === "wait") { m.st = "down"; FX.burst(m.px || m.x, m.py || m.y, 8, "#4ff3ff", 200); }
+    if (b.act && b.act.name === "smash" && b.act.st === "aim") { b.act = null; b.spot = null; b.pt = 0.6; }
+  },
   aim(b) {
     const T = [];
     if (b.st !== "fight") return T;
     const f = b.fist;
-    if (f && f.st === "stuck") T.push({ x: f.x - 26, y: f.y - 34, pri: 1, live: () => b.fist === f && f.st === "stuck" });
-    if (b.vent > 0.6) { const [x, y] = kolWorld(b, -8, -122); T.push({ x, y, pri: 1, pos: () => kolWorld(b, -8, -122), live: () => b.vent > 0.6 }); }
+    if (f && f.st === "stuck") { const [x, y] = kolFistAt(b); T.push({ x, y, pri: 1, pos: () => kolFistAt(b), live: () => b.fist === f && f.st === "stuck" }); }
+    if (b.vent > 0.6) { const [x, y] = kolCore(b); T.push({ x, y, pri: 1, pos: () => kolCore(b), live: () => b.vent > 0.6 && b.st === "fight" }); }
     for (const m of b.mis) if (m.st === "fly" && m.t - m.L > 0.15) T.push({ x: m.px, y: m.py, pri: 1, pos: () => [m.px, m.py], live: () => m.st === "fly" });
     return T;
   },
   shot(b, s) {
-    for (const m of b.mis) if (m.st === "fly" && Math.hypot(m.px - s.x, m.py - s.y) < 18 + (s.r || 6)) { m.st = "down"; FX.burst(m.px, m.py, 14, "#ff8a3d", 320); Sound.fx.boom(); award(40); return true; }
+    for (const m of b.mis) if (m.st === "fly" && Math.hypot(m.px - s.x, m.py - s.y) < 18 + (s.r || 6)) { m.st = "down"; FX.explode(m.px, m.py, 30); Sound.fx.boom(); award(40); return true; }
     if (b.st !== "fight") return false;
     const f = b.fist;
-    if (f && f.st === "stuck" && s.x > f.x - 58 && s.x < f.x + 58 && s.y > f.y - 74 && s.y < f.y + 30) { bossChip(b, s.x, s.y, s.chip * 2); if (b.chip === 0 && f.st === "stuck") { f.st = "back"; f.t = 0; } return true; }
-    if (b.vent > 0.6) { const F = kolFrame(b), [x, y] = kolWorld(b, -8, -122), r = 30 * F.s / Math.max(0.35, cam.zoom); if (Math.hypot(s.x - x, s.y - y) < r) { bossChip(b, s.x, s.y, s.chip * 2); return true; } }
+    if (f && f.st === "stuck") { const [cx, cy] = kolFistAt(b); if (Math.abs(s.x - cx) < KOL.FIST && Math.abs(s.y - cy) < KOL.FIST) { bossChip(b, s.x, s.y, s.chip * 2); if (b.chip === 0 && f.st === "stuck") { f.st = "back"; f.t = 0; } return true; } }
+    if (b.vent > 0.6) { const [x, y] = kolCore(b); if (Math.hypot(s.x - x, s.y - y) < 4.2 * KOL.S) { bossChip(b, s.x, s.y, s.chip * 2); return true; } }
     return false;
   },
   blast(b, x, y, R, s) {
     for (const m of b.mis) if (m.st === "fly" && Math.hypot(m.px - x, m.py - y) < R + 18) { m.st = "down"; FX.burst(m.px, m.py, 14, "#ff8a3d", 320); }
+    if (b.st !== "fight") return;
     const f = b.fist;
-    if (b.st === "fight" && f && f.st === "stuck" && Math.abs(f.x - x) < R + 58 && Math.abs(f.y - 30 - y) < R + 50) bossChip(b, f.x, f.y - 30, s.chip * 2);
+    if (f && f.st === "stuck") { const [cx, cy] = kolFistAt(b); if (Math.hypot(cx - x, cy - y) < R + KOL.FIST) bossChip(b, cx, cy, s.chip * 2); }
+    else if (b.vent > 0.6) { const [cx, cy] = kolCore(b); if (Math.hypot(cx - x, cy - y) < R + 4 * KOL.S) bossChip(b, cx, cy, s.chip * 2); }
   },
   bot(b, p, ready, ground, air) {
     if (b.st !== "fight") return null;
     const L = b.las;
     if (L && L.t < L.T + L.F) {
       const tl = L.T - L.t;
-      if (L.kind === "high") { if (ground && tl < 0.5) return p.slideT < 0.25 ? "dive" : "wait"; if (air && tl < 0.45 && p.vy > -300) return "dive"; }
+      if (L.kind === "high") {
+        if (ground && tl < 0.5) return p.slideT < 0.25 ? "dive" : "wait";
+        if (air && tl < 0.5) { // down in time (a slam, then the slide under it), or stay up above it
+          const r = roofAt(p.x), h = r ? r.top - (p.y + HALF_H) : 999;
+          if (h / 1350 + 0.06 < tl && p.vy > -300) return "dive";
+          const te = tl + L.F, ye = p.y + HALF_H + p.vy * te + 0.5 * G * te * te;
+          if (r && ye > r.top - 60 && p.airJumps > 0 && p.vy > -100) return "jump";
+          return "wait";
+        }
+      }
       else {
         const r = roofAt(p.x), up = r ? r.top - (p.y + HALF_H) : 999;
         if (ground && tl < 0.2 && tl > -L.F + 0.05) return "jump";
@@ -4309,29 +4473,30 @@ BOSS.koloss = {
       if (air && p.airJumps > 0 && p.y + HALF_H + p.vy * tl + 1200 * tl * tl > m.y - KOL.SAFE - 10 && p.vy > -150) return "jump";
     }
     if (ground) for (const w of world.waves) if (w.big && w.life > 0 && w.x > p.x && Math.abs(w.y - (p.y + HALF_H)) < 10 && (w.x - p.x) / Math.max(200, p.vx - w.vx) < 0.24) return "jump";
-    const f = b.fist;
-    if (f && f.st === "aim") { const tl = f.T - f.t + 0.16; if (Math.abs(p.x + p.vx * tl - f.x) < KOL.R + 30 && ground && tl < 0.4) return "jump"; }
-    if (f && f.st === "stuck" && air && p.y + HALF_H < f.y - 80) { // above it: slam down onto the core
-      const h = f.y - 74 - (p.y + HALF_H), lead = Math.max(0, p.vx) * (0.1 + h / 2000), dx = f.x - p.x;
-      if (dx > lead - 40 && dx < lead + 46) return "dive";
-    }
-    if (f && f.st === "stuck" && Math.abs(p.y + HALF_H - f.y) < 70) { // level with the fist: cut its core
-      const dx = f.x - 58 - p.x;
-      if (ready && dx > 10 && dx < Math.max(170, p.vx * 0.2)) return "dash";
-      if (ground && dx > 10 && dx < 150 && p.slideT < 0.1) return "dive";                     // or slide into it
-      if (dx > -20 && dx < 220) return "wait";
+    const f = b.fist, act = b.act;
+    if (act && act.name === "smash" && act.st === "aim" && b.spot) { const tl = act.T - act.t + 0.16; if (Math.abs(p.x + p.vx * tl - b.spot.x) < KOL.R + 30 && ground && tl < 0.4) return "jump"; }
+    if (f && f.st === "stuck") {
+      const [cx] = kolFistAt(b);
+      if (air && p.y + HALF_H < f.y - 80) { // above it: slam down onto the core
+        const h = f.y - 74 - (p.y + HALF_H), lead = Math.max(0, p.vx) * (0.1 + h / 2000), dx = cx - p.x;
+        if (dx > lead - 40 && dx < lead + 46) return "dive";
+      }
+      if (Math.abs(p.y + HALF_H - f.y) < 70) { // level with the fist: cut its core
+        const dx = cx - KOL.FIST - p.x;
+        if (ready && dx > 10 && dx < Math.max(170, p.vx * 0.2)) return "dash";
+        if (ground && dx > 10 && dx < 150 && p.slideT < 0.1) return "dive";
+        if (dx > -20 && dx < 220) return "wait";
+      }
     }
     return null;
   },
   ground(b, time, Lx, Rx) {
-    const f = b.fist;
-    if (f && f.st === "aim") { // where the fist will come down
-      const k = clamp(f.t / f.T, 0, 1), r = lerp(KOL.R * 1.8, KOL.R, k), fl = Math.sin(time * (12 + k * 30)) > -0.2;
-      glowAt("#ff2e63", f.x, f.y - 4, KOL.R * 3.4, 40, 0.35 + 0.45 * k);
-      ctx.strokeStyle = rgba("#ff2e63", fl ? 0.95 : 0.5); ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(f.x, f.y - 1, r, r * 0.2, 0, 0, TAU); ctx.stroke();
-      ctx.strokeStyle = rgba("#ffd23f", 0.85); ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(f.x, f.y - 1, KOL.R, KOL.R * 0.2, 0, 0, TAU); ctx.stroke();
-      ctx.globalCompositeOperation = "lighter"; const sg = ctx.createLinearGradient(0, f.y - 420, 0, f.y); sg.addColorStop(0, rgba("#ff2e63", 0)); sg.addColorStop(1, rgba("#ff2e63", 0.18 + 0.2 * k));
-      ctx.fillStyle = sg; ctx.fillRect(f.x - KOL.R, f.y - 420, KOL.R * 2, 420); ctx.globalCompositeOperation = "source-over";
+    const act = b.act;
+    if (act && act.name === "smash" && (act.st === "aim" || act.st === "fall") && (b.spot || b.fist)) { // where the fist will come down
+      const s = act.st === "fall" ? b.fist : b.spot, k = act.st === "fall" ? 1 : clamp(act.t / act.T, 0, 1), r = lerp(KOL.R * 1.8, KOL.R, k), fl = Math.sin(time * (12 + k * 30)) > -0.2;
+      glowAt("#ff2e63", s.x, s.y - 4, KOL.R * 3.4, 40, 0.35 + 0.45 * k);
+      ctx.strokeStyle = rgba("#ff2e63", fl ? 0.95 : 0.5); ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(s.x, s.y - 1, r, r * 0.2, 0, 0, TAU); ctx.stroke();
+      ctx.strokeStyle = rgba("#ffd23f", 0.85); ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(s.x, s.y - 1, KOL.R, KOL.R * 0.2, 0, 0, TAU); ctx.stroke();
     }
     for (const m of b.mis) { // missile circles
       if (m.st !== "wait" && m.st !== "fly") continue;
@@ -4362,32 +4527,72 @@ BOSS.koloss = {
       ctx.lineCap = "butt";
     }
   },
-  draw(b, time, Lx, Rx) {
-    const f = b.fist, F = kolFrame(b);
-    if (f) { // the arm reaches out of the background down to the fist (world space)
-      const [sx, sy] = kolWorld(b, -104, -176), fx = f.fx, fy = f.fy, dx = fx - sx, dy = fy - sy, d = Math.hypot(dx, dy) || 1;
-      const ex = sx + dx * 0.5 + (-dy / d) * d * 0.16, ey = sy + dy * 0.5 + (dx / d) * d * 0.16;          // the elbow bends up and out
-      const wS = 17 * F.s / Math.max(0.35, cam.zoom), wE = 27, wF = 21;
-      const seg = (x1, y1, x2, y2, w1, w2, c1, c2) => {
-        const L2 = Math.hypot(x2 - x1, y2 - y1) || 1, nx = -(y2 - y1) / L2, ny = (x2 - x1) / L2, g = ctx.createLinearGradient(x1, y1, x2, y2);
-        g.addColorStop(0, c1); g.addColorStop(1, c2); ctx.fillStyle = g;
-        ctx.beginPath(); ctx.moveTo(x1 + nx * w1, y1 + ny * w1); ctx.lineTo(x2 + nx * w2, y2 + ny * w2); ctx.lineTo(x2 - nx * w2, y2 - ny * w2); ctx.lineTo(x1 - nx * w1, y1 - ny * w1); ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = rgba("#ff8a3d", 0.55); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x1 + nx * w1 * 0.4, y1 + ny * w1 * 0.4); ctx.lineTo(x2 + nx * w2 * 0.4, y2 + ny * w2 * 0.4); ctx.stroke();
-      };
-      seg(sx, sy, ex, ey, wS, wE, "#141022", "#221a36"); seg(ex, ey, fx, fy, wE, wF, "#221a36", "#2c2442");
-      ctx.fillStyle = "#1a1428"; ctx.beginPath(); ctx.arc(ex, ey, wE * 1.05, 0, TAU); ctx.fill(); ctx.strokeStyle = "#3a2f5a"; ctx.lineWidth = 2; ctx.stroke(); // elbow joint
-      // the fist: a heavy block of knuckles, the core glowing on its front
-      ctx.save(); ctx.translate(fx, fy + 40);
-      const stuck = f.st === "stuck", hot = stuck ? 0.6 + 0.4 * Math.sin(time * 10) : 0.25;
-      ctx.fillStyle = "#211a33"; roundBox(-60, -78, 120, 96, 14); ctx.fill(); ctx.strokeStyle = "#3d3260"; ctx.lineWidth = 2.5; ctx.stroke();
-      ctx.fillStyle = "#2c2446"; for (let i = 0; i < 4; i++) { roundBox(-56 + i * 28, -86, 24, 26, 6); ctx.fill(); }
-      ctx.fillStyle = "#17112a"; for (let i = 0; i < 3; i++) ctx.fillRect(-40 + i * 28, -64, 3, 64);
-      hazard(-60, 6, 120, 8, 6);
-      glowAt("#ff8a3d", -26, -34, 90, 90, hot); ctx.fillStyle = stuck ? "#ffe0b0" : "#ff8a3d"; ctx.beginPath(); ctx.arc(-26, -34, 11, 0, TAU); ctx.fill();
-      ctx.strokeStyle = rgba("#ffb347", 0.8); ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(-26, -34, 17 + Math.sin(time * 8) * 2, 0, TAU); ctx.stroke();
-      if (b.hitT > 0.4) { ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 0.5; ctx.fillStyle = "#fff"; roundBox(-60, -78, 120, 96, 14); ctx.fill(); ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over"; }
-      ctx.restore();
-      if (stuck) { ctx.strokeStyle = rgba("#ffd23f", 0.7); ctx.lineWidth = 2.5; ctx.setLineDash([10, 8]); ctx.lineDashOffset = -time * 60; ctx.beginPath(); ctx.arc(f.x - 26, f.y - 34, 44 + Math.sin(time * 9) * 4, 0, TAU); ctx.stroke(); ctx.setLineDash([]); }
+  // the giant himself: after the roofs, before everything that stands on them (drawWorld calls this)
+  body(b, time) {
+    if (!b.inst || b.st === "gone") return;
+    const o = kolView(b), S = KOL.S, Z = ZONES[zoneBlend().b];
+    o.time = time; o.rim = b.hitT > 0.42 ? "#ffffff" : Z.rim; o.outlineK = 1.15; o.mono = null; o.alpha = 1;
+    // his shadow on the roof (it shrinks while he is up in the air)
+    const sk = clamp(1 - (b.lift + (b.hov || 0)) / 400, 0.2, 1);
+    ctx.fillStyle = "rgba(0,0,0," + (0.5 * sk).toFixed(3) + ")"; ctx.beginPath(); ctx.ellipse(b.gx, b.ground + 1, 13 * S * sk, 2 * S * sk, 0, 0, TAU); ctx.fill();
+    const jet = clamp(b.jet, 0, 1), big = Math.max(1, b.jet);
+    if (jet > 0.05 && b.lift < 160) { // the downwash lights up the roof under him
+      const k = jet * (1 - b.lift / 160);
+      glowAt("#ff8a3d", b.gx - b.face * 2.5 * S, b.ground - 3, 30 * S, 5 * S, 0.5 * k); glowAt("#fff1c4", b.gx - b.face * 2.5 * S, b.ground - 2, 12 * S, 2 * S, 0.35 * k);
+      if (Math.random() < 0.5 * k) FX.dust(b.gx + rand(-50, 50), b.ground, 1);
+    }
+    b.inst.mask = 1 | (b.vent > 0.5 ? 32 : 16) | (b.pod > 0.5 ? 128 : 64);
+    C3.drawInst3(ctx, b.inst, o);
+    if (jet > 0.05) { // the jets: two flames out of the pack, down and back; long and white-hot for the leap and the fall from the sky
+      ctx.globalCompositeOperation = "lighter";
+      for (const z of [-2.2, 2.2]) {
+        const fl = 0.85 + 0.3 * Math.random(), [nx, ny] = kolBody(b, C3.BN.chest, -5.6, 1.6, z), [tx, ty] = kolBody(b, C3.BN.chest, -7 - 3 * big * fl, 1.2 - 8.5 * big * fl, z * 1.2);
+        const dx = tx - nx, dy = ty - ny, l = Math.hypot(dx, dy) || 1, ux = -dy / l, uy = dx / l;
+        const cone = (w, len, c0, c1, c2, a) => { // a tapered flame: wide at the nozzle, pointed at its end
+          const ex = nx + dx * len, ey = ny + dy * len, gr = ctx.createLinearGradient(nx, ny, ex, ey);
+          gr.addColorStop(0, rgba(c0, a)); gr.addColorStop(0.35, rgba(c1, a * 0.8)); gr.addColorStop(1, rgba(c2, 0)); ctx.fillStyle = gr;
+          ctx.beginPath(); ctx.moveTo(nx + ux * w * 0.7, ny + uy * w * 0.7); ctx.quadraticCurveTo(nx + dx * len * 0.35 + ux * w, ny + dy * len * 0.35 + uy * w, ex, ey);
+          ctx.quadraticCurveTo(nx + dx * len * 0.35 - ux * w, ny + dy * len * 0.35 - uy * w, nx - ux * w * 0.7, ny - uy * w * 0.7); ctx.closePath(); ctx.fill();
+        };
+        cone(2.1 * S * (0.8 + 0.2 * big), 1, "#ffb066", "#ff5a3c", "#ff2e63", 0.7 * jet);
+        cone(0.9 * S * (0.8 + 0.2 * big), 0.6, "#ffffff", "#fff1c4", "#ffb066", 0.95 * jet);
+        ctx.globalAlpha = 0.8 * jet; ctx.drawImage(Art.glow("#ffb066"), nx - 3.4 * S, ny - 3.4 * S, 6.8 * S, 6.8 * S); ctx.globalAlpha = 1;
+      }
+      ctx.globalCompositeOperation = "source-over";
+    }
+    if (b.hitT > 0.42 || b.hurtT > 0.5) { // a hit: he flashes white
+      ctx.globalCompositeOperation = "lighter";
+      C3.drawInst3(ctx, b.inst, Object.assign({}, o, { mono: "#ffffff", alpha: b.hitT > 0.42 ? 0.45 : 0.2 }));
+      ctx.globalCompositeOperation = "source-over";
+    }
+    // his eye: brighter while the laser charges; the reactor blazes while its doors are open
+    const [ex, ey] = kolEye(b), L = b.las, ch = L ? clamp(L.t / L.T, 0, 1) : 0, dead = b.st === "down" ? clamp(b.t / 1.5, 0, 1) : 0;
+    glowAt("#ff2e63", ex, ey, (46 + 150 * ch) * (b.angry ? 1.2 : 1), 26 + 70 * ch, (0.55 + 0.45 * b.eye) * (1 - dead));
+    if (b.vent > 0.05) {
+      const [cx, cy] = kolCore(b);
+      glowAt("#ffb066", cx, cy, 70 + 120 * b.vent, 70 + 120 * b.vent, 0.4 + 0.5 * b.vent);
+      if (b.vent > 0.5 && Math.random() < 0.25) FX.smoke(cx + rand(-8, 8), cy - 10, 1, "#6a5a70", 40, 70);       // heat pouring out of the open reactor
+      if (b.vent > 0.6 && b.side === "ahead") chevron(cx, cy - 5.5 * S, false, 9, "#ffd23f", 0.6 + 0.4 * Math.sin(time * 10));
+    }
+    if ((b.angry || b.st === "down") && Math.random() < 0.15) { const [sx, sy] = kolBody(b, C3.BN.chest, rand(-3, 4), rand(2, 10), rand(-5, 5)); FX.sparks(sx, sy, rand(-1, 1), -0.5, 3); FX.smoke(sx, sy, 1, "#3a3448", 40, 50); }
+    const f = b.fist;
+    if (f && f.st === "stuck" && b.st === "fight") { // the weak point: a ring around the fist core
+      const [cx, cy] = kolFistAt(b);
+      glowAt("#ffb066", cx, cy, 100, 100, 0.5 + 0.3 * Math.sin(time * 10));
+      ctx.strokeStyle = rgba("#ffd23f", 0.8); ctx.lineWidth = 2.5; ctx.setLineDash([10, 8]); ctx.lineDashOffset = -time * 60;
+      ctx.beginPath(); ctx.arc(cx, cy, 44 + Math.sin(time * 9) * 4, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+    }
+  },
+  draw(b, time) {
+    const L = b.las;
+    if (L && L.t >= L.T && b.inst && b.st === "fight") { // the beam out of his visor, down onto the roof just ahead of you
+      const [ex, ey] = kolEye(b), p = player, tx = p.x + 120, r = roofAt(tx), ty = (r ? r.top : L.top) - (L.kind === "high" ? 39 : 8), k = 1 - clamp((L.t - L.T) / L.F, 0, 1) * 0.4;
+      ctx.globalCompositeOperation = "lighter"; ctx.lineCap = "round";
+      ctx.strokeStyle = rgba("#ff2e63", 0.35 * k); ctx.lineWidth = 20; line(ex, ey, tx, ty);
+      ctx.strokeStyle = rgba("#ff6f91", 0.85 * k); ctx.lineWidth = 7; line(ex, ey, tx, ty);
+      ctx.strokeStyle = rgba("#ffffff", k); ctx.lineWidth = 2.4; line(ex, ey, tx, ty);
+      glowAt("#ff6f91", tx, ty, 90, 50, 0.8 * k);
+      ctx.globalCompositeOperation = "source-over"; ctx.lineCap = "butt";
     }
     for (const m of b.mis) { // missiles in the air
       if (m.st !== "fly" && m.st !== "back") continue;
@@ -4398,85 +4603,37 @@ BOSS.koloss = {
     }
   },
 };
-
-// the giant himself, in screen space between the skyline layers: haze-tinted steel, a glowing visor, shoulder pods, the chest reactor
-function drawGiantBack(b, time) {
-  const F = kolFrame(b), P = (lx, ly) => kolPt(F, lx, ly), zb = zoneBlend(), Z = ZONES[zb.b], haze = Z.layers[1];
-  const steel = (c, k = 0.2) => hexMix(c, haze, k), lw = F.s * 0.6;
-  const path = (pts) => { ctx.beginPath(); pts.forEach(([x, y], i) => { const [sx, sy] = P(x, y); i ? ctx.lineTo(sx, sy) : ctx.moveTo(sx, sy); }); ctx.closePath(); };
-  const poly = (pts, fill, edge) => { path(pts); if (fill) { ctx.fillStyle = fill; ctx.fill(); } ctx.strokeStyle = edge || "#06040c"; ctx.lineWidth = (edge ? 2 : 3) * lw; ctx.stroke(); };
-  const glowLine = (pts, col, a, w = 2) => { ctx.globalCompositeOperation = "lighter"; ctx.strokeStyle = rgba(col, a); ctx.lineWidth = w * lw; ctx.beginPath(); pts.forEach(([x, y], i) => { const [sx, sy] = P(x, y); i ? ctx.lineTo(sx, sy) : ctx.moveTo(sx, sy); }); ctx.stroke(); ctx.globalCompositeOperation = "source-over"; };
-  const lamp = (lx, ly, col, on, r = 26) => { const [x, y] = P(lx, ly); ctx.fillStyle = on ? "#ffe9ee" : rgba(col, 0.5); ctx.fillRect(x - 2 * lw, y - 2 * lw, 4 * lw, 4 * lw); if (on) glowAt(col, x, y, r * lw, r * lw, 0.9); };
-  const hurt = b.hitT > 0.3, dmg = 1 - b.hp / Math.max(1, b.hpMax), pulse = 0.5 + 0.5 * Math.sin(time * 2.4);
-  if (dmg > 0.3) for (let i = 0; i < 5; i++) { // the city behind him burns
-    const fx = W * (0.08 + i * 0.21) + Math.sin(i * 7.3) * 40, a = (dmg - 0.3) * (0.6 + 0.4 * Math.sin(time * 3 + i));
-    glowAt("#ff6a2a", fx, H * 0.86, 260, 120, a);
+// the pose of the moment: his gait (run, hover) under the current move, the smashing arm sent onto the crater
+function kolPoseNow(b, dt) {
+  const act = b.act, lp = b.leap;
+  const st = { base: "glide", jogW: b.walkK, ph: b.ph, L: KOL.STRIDE, s: KOL.STANCE, t: b.clock, act: null, k: 0, w: 0, upper: false, arm: kolArm(b), fist: null, fw: 0, tremble: 0 };
+  if (b.st === "down") { st.act = b.t < 0.6 ? "hurt" : "kneel"; st.k = clamp((b.t - 0.6) / 0.9, 0, 1); st.w = Math.min(1, b.t / 0.2 + 0.3); st.base = "stand"; st.jogW = 0; }
+  else if (lp) { st.act = "leap"; st.k = clamp(lp.t / lp.T, 0, 1); st.w = 1; }
+  else if (b.st === "intro") {
+    if (b.t < 1.0) { st.act = "leap"; st.k = 0.62 + 0.18 * clamp(b.t / 1.0, 0, 1); st.w = 1; }
+    else if (b.t < 1.3) { st.act = "leap"; st.k = 0.8 + 0.2 * (b.t - 1.0) / 0.3; st.w = 1; }
+    else { st.act = "roar"; st.upper = true; st.w = clamp((b.t - 1.3) / 0.2, 0, 1) * clamp((2.6 - b.t) / 0.25, 0, 1); }
+  } else if (act) {
+    if (act.name === "smash") {
+      const o = kolView(b), z = b.face > 0 ? KOL.FZ : -KOL.FZ, f = b.fist;
+      const tgt = f ? kolToModel(o, f.x, f.y - KOL.FH * KOL.S, z) : null;
+      if (act.st === "aim") { st.act = "windup"; st.upper = true; st.w = smoothT(clamp(act.t / 0.35, 0, 1)); }
+      else if (act.st === "fall") { st.act = "slam"; st.w = smoothT(clamp(act.t / 0.12, 0, 1)); st.fist = tgt; st.fw = smoothT(clamp(act.t / 0.16, 0, 1)); }
+      else if (act.st === "stuck") { st.act = "slam"; st.w = 1; st.fist = tgt; st.fw = 1; st.tremble = 1; }
+      else { const u = clamp(act.t / 0.5, 0, 1); st.act = "slam"; st.w = 1 - smoothT(u); st.fist = tgt; st.fw = 1 - smoothT(clamp(u * 1.6, 0, 1)); }
+    } else if (act.name === "stomp") { // the jet pound: crouch, up, legs out, down
+      const u = clamp(act.t / act.T, 0, 1);
+      st.act = "leap"; st.w = Math.min(1, u / 0.08, (1 - u) / 0.12 + 0.01);
+      st.k = u < 0.25 ? 0.18 * u / 0.25 : u < 0.55 ? 0.18 + 0.44 * (u - 0.25) / 0.3 : u < 0.7 ? 0.62 + 0.18 * (u - 0.55) / 0.15 : 0.8 + 0.2 * (u - 0.7) / 0.3;
+    } else if (act.name === "mis") { st.act = "mis"; st.upper = true; st.w = Math.min(1, act.t / 0.25, (act.T + 0.3 - act.t) / 0.3); }
+    else if (act.name === "vent") { st.act = "hurt"; st.upper = true; st.k = 0.3; st.w = 0.35; }
   }
-  ctx.save();
-  // legs and hips, mostly hidden behind the near skyline
-  for (const sd of [-1, 1]) poly([[sd * 28, 0], [sd * 80, 0], [sd * 86, 240], [sd * 34, 240]], steel("#1a1428"));
-  poly([[-84, 8], [84, 8], [72, -26], [-72, -26]], steel("#221a36"));
-  // the back arm hangs at his side
-  poly([[92, -172], [130, -160], [154, -86], [122, -78]], steel("#1d1630"));
-  poly([[122, -86], [152, -88], [144, -12], [114, -14]], steel("#241b3a"));
-  poly([[104, -18], [152, -20], [156, 18], [102, 20]], steel("#2c2346"));
-  glowLine([[128, -150], [146, -92], [136, -20]], "#ff8a3d", 0.5);
-  // torso: a broad armoured chest, lit from the moon on his right
-  const tg = ctx.createLinearGradient(...P(0, -192), ...P(0, 0));
-  tg.addColorStop(0, steel("#3b3160")); tg.addColorStop(0.5, steel("#251d3e")); tg.addColorStop(1, steel("#120d20"));
-  const TORSO = [[-78, -12], [-96, -112], [-110, -168], [-62, -190], [62, -190], [110, -168], [96, -112], [78, -12]];
-  poly(TORSO, tg);
-  poly([[-70, -176], [70, -176], [84, -120], [-84, -120]], steel("#2f2650"), "#4d4078");                                // upper chest plate
-  poly([[-58, -112], [58, -112], [50, -40], [-50, -40]], steel("#211a38"), "#3d3262");                                   // belly armour
-  ctx.strokeStyle = "rgba(6,4,12,0.75)"; ctx.lineWidth = 2 * lw;                                                         // armour plate seams
-  for (const y of [-96, -78, -60]) { const [a0, a1] = P(-48, y), [c0, c1] = P(48, y); ctx.beginPath(); ctx.moveTo(a0, a1); ctx.lineTo(c0, c1); ctx.stroke(); }
-  for (const sd of [-1, 1]) glowLine([[sd * 92, -112], [sd * 66, -44], [sd * 58, -14]], "#ff8a3d", 0.55 + 0.25 * pulse);  // glowing seams down his flanks
-  glowLine([[-70, -176], [70, -176]], "#ff8a3d", 0.45);
-  glowLine([[62, -190], [110, -168], [96, -112], [78, -12]], Z.rim, 0.65, 2.6);                                            // moonlight on his right edge
-  // the reactor in a hexagonal housing; the doors slide apart when he overheats
-  const [cx, cy] = P(-8, -122), v = b.vent, rr = 24 * F.s;
-  poly([[-8, -158], [24, -140], [24, -104], [-8, -86], [-40, -104], [-40, -140]], steel("#120d22"), "#5a4a86");
-  glowAt("#ff8a3d", cx, cy, rr * (3 + v * 4), rr * (3 + v * 4), 0.35 + v * 0.65);
-  ctx.fillStyle = v > 0.05 ? "#ffd9a0" : "#ff8a3d"; ctx.beginPath(); ctx.arc(cx, cy, rr * (0.5 + v * 0.4), 0, TAU); ctx.fill();
-  if (v > 0.05) { ctx.strokeStyle = rgba("#fff3c4", 0.9); ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(cx, cy, rr * (0.95 + 0.08 * Math.sin(time * 9)), time * 3, time * 3 + 4.4); ctx.stroke(); }
-  for (const sd of [-1, 1]) poly([[-8 + sd * (3 + v * 34), -152], [-8 + sd * (30 + v * 34), -152], [-8 + sd * (30 + v * 34), -92], [-8 + sd * (3 + v * 34), -92]], steel("#3a2f5c"), "#5a4a86");
-  if (v > 0.6) chevron(cx, cy - rr * 2.4, false, 9 * lw, "#ffd23f", 0.6 + 0.4 * Math.sin(time * 10));                // shoot here
-  // shoulder pauldrons with hazard bands and missile pods (they open for a salvo)
-  const podOpen = b.ph === "mis" && b.mis.some((m) => m.st === "wait") ? 1 : 0;
-  for (const sd of [-1, 1]) {
-    poly([[sd * 66, -198], [sd * 142, -186], [sd * 150, -146], [sd * 86, -138], [sd * 62, -160]], steel("#3a2f5c"), "#5a4a86");
-    const [h0x, h0y] = P(sd > 0 ? 80 : -146, -160), [h1x] = P(sd > 0 ? 146 : -80, -160);
-    hazard(Math.min(h0x, h1x), h0y, Math.abs(h1x - h0x), 6 * lw, 5 * lw);
-    poly([[sd * 84, -194 - podOpen * 10], [sd * 136, -186 - podOpen * 10], [sd * 134, -176], [sd * 84, -182]], steel("#1a1428"), "#5a4a86"); // pod hatch
-    for (let i = 0; i < 3; i++) lamp(sd * (94 + i * 16), -184 - podOpen * 4, "#ff2e63", podOpen || (Math.floor(time * 5) + i) % 3 === 0, podOpen ? 40 : 22);
-    lamp(sd * 140, -196, "#ff2e63", Math.sin(time * 3 + sd) > 0.3, 30);
-  }
-  // the front arm hangs at his side when it is not out smashing
-  if (!b.fist) {
-    poly([[-92, -172], [-130, -160], [-156, -88], [-124, -80]], steel("#211a36"));
-    poly([[-124, -86], [-154, -88], [-148, -14], [-118, -12]], steel("#281f40"));
-    poly([[-106, -18], [-156, -20], [-160, 18], [-104, 20]], steel("#30264c"));
-    glowLine([[-128, -150], [-148, -92], [-138, -20]], "#ff8a3d", 0.5);
-  }
-  // neck pistons, head: an angular helmet, the visor slit, antenna fins
-  for (const sd of [-1, 1]) poly([[sd * 4, -186], [sd * 14, -186], [sd * 12, -202], [sd * 6, -202]], steel("#151022"));
-  poly([[-38, -198], [34, -198], [42, -232], [26, -256], [-28, -256], [-44, -230]], steel("#3d3364"), "#6a5a9a");
-  poly([[22, -252], [30, -280], [36, -248]], steel("#2a2146")); poly([[-24, -252], [-34, -284], [-38, -246]], steel("#2a2146"));
-  lamp(30, -280, "#ff2e63", Math.sin(time * 4) > 0, 24); lamp(-34, -284, "#ff2e63", Math.sin(time * 4 + 1.5) > 0, 24);
-  glowLine([[26, -256], [42, -232], [34, -198]], Z.rim, 0.6, 2.2);
-  const [ex, ey] = P(-10, -226), e = clamp(b.eye, 0, 1), L = b.las;
-  const charging = L && L.t < L.T ? clamp(L.t / L.T, 0, 1) : 0, fire = !!(L && L.t >= L.T), ch = Math.max(charging, fire ? 1 : 0);
-  glowAt("#ff2e63", ex, ey, (70 + 180 * ch) * lw, (34 + 80 * ch) * lw, 0.6 + 0.4 * e);
-  poly([[-36, -231], [20, -231], [18, -221], [-34, -221]], fire || charging > 0.6 ? "#ffe1e8" : "#ff2e63", "#06040c");
-  if (b.st === "down") { ctx.globalAlpha = Math.min(1, b.fall); poly([[-36, -231], [20, -231], [18, -221], [-34, -221]], "#1a1020"); ctx.globalAlpha = 1; }
-  if (fire) { // the beam leaves the eye towards the roofs on the left
-    ctx.globalCompositeOperation = "lighter"; ctx.strokeStyle = rgba("#ff6f91", 0.55); ctx.lineWidth = 9 * lw;
-    const ty = toScreenY((L.top || b.ground) - (L.kind === "high" ? 39 : 8));
-    ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(W * 0.62, ty); ctx.stroke(); ctx.globalCompositeOperation = "source-over";
-  }
-  if (dmg > 0.45) for (let i = 0; i < 2; i++) { const [sx, sy] = P(i ? 96 : -104, -170); if (Math.random() < 0.25) { const [wx, wy] = scrToWorld(sx, sy); FX.smoke(wx, wy, 1, "#3a3448", 50, 60); } glowAt("#ff6a2a", sx, sy, 60 * lw, 60 * lw, 0.4 + 0.3 * Math.sin(time * 7 + i)); }
-  if (hurt) { ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 0.35; path(TORSO); ctx.fillStyle = "#ffffff"; ctx.fill(); path([[-38, -198], [34, -198], [42, -232], [26, -256], [-28, -256], [-44, -230]]); ctx.fill(); ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over"; }
-  ctx.restore();
+  if (b.las && b.st === "fight") { st.act = "laser"; st.upper = true; st.k = clamp(b.las.t / b.las.T, 0, 1); st.w = Math.min(1, b.las.t / 0.25); }
+  if (b.hurtT > 0 && !st.act) { st.act = "hurt"; st.upper = true; st.w = clamp(b.hurtT / 0.3, 0, 1); st.k = 0.5; }
+  if (b.hitT > 0.35 && b.st === "fight" && (!st.act || st.upper)) { st.act = "hurt"; st.upper = true; st.w = Math.max(st.w, clamp((b.hitT - 0.35) / 0.25, 0, 1)); }
+  C3.kolPose(b.P, b.inst.mesh.D, st);
+  C3.setInstPose(b.inst, b.P);
+  [b.x, b.y] = kolCore(b);                                                        // his chest core in the world (for arcs and FX)
 }
 
 // ---------- Waffen gegen Bosse: wo sie hinzielen (aim), was ein Schuss trifft (shot), was eine Granate trifft (blast) ----------
@@ -5406,10 +5563,15 @@ const baseZoom = () => clamp(Math.min(H / 580, W / 820), 0.42, 1.5);
 
 function cameraUpdate(dt, snap) {
   const p = player, sp = Math.max(0, p.dashT > 0 ? p.preDashVx : p.vx); // a dash should not pump the zoom
-  const zt = baseZoom() * lerp(1, 0.88, clamp((sp - 460) / 900, 0, 1)) * (run.dead ? 1.12 : 1);
+  const kb = run.boss && run.boss.type === "koloss" && run.boss.st !== "gone" ? run.boss : null; // the giant needs room: wider, and room behind you
+  const zt = baseZoom() * lerp(1, 0.88, clamp((sp - 460) / 900, 0, 1)) * (run.dead ? 1.12 : 1) * (kb && W > H ? KOL.ZOOM : 1);
   const vw = W / zt, vh = H / zt;
-  const tx = p.x + (run.dead ? 0 : vw * 0.2);
-  const ty = clamp(p.y - vh * 0.06, -3000, TOP_MAX + 180);
+  const tx = p.x + (run.dead ? 0 : vw * (0.2 - 0.1 * (kb ? kb.camK || 0 : 0)));
+  let ty = clamp(p.y - vh * 0.06, -3000, TOP_MAX + 180);
+  if (kb && kb.inst && !run.dead) { // his head stays on the screen (you may sink to the lower fifth for it)
+    const head = kb.ground - kb.lift - (kb.hov || 0) - 50 * KOL.S;
+    ty = Math.max(Math.min(ty, head + vh * 0.46), p.y - vh * 0.3);
+  }
   if (snap) { cam.zoom = zt; cam.x = tx; cam.y = ty; cam.tilt = 0; return; }
   cam.zoom = lerp(cam.zoom, zt, Math.min(1, dt * 2));
   cam.x = lerp(cam.x, tx, Math.min(1, dt * 7));
@@ -5470,7 +5632,6 @@ function drawSky(time, pulse) {
       fg.addColorStop(0, rgba(B.fog, 0)); fg.addColorStop(1, rgba(B.fog, 0.18 + pulse * 0.05));
       ctx.fillStyle = fg; ctx.fillRect(0, H * 0.55, W, H * 0.45);
       Ambience.traffic(time, 1, 0.5);
-      if (run.boss && run.boss.type === "koloss" && run.boss.st !== "gone") drawGiantBack(run.boss, time); // the giant stands behind the near skyline
     }
   }
 }
@@ -6380,6 +6541,7 @@ function drawWorld(time, pulse, L, R, T, B) {
   // ---- towers over arcades, then the back yards of the light wells ----
   for (const k of world.blocks) { if (k.x > R || k.x + k.w < L || k.top > B || k.floor < T) continue; drawBlock(k, time, pulse, T, B); }
   for (const b of world.buildings) if (b.well != null && b.x + 40 > L && b.well - 40 < R) drawWell(b, time, pulse);
+  if (run.boss && run.boss.type === "koloss" && run.boss.st !== "gone") BOSS.koloss.body(run.boss, time); // the giant on the roofs
   // ---- rails ----
   for (const r of world.rails) {
     if (r.x2 + 160 < L || r.x1 - 60 > R) continue;
@@ -7086,6 +7248,125 @@ MODELS3.aero = {
   ],
   fx: { soles: "#4ffff0" },
 };
+// KOLOSS: the giant of the boss levels (not a playable runner). A heavy modern mech: graphite armour with light steel edges,
+// orange edges and amber light seams, a red visor slit, a reactor in the chest behind sliding doors (group 4 shut,
+// group 5 open), missile pods on the shoulders (group 6 shut, group 7 open), long arms with hammer fists whose cores
+// glow, hydraulic legs with clawed boots, a jet pack. Its arms and legs are solved like the runners' (no stretching).
+MODELS3.koloss = {
+  id: "koloss", name: "Koloss", tag: "Riese", shade: "metal", ink: "#05060a", outline: 1.5, rim: "#7fe9ff", eye: "#ff2e63", trail: "#ff8a3d", motion: "power",
+  dims: { shW: 7.0, shDrop: 0.2, hipW: 3.8, hipDrop: 0.6, upper: 11.2, fore: 11.6, hand: 3.4, thigh: 11.4, shin: 12.0, foot: 7.4, ankle: 3.0, waist: 5.0, chest: 10.8, neck: 1.4, headH: 3.8 },
+  mats: [
+    { c: "#525c72", metal: true }, { c: "#98a3b8", metal: true, flat: true }, { c: "#111319" }, { c: "#ff7a2f", flat: true },
+    { c: "#ffb066", emit: true }, { c: "#ff2e63", emit: true }, { c: "#828da2", metal: true }, { c: "#252a35", metal: true, flat: true },
+  ],
+  build(mb) {
+    const A = 0, S = 1, K = 2, O = 3, E = 4, R = 5, C = 6, G = 7, AMB = "#ffb066";
+    // ---- hips: a heavy block, a codpiece and tassets ----
+    mb.box(BN.pelvis, [0.1, 0.4, 0], [3.4, 2.5, 4.5], G, { bx: 0.86 });
+    mb.box(BN.pelvis, [3.1, -1.0, 0], [0.95, 2.3, 2.5], A, { pitch: 0.12, bz: 0.7 });
+    mb.box(BN.pelvis, [3.95, -0.9, 0], [0.12, 1.7, 0.5], O, { pitch: 0.12 });
+    for (const z of [-1, 1]) {
+      mb.box(BN.pelvis, [0.5, -1.5, z * 4.9], [3.1, 2.6, 0.75], A, { roll: -z * 0.2, bx: 0.85 });
+      mb.box(BN.pelvis, [3.45, -1.5, z * 5.0], [0.18, 2.4, 0.65], O, { roll: -z * 0.2 });
+    }
+    // ---- abdomen: segmented and narrow ----
+    mb.lathe(BN.chest, [{ y: -2.2, rx: 2.4, rz: 3.2, w: 0.5 }, { y: 0.4, rx: 2.3, rz: 3.0 }, { y: 1.6, rx: 2.8, rz: 3.7 }, { y: 2.8, rx: 2.5, rz: 3.4 }, { y: 4.0, rx: 3.2, rz: 4.4 }],
+      { bw: BN.pelvis, sides: 8, mat: K, rot: Math.PI / 8 });
+    for (const y of [0.9, 2.2]) mb.box(BN.chest, [2.4, y, 0], [0.55, 0.5, 2.3], G);
+    // ---- chest: a wide V-shaped hull, pectoral plates, the reactor behind two doors ----
+    mb.box(BN.chest, [0.0, 6.8, 0], [4.1, 4.0, 6.6], A, { bx: 0.78, bz: 0.55 });
+    mb.box(BN.chest, [-0.2, 10.4, 0], [3.4, 0.6, 5.6], G, {});
+    for (const z of [-1, 1]) {
+      mb.box(BN.chest, [3.95, 7.7, z * 3.2], [0.95, 2.6, 2.7], S, { yaw: -z * 0.32, pitch: -0.1, bx: 0.78 });
+      mb.box(BN.chest, [4.7, 8.9, z * 4.9], [0.2, 1.1, 0.9], O, { yaw: -z * 0.32 });
+      mb.line(BN.chest, [[4.95, 10.0, z * 1.2], [4.4, 5.2, z * 4.6]], AMB, 0.36, [1, 0, 0]);
+    }
+    mb.lathe(BN.chest, [{ y: 3.3, rx: 0.3, rz: 2.3, ox: 4.1 }, { y: 3.5, rx: 1.0, rz: 2.5, ox: 4.1 }, { y: 6.7, rx: 1.0, rz: 2.5, ox: 4.1 }, { y: 6.9, rx: 0.3, rz: 2.3, ox: 4.1 }],
+      { sides: 6, mat: K, arc: [-1.25, 1.25] });
+    mb.blob(BN.chest, [4.45, 5.1, 0], [0.55, 1.5, 1.5], E, { rings: 3, sides: 6 });
+    mb.glow(BN.chest, [5.0, 5.1, 0], "#ff9a4d", 4.5, { pulse: 0.5 });
+    for (const z of [-1, 1]) {
+      mb.box(BN.chest, [4.9, 5.1, z * 0.86], [0.36, 1.8, 0.86], G, { g: 4 });                 // shut
+      mb.box(BN.chest, [4.7, 5.1, z * 2.75], [0.36, 1.8, 0.86], G, { g: 5 });                  // slid open
+    }
+    mb.glow(BN.chest, [5.3, 5.1, 0], "#fff1c4", 7.5, { g: 5, pulse: 1 });
+    // collar and neck guard
+    mb.box(BN.chest, [-0.6, 11.3, 0], [2.8, 0.9, 3.2], G, { tx: 0.8, tz: 0.85 });
+    mb.box(BN.chest, [1.6, 11.0, 0], [0.9, 1.3, 2.6], A, { pitch: -0.32 });
+    // shoulder yokes with missile pods (hatch shut / open with the warheads showing)
+    for (const z of [-1, 1]) {
+      mb.box(BN.chest, [-0.8, 11.0, z * 5.6], [3.1, 1.4, 2.0], G, { roll: z * 0.1 });
+      mb.box(BN.chest, [-1.0, 12.8, z * 5.8], [2.5, 0.95, 1.7], A, {});
+      mb.box(BN.chest, [-1.0, 13.85, z * 5.8], [2.6, 0.2, 1.8], S, { g: 6 });
+      mb.box(BN.chest, [-2.6, 14.5, z * 5.8], [1.2, 0.2, 1.8], S, { g: 7, pitch: 1.0 });
+      for (const x of [-2.1, -1.1, -0.1, 0.9]) mb.glow(BN.chest, [x, 13.8, z * 5.8], "#ff2e63", 1.4, { g: 7 });
+      mb.box(BN.chest, [-1.0, 12.8, z * 7.55], [2.4, 0.22, 0.12], O, {});
+    }
+    // jet pack with two nozzles and a lit spine
+    mb.box(BN.chest, [-4.8, 6.8, 0], [1.7, 3.6, 4.0], G, { tx: 0.85, tz: 0.9 });
+    for (const z of [-2.2, 2.2]) {
+      mb.lathe(BN.chest, [{ y: 1.9, rx: 1.45, rz: 1.45, ox: -5.6, oz: z }, { y: 3.7, rx: 1.05, rz: 1.05, ox: -5.5, oz: z }], { sides: 7, mat: K });
+      mb.glow(BN.chest, [-5.6, 1.8, z], "#ff9a4d", 2.8);
+    }
+    for (const y of [4.2, 6.0, 7.8, 9.6]) mb.box(BN.chest, [-6.5, y, 0], [0.5, 0.45, 0.35], E);
+    // ---- head: an angular helmet, the visor slit, a crest ----
+    mb.lathe(BN.head, [{ y: 0.6, rx: 1.7, rz: 1.9, ox: 0.5 }, { y: 1.8, rx: 2.6, rz: 2.6, ox: 0.6 }, { y: 3.4, rx: 2.8, rz: 2.75, ox: 0.4 }, { y: 4.6, rx: 2.3, rz: 2.3, ox: 0.05 }, { y: 5.4, rx: 1.2, rz: 1.4, ox: -0.4 }],
+      { sides: 6, mat: S, cap0: true, cap1: true, rot: Math.PI / 6 });
+    mb.lathe(BN.head, [{ y: 2.55, rx: 2.95, rz: 2.88, ox: 0.5 }, { y: 3.3, rx: 2.93, rz: 2.86, ox: 0.46 }], { sides: 6, arc: [-1.0, 1.0], mat: R, rot: Math.PI / 6 });
+    mb.glow(BN.head, [3.2, 2.9, 0], "#ff2e63", 3.4);
+    mb.box(BN.head, [1.9, 1.2, 0], [0.9, 0.55, 1.7], G, { pitch: 0.2 });
+    mb.bar(BN.head, [-0.2, 5.0, 0], [-3.6, 7.0, 0], 1.0, 0.55, O, { taper: 0.3 });
+    for (const z of [-1, 1]) mb.bar(BN.head, [-0.3, 3.4, z * 2.6], [-2.8, 5.6, z * 3.4], 0.45, 0.45, G, { taper: 0.5 });
+    // ---- arms: layered pauldrons, armoured gauntlets, hammer fists with a glowing core ----
+    for (const s of ["R", "L"]) {
+      const up = BN["upper" + s], fo = BN["fore" + s], hd = BN["hand" + s], o = OUT["upper" + s];
+      mb.blob(up, [0.4, 0, 0], [2.7, 2.5, 2.6], K, { rings: 4, sides: 7, b2: BN.chest, w2: 0.25 });
+      mb.box(up, [0.9, -0.5, o * 1.6], [3.6, 3.5, 2.5], A, { roll: o * 0.22, tx: 1.2, tz: 1.12 });    // pauldron
+      mb.box(up, [-1.2, -0.5, o * 2.9], [1.8, 3.0, 1.3], S, { roll: o * 0.22 });                    // its top layer
+      mb.box(up, [-3.0, -0.5, o * 3.0], [0.25, 2.8, 1.4], O, { roll: o * 0.22 });                   // orange edge
+      mb.tube(up, [{ t: 0.12, ry: 2.1, rz: 2.0 }, { t: 0.55, ry: 2.3, rz: 2.1, oy: -0.2 }, { t: 0.98, ry: 1.8, rz: 1.7, w1: 0.5 }], { b1: fo, mat: K, sides: 7, side: o });
+      mb.blob(fo, [0, 0, 0], [2.0, 2.0, 2.0], G, { rings: 3, sides: 6, b2: up, w2: 0.3 });             // elbow
+      mb.tube(fo, [{ t: 0.04, ry: 2.2, rz: 2.1, w0: 0.45 }, { t: 0.3, ry: 3.3, rz: 3.0 }, { t: 0.8, ry: 3.1, rz: 2.8 }, { t: 1.0, ry: 2.3, rz: 2.2, w1: 0.4 }],
+        { b0: up, b1: hd, mat: A, sides: 8, side: o, cap1: true });
+      mb.box(fo, [5.2, -1.7, o * 1.8], [3.7, 1.5, 1.3], S, { tx: 0.9 });
+      mb.box(fo, [5.2, -3.15, o * 1.8], [3.5, 0.12, 1.2], O, {});
+      mb.bar(fo, [1.2, 2.9, 0], [9.0, 2.5, 0], 0.6, 0.6, C);                                        // piston
+      mb.line(fo, [[1.6, -3.2, o * 0.6], [8.8, -2.8, o * 0.5]], AMB, 0.42, [0, -1, 0]);
+      // the fist: a heavy block of knuckles; the core on its back is the weak point
+      mb.box(hd, [1.6, 0, 0], [2.5, 2.2, 2.1], G, { tx: 0.92, tz: 0.92 });
+      mb.box(hd, [3.9, 0, 0], [0.75, 2.1, 2.05], A);
+      for (const y of [-1.35, -0.45, 0.45, 1.35]) mb.box(hd, [4.5, y, 0], [0.38, 0.35, 1.9], K);
+      mb.blob(hd, [1.7, 0, o * 2.15], [1.1, 1.1, 0.38], E, { rings: 3, sides: 6 });
+      mb.glow(hd, [1.7, 0, o * 2.5], "#ffb066", 2.6, { pulse: 0.6 });
+    }
+    // ---- legs: armoured thighs with pistons, knee guards, big shin plates, clawed boots ----
+    for (const s of ["R", "L"]) {
+      const th = BN["thigh" + s], sh = BN["shin" + s], ft = BN["foot" + s], lo = OUT["thigh" + s];
+      mb.tube(th, [{ t: -0.05, ry: 3.3, rz: 3.2, oy: 0.2, w0: 0.4 }, { t: 0.4, ry: 3.2, rz: 3.0, oy: 0.3 }, { t: 1.0, ry: 2.3, rz: 2.2, w1: 0.5 }],
+        { b0: BN.pelvis, b1: sh, mat: K, sides: 8, side: lo });
+      mb.box(th, [5.0, 2.7, lo * 0.4], [4.6, 1.0, 2.8], A, { tx: 0.84 });
+      mb.box(th, [4.6, 0.3, lo * 2.9], [4.0, 2.2, 0.65], S, {});
+      mb.bar(th, [2.2, -2.9, 0], [10.4, -2.6, 0], 0.7, 0.7, C);
+      mb.line(th, [[1.4, 3.75, lo * 1.0], [9.2, 3.45, lo * 0.8]], AMB, 0.4, [0, 1, 0]);
+      mb.blob(sh, [0.1, 1.3, 0], [2.6, 2.0, 2.6], S, { rings: 3, sides: 6 });                         // knee
+      mb.tube(sh, [{ t: 0.0, ry: 2.3, rz: 2.2, w0: 0.5 }, { t: 0.3, ry: 2.8, rz: 2.6 }, { t: 0.95, ry: 2.0, rz: 1.9 }, { t: 1.05, ry: 1.8, rz: 1.7, w1: 0.45 }],
+        { b0: th, b1: ft, mat: K, sides: 8, side: OUT["shin" + s] });
+      mb.box(sh, [5.4, 2.3, 0], [5.2, 1.1, 2.9], A, { tx: 0.76, tz: 0.82 });
+      mb.box(sh, [5.4, -1.8, 0], [4.2, 1.0, 2.2], G, { tx: 0.8 });
+      mb.box(sh, [8.6, 3.45, 0], [1.6, 0.12, 2.2], O, {});
+      mb.line(sh, [[1.6, 3.45, 0], [6.6, 3.2, 0]], AMB, 0.42, [0, 1, 0]);
+      // boot: a long armoured wedge, three toe claws, a heel spur
+      const Z = 2.4, pts = [[-2.8, -2.2, -Z], [-2.8, -2.2, Z], [7.6, -2.2, -Z * 0.9], [7.6, -2.2, Z * 0.9], [-2.6, 1.8, -Z * 0.95], [-2.6, 1.8, Z * 0.95], [2.0, 1.6, -Z], [2.0, 1.6, Z], [7.4, -0.6, -Z * 0.8], [7.4, -0.6, Z * 0.8]];
+      const faces = [[0, 1, 3], [0, 3, 2], [4, 5, 7], [4, 7, 6], [6, 7, 9], [6, 9, 8], [2, 3, 9], [2, 9, 8], [0, 1, 5], [0, 5, 4], [0, 4, 6], [0, 6, 8], [0, 8, 2], [1, 5, 7], [1, 7, 9], [1, 9, 3]];
+      mb.poly(ft, pts, faces, A, { b2: BN["shin" + s], w2: 0 });
+      for (const z of [-1.4, 0, 1.4]) mb.bar(ft, [7.0, -1.5, z], [9.6, -2.4, z * 1.15], 0.9, 0.8, G, { taper: 0.35 });
+      mb.bar(ft, [-2.6, -1.3, 0], [-4.6, -2.4, 0], 1.0, 1.1, G, { taper: 0.4 });
+      mb.box(ft, [2.4, 1.75, 0], [2.0, 0.12, 1.5], O, {});
+    }
+  },
+  cloth: [],
+  fx: {},
+};
 const MODEL_ORDER = ["kage", "vektor", "titan", "aero"];
 function buildModel3(def) {
   const D = Object.assign({}, DIMS, def.dims || {});
@@ -7691,6 +7972,93 @@ function airCycle(ph, D, S, P) {
   return [[5 * c, -20 + 6 * Math.max(0, s), 0.6 - 0.4 * c], [-5 * c, -20 + 6 * Math.max(0, -s), 0.6 + 0.4 * c]];
 }
 
+// ---------- the Koloss: a base gait (stand, glide on jets, heavy jog) under an action (attacks, leap, hits) ----------
+// Both are compact specs (feet relative to the ground). An action blends over the gait as a whole, or only above the hips
+// (st.upper) so he can fire, aim or flinch while his legs keep running or hovering.
+// st = { base: "stand" | "glide" | "jog", ph: gait phase, L: stride, s: stance share, t: clock, act: name | null, k: 0..1 through
+//        the action, w: its weight, upper: only the upper body, arm: "R" | "L" (the smashing arm), fist: [x, y, z] (model space) | null, fw }
+function kolSpec(P, D, s) { // like specPose, but the feet are given relative to the ground, not to the pelvis
+  const ank = GROUND + D.ankle;
+  const f = (a) => (a ? [a[0], ank + (a[1] || 0) - s.py, a[2] || 0, a[3] ?? 1.55] : null);
+  return specPose(P, D, Object.assign({}, s, { fR: f(s.fR), fL: f(s.fL) }));
+}
+const kolStance = (D) => GROUND + D.ankle + D.thigh + D.shin - 1.9 + D.hipDrop;
+const KOL_UPPER = { cp: 1, cr: 1, cyaw: 1, hp: 1, hyaw: 1, hR: 1, hL: 1, eR: 1, eL: 1 };
+const KOL_KEYS = ["px", "py", "pp", "pr", "pyaw", "cp", "cr", "cyaw", "hp", "hyaw", "fR", "fL", "hR", "hL", "kR", "kL", "eR", "eL"];
+function kolMix(A, B, w, upper) {
+  const o = {};
+  for (const k of KOL_KEYS) {
+    const a = A[k], b = B[k];
+    if (upper && !KOL_UPPER[k]) { o[k] = a; continue; }
+    if (Array.isArray(a) || Array.isArray(b)) { const x = a || b, y = b || a; o[k] = x.map((v, i) => v + ((y[i] ?? v) - v) * w); }
+    else { const x = a ?? (k === "py" ? 5 : 0), y = b ?? (k === "py" ? 5 : 0); o[k] = x + (y - x) * w; }
+  }
+  return o;
+}
+function kolBaseSpec(D, st) {
+  const t = st.t || 0, sPy = kolStance(D);
+  if (st.base === "jog") { // a heavy run: long strides, the body drops on every footfall, fists pump
+    const ph = st.ph || 0, s = st.s ?? 0.42, L = st.L ?? 18;
+    const foot = (phi) => {
+      phi = ((phi % 1) + 1) % 1;
+      if (phi < s) { const u = phi / s; return [lerp(L / 2, -L / 2, u), 0, u > 0.6 ? (u - 0.6) * 0.8 : 0]; }
+      const u = (phi - s) / (1 - s), up = Math.sin(u * Math.PI);
+      return [lerp(-L / 2, L / 2, smooth(u)), up * 8.5, -0.45 * up + (u > 0.8 ? -0.2 : 0)];
+    };
+    const fR = foot(ph), fL = foot(ph + 0.5), bob = Math.cos(TAU * ph * 2), sw = Math.cos(TAU * ph);
+    const py = sPy - 1.6 - 1.4 * Math.max(0, bob) + 0.6 * Math.max(0, -bob);
+    return { px: 0.6 * Math.sin(TAU * ph * 2), py, pp: 9, pyaw: -7 * sw, pr: -4 * Math.cos(TAU * (ph - 0.1)), cp: 12, cyaw: 9 * sw, hp: -14,
+      fR: [fR[0], fR[1], fR[2], 1.45], fL: [fL[0], fL[1], fL[2], 1.45],
+      hR: [3 + 8.5 * -sw, -16 + 4 * Math.max(0, -sw), 5.2], hL: [3 + 8.5 * sw, -16 + 4 * Math.max(0, sw), 5.2], kR: 0.3, kL: 0.3, eR: 0.4, eL: 0.4 };
+  }
+  if (st.base === "glide") { // carried on its jets: crouched, leaning in, fists up, the boots hovering over the roof
+    const py = sPy - 2.6 + 0.6 * Math.sin(t * 2.3);
+    return { px: 0, py, pp: 10, cp: 12, hp: -16, cr: 2 * Math.sin(t * 1.7),
+      fR: [5.2, 1.8 + 0.4 * Math.sin(t * 2.3 + 1), -0.12, 1.5], fL: [-5.0, 2.6 + 0.4 * Math.sin(t * 2.3), 0.3, 1.5],
+      hR: [11, -9.5, 3.6], hL: [7.5, -12, 5.2], kR: 0.35, kL: 0.35, eR: 0.5, eL: 0.4 };
+  }
+  const py = sPy - 0.4 * Math.sin(t * 1.6);
+  return { py, pp: 4, cp: 6, hp: -8, fR: [2.4, 0, 0, 1.55], fL: [-2.0, 0, 0, 1.55], hR: [2.2, -19.6, 5.6], hL: [1.4, -19.6, 5.6], kR: 0.25, kL: 0.25, eR: 0.3, eL: 0.3 };
+}
+function kolActSpec(D, st) {
+  const k = clamp(st.k || 0, 0, 1), t = st.t || 0, sPy = kolStance(D);
+  const R = st.arm !== "L"; // which arm leads (the one towards the camera)
+  const lead = (s, a, b) => Object.assign(s, R ? { hR: a, hL: b } : { hR: b, hL: a });
+  switch (st.act) {
+    case "windup": return lead({ py: sPy - 2.2, pp: 6, cp: -8, cyaw: R ? 22 : -22, hp: -6, fR: [6, 0, 0, 1.7], fL: [-6, 0, 0, 1.7], kR: 0.3, kL: 0.3, eR: 0.6, eL: 0.6 }, [-3.5, 8.5, 3.2], [10, -11, 4.5]);
+    case "slam": return lead({ py: sPy - 9.5 + Math.sin(t * 40) * 0.15 * (st.tremble || 0), pp: 20, cp: 48, cyaw: R ? -10 : 10, hp: -38, fR: [8, 0, -0.1, 1.8], fL: [-7, 0, 0.35, 1.8], kR: 0.45, kL: 0.45, eR: 0.2, eL: 0.2 }, [14, -22, 3], [9, -15, 5]);
+    case "laser": return { py: sPy - 2, pp: 4, cp: -6, hp: 16 + 3 * Math.sin(t * 9) * k, fR: [3.5, 0, 0, 1.75], fL: [-3.5, 0, 0, 1.75], hR: [-2.5, -15.5, 8.5], hL: [-2.5, -15.5, 8.5], kR: 0.3, kL: 0.3, eR: 0.8, eL: 0.8 };
+    case "mis": return { py: sPy - 1.2, pp: 0, cp: -14, hp: -14, fR: [3, 0, 0, 1.7], fL: [-3, 0, 0, 1.7], hR: [1.5, -12.5, 10.5], hL: [1.5, -12.5, 10.5], kR: 0.3, kL: 0.3, eR: 0.9, eL: 0.9 };
+    case "roar": { const w = Math.sin(t * 30) * 0.4; return { py: sPy - 2.4, pp: -4, cp: -18 + w, hp: -26, fR: [4.5, 0, 0, 1.85], fL: [-4.5, 0, 0, 1.85], hR: [3, -3.5, 12.5], hL: [3, -3.5, 12.5], kR: 0.4, kL: 0.4, eR: 1, eL: 1 }; }
+    case "leap": { // crouch, launch, knees up, legs out for the landing, the landing itself
+      if (k < 0.18) { const u = smooth(k / 0.18); return { py: sPy - 9 * u, pp: 16 * u, cp: 32 * u, hp: -20 * u, fR: [4, 0, 0, 1.6], fL: [-4, 0, 0, 1.6], hR: [-9 * u, -14, 5], hL: [-9 * u, -14, 5], kR: 0.3, kL: 0.3, eR: 0.4, eL: 0.4 }; }
+      if (k < 0.36) { const u = smooth((k - 0.18) / 0.18); return { py: sPy - 9 + 11 * u, pp: 16 - 10 * u, cp: 32 - 30 * u, hp: -20, fR: [4 - 6 * u, 3 * u, 0.6 * u, 1.6 - 0.2 * u], fL: [-4 - 3 * u, 2 * u, 0.6 * u, 1.6 - 0.2 * u], hR: [-9 + 13 * u, -14 + 21 * u, 5], hL: [-9 + 13 * u, -14 + 21 * u, 5], kR: 0.3, kL: 0.3, eR: 0.4, eL: 0.4 }; }
+      if (k < 0.62) { const u = smooth((k - 0.36) / 0.26); return { py: sPy + 2, pp: 6 + 10 * u, cp: 2 + 12 * u, hp: -20 + 4 * u, fR: [-2 + 9 * u, 3 + 8 * u, 0.6 - 0.8 * u, 1.4], fL: [-7 + 8 * u, 2 + 6 * u, 0.6 - 0.8 * u, 1.4], hR: [4 + 5 * u, 7 - 15 * u, 5 + 2 * u], hL: [4 + 5 * u, 7 - 15 * u, 5 + 2 * u], kR: 0.3, kL: 0.3, eR: 0.4, eL: 0.4 }; }
+      if (k < 0.8) { const u = smooth((k - 0.62) / 0.18); return { py: sPy + 2 - 2 * u, pp: 16 - 12 * u, cp: 14, hp: -16 + 2 * u, fR: [7 - u, 11 * (1 - u), -0.2 + 0.2 * u, 1.4 + 0.35 * u], fL: [1 - 6 * u, 8 * (1 - u), -0.2 + 0.2 * u, 1.4 + 0.35 * u], hR: [9, -8, 7 + 2 * u], hL: [9, -8, 7 + 2 * u], kR: 0.3, kL: 0.3, eR: 0.4, eL: 0.4 }; }
+      const u = smooth((k - 0.8) / 0.2), dip = Math.sin(u * Math.PI);
+      return { py: sPy - 8 * dip, pp: 4 + 12 * dip, cp: 14 + 14 * dip, hp: -14, fR: [6, 0, 0, 1.75], fL: [-5, 0, 0, 1.75], hR: [9, -8 - 6 * dip, 9 + 3 * dip], hL: [9, -8 - 6 * dip, 9 + 3 * dip], kR: 0.3, kL: 0.3, eR: 0.4, eL: 0.4 };
+    }
+    case "hurt": { const w = Math.sin(t * 34); return { py: sPy - 1, pp: -6, cp: -18, cr: 6 * w, hp: -22, fR: [4, 0, 0, 1.7], fL: [-4, 0, 0, 1.7], hR: [-4 + 3 * w, -6, 9.5], hL: [6, -8 - 3 * w, 9], kR: 0.3, kL: 0.3, eR: 0.9, eL: 0.9 }; }
+    case "kneel": return { py: sPy - 12 - 1.5 * k, pp: 14 + 10 * k, cp: 26 + 14 * k, cr: 8 * k, hp: 26, fR: [7.5, 0, 0, 1.7], fL: [-11, 2.5, 1.1, 1.5], hR: [7, -20, 4.5], hL: [4, -20.5, 5.5], kR: 0.4, kL: 0.4, eR: 0.2, eL: 0.2 };
+  }
+  return null;
+}
+function kolPose(P, D, st) {
+  const jw = st.base === "stand" ? 0 : clamp(st.jogW ?? (st.base === "jog" ? 1 : 0), 0, 1);
+  let s = st.base === "stand" ? kolBaseSpec(D, st) : jw <= 0 ? kolBaseSpec(D, Object.assign({}, st, { base: "glide" })) : jw >= 1 ? kolBaseSpec(D, Object.assign({}, st, { base: "jog" }))
+    : kolMix(kolBaseSpec(D, Object.assign({}, st, { base: "glide" })), kolBaseSpec(D, Object.assign({}, st, { base: "jog" })), smoothT(jw), false);
+  if (st.act && (st.w ?? 1) > 0) { const a = kolActSpec(D, st); if (a) s = kolMix(s, a, clamp(st.w ?? 1, 0, 1), !!st.upper); }
+  kolSpec(P, D, s);
+  if (st.fist && (st.fw || 0) > 0) { // the smashing arm goes exactly where the fist has to land (the IK keeps the arm's length)
+    const w = clamp(st.fw, 0, 1), [x, y, z] = st.fist;
+    if (st.arm === "L") { P.hLx = lerp(P.hLx, x, w); P.hLy = lerp(P.hLy, y, w); P.hLz = lerp(P.hLz, z, w); }
+    else { P.hRx = lerp(P.hRx, x, w); P.hRy = lerp(P.hRy, y, w); P.hRz = lerp(P.hRz, z, w); }
+  }
+  P.sx = P.sy = 1; P.pivot = GROUND; P.dropY = 0; P.stretch = 0; P.spinP = P.spinR = P.spinY = 0;
+  return P;
+}
+// a point given in a bone's frame, in drawing coordinates (the world, when drawn inside the camera transform)
+function bonePoint(inst, bone, lx, ly, lz, o) { const V = makeView(o, inst.P), p = boneToModel(inst.J.F[bone], lx, ly, lz); V.v(p.x, p.y, p.z, _t); return [o.x + _t.x * o.s, o.y - _t.y * o.s]; }
 // ---------- aiming: the right arm points the weapon along the shot (model space: x ahead, y up), the hand pinned so it does not lag ----------
 function aimArm(P, D, ang, k) {
   const T = torsoFrame(P, D), reach = (D.upper + D.fore) * 0.93;
@@ -7902,7 +8270,7 @@ function rig3Update(rig, q, dt, time, D) {
   return out;
 }
 
-return { makeInst3, setInstPose, drawInst3, clothUpdate3, fxUpdate3, makeRig3, setRigStyle, rig3Update, MODELS3, MODEL_ORDER, STYLES3, jointScreen, poseCopy, poseNew, GROUND, BN, boneToModel, FLIP_T3, ROLL_T3 };
+return { makeInst3, setInstPose, drawInst3, clothUpdate3, fxUpdate3, makeRig3, setRigStyle, rig3Update, MODELS3, MODEL_ORDER, STYLES3, jointScreen, bonePoint, kolPose, poseCopy, poseNew, poseMix, specPose, GROUND, BN, boneToModel, FLIP_T3, ROLL_T3 };
 })();
 
 // ================= PLAYER DRAWING: the 3D runner (C3 engine), rope, afterimages, ghost, character picker =================

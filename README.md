@@ -41,13 +41,15 @@ Im Startmenü gibt es zwei Arten zu spielen:
 
 ## Der Koloss (Level 10, 20 und 30)
 
-Alle zehn Level steigt rechts hinter der Stadt ein riesiger Roboter auf und versucht dich zu erwischen, während du weiterrennst. Er zerschlägt dabei die Dächer, und je mehr er abbekommt, desto breiter werden die Lücken. Das Ziel kommt erst, wenn er gefallen ist.
+Alle zehn Level stürzt ein riesiger Kampfroboter vor dir vom Himmel und kämpft auf derselben Strecke wie du, gut halb so hoch wie der Bildschirm: ein echtes 3D-Modell aus Graphit-Panzerung mit orangen Kanten, leuchtenden Nähten, rotem Visier, Reaktor in der Brust, Raketenkapseln auf den Schultern und einem Düsenrucksack. Arme und Beine werden wie bei den Figuren über Gelenke berechnet, nichts dehnt sich. Er zerschlägt die Dächer, und je mehr er abbekommt, desto breiter werden die Lücken. Das Ziel kommt erst, wenn er gefallen ist.
 
-- **Faustschlag:** Ein roter Ring auf einem Dach vor dir zeigt, wo seine Faust einschlägt. Das Dach bricht ein, ein Krater bleibt. Danach steckt die Faust kurz im Krater fest: ihr leuchtender Kern ist die Schwachstelle. Dash, Rutschen, Slam oder von oben draufspringen ist ein Treffer. Wer aufrecht dagegenläuft, prallt am Panzer ab. Aus dem flachen Krater kletterst du von selbst wieder heraus.
-- **Augenlaser:** Eine gestrichelte rote Linie folgt allen Dachkanten. Pfeile nach unten heißt Kopfhöhe: rutschen (das Rutschen hält, solange der Strahl brennt). Pfeile nach oben heißt am Boden: springen. Danach öffnet sich sein Brust-Reaktor; mit einer Waffe kannst du hineinschießen.
-- **Raketen:** Aus den Schulter-Kapseln kommen Raketen, rote Kreise zeigen die Einschläge. Sei in der Luft, wenn sie einschlagen, oder dash in eine Rakete hinein: Dann fliegt sie zurück in seine Brust.
-- **Stampfen** (Mk II und Omega): Eine Stoßwelle rollt übers Dach auf dich zu. Drüberspringen.
-- **Koloss** braucht 4 Treffer, **Koloss Mk II** 5 (schneller, stampft), **Omega** 6 (am schnellsten). Wird er wütend (ein Drittel Leben übrig), greift er noch schneller an.
+Er wechselt die Seite: **Vorn** (rechts) schwebt er auf seinen Düsen rückwärts vor dir her, den Körper zu dir und zur Kamera gedreht. **Hinten** (links) rennt er dir nach, leicht nach rechts zu dir gedreht. Dazwischen springt er in einem riesigen Satz über dich hinweg. Die Kamera zoomt während des Kampfs etwas heraus und hält ihn im Bild.
+
+- **Faustschlag** (vorn): Er holt aus und lehnt sich heran, ein roter Ring auf dem Dach zeigt, wo seine Faust einschlägt. Das Dach bricht ein, ein Krater bleibt, die Faust steckt kurz darin fest: ihr leuchtender Kern ist die Schwachstelle. Dash, Rutschen, Slam oder von oben draufspringen ist ein Treffer. Wer aufrecht dagegenläuft, prallt am Panzer ab. Aus dem flachen Krater kletterst du von selbst wieder heraus. Danach rennst du unter ihm durch, er dreht sich um und jagt dich von hinten.
+- **Augenlaser:** Ein Strahl aus seinem Visier, eine gestrichelte rote Linie folgt allen Dachkanten. Pfeile nach unten heißt Kopfhöhe: rutschen (das Rutschen hält, solange der Strahl brennt, und ein gelbes Sprungfeld wirft dich dann nicht in den Strahl). Pfeile nach oben heißt am Boden: springen. Er feuert nur, wenn du rechtzeitig auf einem Dach stehst, um auszuweichen. Danach ist er überhitzt und die Klappen vor seinem Brust-Reaktor stehen offen; mit einer Waffe kannst du hineinschießen.
+- **Raketen** (hinten): Aus den Schulter-Kapseln kommen Raketen, rote Kreise vor dir zeigen die Einschläge. Sei in der Luft, wenn sie einschlagen, oder dash in eine Rakete hinein: Dann fliegt sie zurück in seine Brust.
+- **Stampfen** (Mk II und Omega): Er steigt auf den Düsen hoch und kracht aufs Dach, eine Stoßwelle rollt auf dich zu. Drüberspringen.
+- **Koloss** braucht 4 Treffer, **Koloss Mk II** 5 (schneller, stampft), **Omega** 6 (am schnellsten, feuert den Laser auch von hinten). Wird er wütend (ein Drittel Leben übrig), greift er noch schneller an. Am Ende geht er in die Knie und fliegt in die Luft.
 
 ## Figuren
 
