@@ -18,7 +18,7 @@ Läuft als installierbare Web-App (PWA): Vollbild, eigenes Icon, funktioniert of
 | Schwung holen am Seil | Leertaste | links tippen |
 | Abspringen | Seiltaste loslassen (im goldenen Bogen = PERFEKT) | rechts loslassen |
 | Dash (zerlegt Gegner) | D, →, Shift | nach rechts wischen |
-| Slam | S, ↓ | nach unten wischen |
+| Rutschen (am Boden) / Slam (in der Luft) | S, ↓ | nach unten wischen |
 | Walljump zur Gegenwand | an der Wand Leertaste | an der Wand links tippen |
 | Joker (Greifhaken / EMP) | G oder Q | nach oben wischen oder Joker-Knopf oben rechts |
 
@@ -26,6 +26,7 @@ Läuft als installierbare Web-App (PWA): Vollbild, eigenes Icon, funktioniert of
 
 - **3 Leben** (mit dem Schutzschild 4). Jeder Treffer kostet eins, danach blinkst du kurz und bist geschützt. Alle 500 m und für jeden besiegten Boss gibt es ein Leben zurück.
 - **Dash gegen Gegner, Sprung gegen Fallen.** Der Dash zerlegt Drohnen, Wächter, Späher und Raketen und schlägt Schüsse zurück. Fallen (Laser, Kisten, Stacheln, Stoßwellen, Abrissbirne, Einschläge) treffen dich auch im Dash: drüberspringen.
+- **Rutschen unter tiefen Hindernissen.** Am Boden nach unten wischen (S / ↓): du rutschst mit den Füßen voran und bist nur noch halb so hoch. Unter einem Hindernis bleibst du automatisch unten, bis wieder Platz ist; springen geht erst danach. Wischst du kurz vor der Landung nach unten, rutschst du direkt los. Wer stehend hineinläuft, wird umgerissen und verliert ein Leben. Im Rutschen fliegen Wächter-Schüsse und schwebende Drohnen über dich hinweg, und ein normaler Wächter wird umgemäht.
 - **Overdrive** füllt sich nur durch sauberes Spielen (Perfekt-Absprünge, Zerlegen, Loopings, Ringe). Ein Treffer leert die Leiste. Im Overdrive bist du 5 Sekunden schneller und unverwundbar.
 - Hinter dir frisst der **Blackout** die Stadt: Wer zu langsam wird, wird eingeholt.
 
@@ -36,6 +37,13 @@ Vier Figuren in Echtzeit-3D, jede mit eigenem Bewegungsstil und eigenem Doppelsp
 ## Strecke
 
 Neben Dächern, Seilen und Grind-Stellen gibt es eigene Abschnitte: **Lichtschächte** (durch eine Ladenpassage unter einem Turm rennen, dann per Walljump im Hinterhof zwischen den zwei Türmen hoch), **Arkaden** (ein Turm auf Säulen mit Läden darunter: unten durch, oder per Wandlauf obendrüber), **Stufen-Hochhäuser** (Absätze hochspringen oder hochlaufen), **Glas-Etagen** (vorn durch die Scheibe in ein Großraumbüro, hinten wieder hinaus), **Taxi-Sprünge** (über eine riesige Lücke von Lufttaxi zu Lufttaxi federn) und **Ringe** in der Luft, die Tempo und Punkte geben. Auf den Dächern stehen Wassertanks, Satellitenschüsseln, Klimaanlagen, Treppenhäuser, Neon-Schriftzüge und Solarzellen. Über der Stadt ziehen Flugverkehr, Suchscheinwerfer, ein Werbe-Luftschiff und in jeder Zone ein riesiges Hologramm vorbei (Koi, Qualle, Globus, Auge).
+
+**Rutsch-Hindernisse** (ab ca. 150 m, unter allen leuchtet die Rutschbahn auf dem Dach):
+
+- **Lüftungskanal:** ein Blechkanal auf dünnen Stützen, darunter liegen Münzen. Drunter durchrutschen oder oben drüberlaufen.
+- **Laser-Vorhang:** hängt von einem hohen Gerüst bis knapp übers Dach. Nur rutschend kommst du durch.
+- **Laser-Latte:** ein Strahl auf Kopfhöhe. Drunter durchrutschen oder drüberspringen.
+- **Containerstapel** (ab ca. 500 m): zu hoch zum Drüberspringen, unten nur ein schmaler Spalt.
 
 ## Bosse
 
